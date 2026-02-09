@@ -238,15 +238,20 @@ sudo usermod -aG docker $USER
    - 그 아래 **Download** / **Configure** / **Run** 명령어가 나옵니다.
 
 여기서 나오는 **정확한 명령어**를 서버 PC에서 그대로 쓰는 것이 가장 좋습니다.  
-아래는 **Linux x64** 기준 예시입니다 (버전·URL은 GitHub 화면이 최신이므로 화면 것을 우선 사용하세요).
+- **서버가 Linux** → 아래 **A. Linux 서버인 경우**  
+- **서버가 Windows** → 아래 **B. Windows 서버인 경우** (Linux용 명령어는 Windows에서 쓰면 안 됩니다.)
 
 ---
 
 ### 3단계: 서버 PC에서 Runner 설치 및 실행
 
-서버 PC에 **SSH로 접속**하거나 **직접 터미널**을 연 뒤, 아래를 실행합니다.
+서버 PC에 **SSH로 접속**하거나 **직접 터미널**을 연 뒤, **서버 OS에 맞는** 아래 중 하나를 실행합니다.
 
-#### 3-1. Runner 다운로드 및 압축 해제 (Linux x64 예시)
+---
+
+#### A. Linux 서버인 경우
+
+**3-1. Runner 다운로드 및 압축 해제 (Linux x64)**
 
 ```bash
 mkdir -p ~/actions-runner && cd ~/actions-runner
@@ -254,9 +259,9 @@ curl -o actions-runner-linux-x64-2.311.0.tar.gz -L https://github.com/actions/ru
 tar xzf actions-runner-linux-x64-2.311.0.tar.gz
 ```
 
-(다른 OS·아키텍처는 GitHub Runners 화면의 **Download** 명령을 사용하세요.)
+(다른 아키텍처는 GitHub Runners 화면의 **Download** 명령을 사용하세요.)
 
-#### 3-2. Runner 설정 (토큰은 GitHub 화면에서 복사한 값으로)
+**3-2. Runner 설정 (토큰은 GitHub 화면에서 복사한 값으로)**
 
 ```bash
 ./config.sh --url https://github.com/emax-project/MESSAGE --token 여기에_GitHub에서_보여준_토큰_붙여넣기
@@ -272,20 +277,54 @@ tar xzf actions-runner-linux-x64-2.311.0.tar.gz
 - **Work folder**  
   - 그냥 Enter (기본값)
 
-#### 3-3. 서비스로 등록 (재부팅 후에도 자동 실행)
+**3-3. 서비스로 등록 (재부팅 후에도 자동 실행)**
 
 ```bash
 sudo ./svc.sh install
 sudo ./svc.sh start
 ```
 
-실행 중인지 확인:
+실행 중인지 확인: `sudo ./svc.sh status`
 
-```bash
-sudo ./svc.sh status
+---
+
+#### B. Windows 서버인 경우
+
+**3-1. Runner 다운로드**
+
+1. GitHub **Settings** → **Actions** → **Runners** → **New self-hosted runner** 에서 **Windows** 선택.
+2. **Download** 항목에 나오는 **actions-runner-win-x64-2.xxx.xxx.zip** 링크를 브라우저로 받거나, PowerShell에서:
+
+```powershell
+mkdir $HOME\actions-runner; cd $HOME\actions-runner
+Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v2.311.0/actions-runner-win-x64-2.311.0.zip -OutFile actions-runner-win-x64-2.311.0.zip
+Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory("$PWD/actions-runner-win-x64-2.311.0.zip", "$PWD")
 ```
 
-#### 3-4. GitHub에서 확인
+(버전 번호는 [GitHub Runner releases](https://github.com/actions/runner/releases) 에서 최신으로 맞추세요.)
+
+**3-2. Runner 설정**
+
+**PowerShell** 또는 **명령 프롬프트(cmd)** 를 **관리자 권한**으로 연 뒤:
+
+```powershell
+cd $HOME\actions-runner
+.\config.cmd --url https://github.com/emax-project/MESSAGE --token 여기에_GitHub에서_보여준_토큰_붙여넣기
+```
+
+- **Runner name**: Enter 또는 `server`
+- **Labels**: **반드시 `server` 포함** (예: `self-hosted,Windows,X64,server`)
+
+**3-3. Runner 실행 (재부팅 후에는 다시 실행 필요)**
+
+```powershell
+.\run.cmd
+```
+
+이 창을 **열어 두면** runner가 동작합니다. PC를 재부팅한 뒤에는 이 명령을 다시 실행해야 합니다.  
+백그라운드 서비스로 등록하려면 [GitHub Runner 문서](https://github.com/actions/runner/blob/main/docs/configure-runner.md)의 Windows 서비스 설치 방법을 참고하세요.
+
+**3-4. GitHub에서 확인**
 
 - 저장소 **Settings** → **Actions** → **Runners** 로 다시 들어갑니다.
 - 방금 추가한 runner가 **Idle** (녹색) 상태로 보이면 준비 완료입니다.
