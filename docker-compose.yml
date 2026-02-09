@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: message
+      POSTGRES_PASSWORD: message
+      POSTGRES_DB: message
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U message -d message"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ./packages/server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://message:message@db:5432/message
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - upload_data:/app/uploads
+
+volumes:
+  postgres_data:
+  upload_data:

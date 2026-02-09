@@ -1,0 +1,277 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id          String       @id @default(cuid())
+  name        String
+  departments Department[]
+}
+
+model Department {
+  id         String   @id @default(cuid())
+  name       String
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users      User[]
+  @@index([companyId])
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  password       String
+  name           String
+  departmentId   String?
+  statusMessage  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  department       Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  roomMemberships  RoomMember[]
+  sentMessages     Message[]       @relation("Sender")
+  readReceipts     ReadReceipt[]
+  @@index([departmentId])
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  name      String?
+  isGroup   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members        RoomMember[]
+  messages       Message[]
+  pinnedMessages PinnedMessage[]
+  projects       Project[]
+}
+
+model RoomMember {
+  id          String    @id @default(cuid())
+  userId      String
+  roomId      String
+  joinedAt    DateTime  @default(now())
+  lastReadAt  DateTime?
+  isFavorite  Boolean   @default(false)
+  leftAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([userId])
+  @@index([roomId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  roomId    String
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  fileUrl       String?
+  fileName      String?
+  fileSize      BigInt?
+  fileMimeType  String?
+  fileExpiresAt DateTime?
+
+  eventTitle       String?
+  eventStartAt     DateTime?
+  eventEndAt       DateTime?
+  eventDescription String?   @db.Text
+
+  replyToId  String?
+  replyTo    Message?  @relation("Reply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies    Message[] @relation("Reply")
+  editedAt   DateTime?
+  deletedAt  DateTime?
+
+  room         Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender       User          @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  readReceipts ReadReceipt[]
+  reactions    Reaction[]
+  mentions     Mention[]
+  poll         Poll?
+  pinnedIn     PinnedMessage[]
+
+  @@index([roomId])
+  @@index([senderId])
+  @@index([roomId, createdAt])
+  @@index([fileExpiresAt])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  startAt     DateTime
+  endAt       DateTime
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([startAt])
+}
+
+model ReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model Mention {
+  id        String @id @default(cuid())
+  messageId String
+  userId    String
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([userId])
+}
+
+model Poll {
+  id         String       @id @default(cuid())
+  messageId  String       @unique
+  question   String
+  isMultiple Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+
+  message Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  options PollOption[]
+}
+
+model PollOption {
+  id     String     @id @default(cuid())
+  pollId String
+  text   String
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id       String @id @default(cuid())
+  optionId String
+  userId   String
+
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  @@index([optionId])
+}
+
+model PinnedMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  messageId String
+  pinnedBy  String
+  pinnedAt  DateTime @default(now())
+
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, messageId])
+  @@index([roomId])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  roomId      String
+  name        String
+  description String?  @db.Text
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  room   Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  boards Board[]
+  tasks  Task[]
+
+  @@index([roomId])
+}
+
+model Board {
+  id        String @id @default(cuid())
+  projectId String
+  name      String
+  position  Int
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  projectId   String
+  boardId     String
+  title       String
+  description String?   @db.Text
+  assigneeId  String?
+  priority    String    @default("medium")
+  startDate   DateTime?
+  dueDate     DateTime?
+  position    Int       @default(0)
+  createdBy   String
+  messageId   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  board    Board         @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  comments TaskComment[]
+
+  @@index([projectId])
+  @@index([boardId])
+  @@index([assigneeId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
