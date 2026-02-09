@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.0",
+    "electron-updater": "^6.7.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
@@ -34,14 +35,22 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.message.app",
-    "productName": "04 Message",
+    "appId": "com.emax.message",
+    "productName": "EMAX",
     "directories": {
       "output": "release"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "emax-project",
+        "repo": "MESSAGE"
+      }
+    ],
     "files": [
       "dist/**",
-      "electron/**"
+      "electron/**",
+      "build/icons/**"
     ],
     "mac": {
       "category": "public.app-category.social",
@@ -55,6 +64,10 @@
         "nsis"
       ],
       "icon": "build/icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }

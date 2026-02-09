@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, ipcMain, Notification, Tray } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
 
 const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
 const preloadPath = path.join(__dirname, 'preload.js');
@@ -176,12 +177,41 @@ ipcMain.handle('show-notification', (event, { title, body }) => {
   }
 });
 
+function setupAutoUpdate() {
+  if (isDev || !app.isPackaged) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-available', () => {
+    if (Notification.isSupported()) {
+      const n = new Notification({
+        title: 'EMAX 업데이트',
+        body: '새 버전을 다운로드 중입니다. 완료 후 앱을 재시작하면 적용됩니다.',
+      });
+      n.show();
+    }
+  });
+  autoUpdater.on('update-downloaded', () => {
+    if (Notification.isSupported()) {
+      const n = new Notification({
+        title: 'EMAX 업데이트 준비됨',
+        body: '앱을 종료하면 새 버전이 적용됩니다.',
+      });
+      n.show();
+    }
+  });
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err);
+  });
+  autoUpdater.checkForUpdates().catch((err) => console.error('Update check failed:', err));
+}
+
 app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(iconPath);
   }
   createWindow();
   createTray();
+  setupAutoUpdate();
   const menu = Menu.buildFromTemplate([
     { role: 'appMenu' },
     { role: 'fileMenu' },
@@ -192,6 +222,26 @@ app.whenReady().then(() => {
         {
           label: '새 창 열기 (다른 계정으로 로그인)',
           click: openSecondWindow,
+        },
+      ],
+    },
+    {
+      label: '도움말',
+      submenu: [
+        {
+          label: '업데이트 확인',
+          click: () => {
+            if (!isDev && app.isPackaged) {
+              autoUpdater.checkForUpdates().then((r) => {
+                if (r?.updateInfo?.version && Notification.isSupported()) {
+                  new Notification({
+                    title: 'EMAX',
+                    body: r.updateInfo.version === app.getVersion() ? '이미 최신 버전입니다.' : '업데이트 확인 중입니다.',
+                  }).show();
+                }
+              }).catch((e) => console.error(e));
+            }
+          },
         },
       ],
     },

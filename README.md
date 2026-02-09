@@ -54,3 +54,8 @@ cd packages/server && cp .env.example .env && npm run dev
 4. 새로 뜬 창에서 **테스트2**로 로그인 (`test2@test.com` / `123456`).
 
 5. 첫 번째 창에서 **+ 새 채팅** → **테스트2** 선택 후 메시지 보내면, 두 번째 창에서 실시간으로 확인 가능.
+
+## 사용자 배포 (설치 파일 + URL로 다운로드)
+
+- **빌드**: 프로젝트 루트에서 `npm run build:app` → `packages/client/release/` 에 .dmg(mac) / .exe(win) 생성
+- **다운로드 URL 제공**: [DEPLOY.md](./DEPLOY.md) 참고 — GitHub Releases에 올리면 사용자가 `https://github.com/emax-project/MESSAGE/releases/latest` 에서 받을 수 있음
