@@ -13,16 +13,13 @@ export default function FileUploadButton({ roomId, disabled }: Props) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [lastFile, setLastFile] = useState<File | null>(null);
 
   const handleClick = () => {
     if (!uploading) inputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-
+  const uploadFile = async (file: File) => {
     if (file.size > MAX_SIZE) {
       setError('파일 크기가 20GB를 초과합니다');
       setTimeout(() => setError(null), 3000);
@@ -32,16 +29,24 @@ export default function FileUploadButton({ roomId, disabled }: Props) {
     setUploading(true);
     setProgress(0);
     setError(null);
+    setLastFile(file);
 
     try {
       await filesApi.upload(roomId, file, (pct) => setProgress(pct));
+      setLastFile(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '업로드 실패');
-      setTimeout(() => setError(null), 3000);
     } finally {
       setUploading(false);
       setProgress(0);
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    await uploadFile(file);
   };
 
   return (
@@ -71,6 +76,15 @@ export default function FileUploadButton({ roomId, disabled }: Props) {
         )}
       </button>
       {error && <span style={styles.error}>{error}</span>}
+      {error && lastFile && (
+        <button
+          type="button"
+          onClick={() => uploadFile(lastFile)}
+          style={styles.retry}
+        >
+          재시도
+        </button>
+      )}
     </div>
   );
 }
@@ -110,5 +124,14 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '4px 8px',
     borderRadius: 4,
     boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  },
+  retry: {
+    marginLeft: 8,
+    padding: '6px 10px',
+    border: '1px solid #e5e7eb',
+    borderRadius: 8,
+    background: '#fff',
+    fontSize: 12,
+    cursor: 'pointer',
   },
 };

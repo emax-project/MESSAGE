@@ -148,11 +148,34 @@ export default function Main() {
   const [profileModalUser, setProfileModalUser] = useState<OrgUser | null>(null);
   const [roomContextMenu, setRoomContextMenu] = useState<{ x: number; y: number; room: Room } | null>(null);
   const [statusInput, setStatusInput] = useState('');
+  const [mutedRoomIds, setMutedRoomIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('mutedRoomIds');
+      if (!raw) return new Set();
+      const list = JSON.parse(raw);
+      return new Set(Array.isArray(list) ? list.map(String) : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const [notificationsSnoozedUntil, setNotificationsSnoozedUntil] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('notificationsSnoozedUntil');
+      return raw ? Number(raw) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [showSnoozeEndToast, setShowSnoozeEndToast] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const myIdRef = useRef<string | undefined>(myId);
+  const mutedRoomIdsRef = useRef<Set<string>>(mutedRoomIds);
+  const notificationsSnoozedUntilRef = useRef<number>(notificationsSnoozedUntil);
   const statusSyncedRef = useRef(false);
   const queryClient = useQueryClient();
   myIdRef.current = myId;
+  mutedRoomIdsRef.current = mutedRoomIds;
+  notificationsSnoozedUntilRef.current = notificationsSnoozedUntil;
   const st = useMemo(() => getStyles(isDark), [isDark]);
   const notificationStatus =
     typeof Notification === 'undefined'
@@ -255,7 +278,7 @@ export default function Main() {
     });
   }, [selectedDate]);
   useEffect(() => {
-    if (onlineData?.userIds?.length) setOnlineUserIds(new Set(onlineData.userIds.map((id) => String(id))));
+    if (onlineData?.userIds) setOnlineUserIds(new Set(onlineData.userIds.map((id) => String(id))));
   }, [onlineData?.userIds]);
   useEffect(() => {
     if (announcementData?.content?.trim()) setShowAnnouncementModal(true);
@@ -304,6 +327,11 @@ export default function Main() {
     const url = getSocketUrl();
     const s = io(url, { path: '/socket.io', auth: { token } });
     socketRef.current = s;
+    s.on('connect', () => {
+      if (myIdRef.current) {
+        setOnlineUserIds((prev) => new Set([...prev, String(myIdRef.current)]));
+      }
+    });
     s.on('message', (msg: Message) => {
       const withReadCount = { ...msg, readCount: msg.readCount ?? 0 };
       queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>(
@@ -316,6 +344,15 @@ export default function Main() {
       );
       queryClient.refetchQueries({ queryKey: ['rooms'] });
       if (msg.senderId !== myIdRef.current) {
+        if (notificationsSnoozedUntilRef.current > Date.now()) return;
+        if (mutedRoomIdsRef.current.has(String(msg.roomId))) return;
+        try {
+          const activeRoomId = localStorage.getItem('activeChatRoomId');
+          const activeFocused = localStorage.getItem('activeChatFocused') === '1';
+          if (activeRoomId === msg.roomId && activeFocused) return;
+        } catch {
+          // ignore
+        }
         const senderName = msg.sender?.name ?? '알 수 없음';
         const title = `04 Message - ${senderName}`;
         const body = msg.content;
@@ -403,6 +440,68 @@ export default function Main() {
     }
     setRoomContextMenu(null);
   };
+
+  const handleToggleMuteRoom = (roomId: string) => {
+    setMutedRoomIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(roomId)) next.delete(roomId);
+      else next.add(roomId);
+      try {
+        localStorage.setItem('mutedRoomIds', JSON.stringify(Array.from(next)));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+    setRoomContextMenu(null);
+  };
+
+  const snoozeNotifications = (minutes: number) => {
+    const until = Date.now() + minutes * 60 * 1000;
+    setNotificationsSnoozedUntil(until);
+    try {
+      localStorage.setItem('notificationsSnoozedUntil', String(until));
+    } catch {
+      // ignore
+    }
+  };
+
+  const clearSnooze = () => {
+    setNotificationsSnoozedUntil(0);
+    try {
+      localStorage.removeItem('notificationsSnoozedUntil');
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (!notificationsSnoozedUntil) return;
+    const remaining = notificationsSnoozedUntil - Date.now();
+    if (remaining <= 0) return;
+    const t = setTimeout(() => {
+      setNotificationsSnoozedUntil(0);
+      try {
+        localStorage.removeItem('notificationsSnoozedUntil');
+      } catch {
+        // ignore
+      }
+      setShowSnoozeEndToast(true);
+      try {
+        const title = 'EMAX';
+        const body = '알림 일시 중지가 해제되었습니다';
+        if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { showNotification?: (a: string, b: string) => void } }).electronAPI?.showNotification) {
+          (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification(title, body);
+        } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification(title, { body });
+        }
+      } catch {
+        // ignore
+      }
+      setTimeout(() => setShowSnoozeEndToast(false), 3000);
+    }, remaining);
+    return () => clearTimeout(t);
+  }, [notificationsSnoozedUntil]);
 
   const handleLeaveRoom = async (roomId: string) => {
     if (!confirm('채팅방을 나가시겠습니까?')) { setRoomContextMenu(null); return; }
@@ -560,6 +659,9 @@ export default function Main() {
                         {new Date(r.lastMessage.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     )}
+                    {mutedRoomIds.has(r.id) && (
+                      <span style={st.roomMuted} title="알림 꺼짐">알림 꺼짐</span>
+                    )}
                     {(r.unreadCount ?? 0) > 0 && (
                       <span style={st.roomUnreadBadge}>{r.unreadCount! > 99 ? '99+' : r.unreadCount}</span>
                     )}
@@ -618,7 +720,7 @@ export default function Main() {
                               {deptOpen && (
                                 <ul style={st.treeUserList}>
                                   {dept.users.map((user) => {
-                                    const isOnline = onlineUserIds.has(String(user.id));
+                                    const isOnline = onlineUserIds.has(String(user.id)) || (String(user.id) === String(myId) && !!socket?.connected);
                                     return (
                                       <li key={user.id} style={st.treeUserItem}>
                                         <button
@@ -894,6 +996,23 @@ export default function Main() {
 
           {activeTab === 'more' && (
             <div style={st.morePanel}>
+              {notificationsSnoozedUntil > Date.now() && (
+                <div style={st.snoozeBadge}>알림 일시 중지 중</div>
+              )}
+              <div style={st.snoozeSection}>
+                <div style={st.snoozeTitle}>알림 일시 중지</div>
+                {notificationsSnoozedUntil > Date.now() ? (
+                  <div style={st.snoozeActive}>
+                    <span>해제 시간: {new Date(notificationsSnoozedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <button type="button" style={st.snoozeBtn} onClick={clearSnooze}>해제</button>
+                  </div>
+                ) : (
+                  <div style={st.snoozeButtons}>
+                    <button type="button" style={st.snoozeBtn} onClick={() => snoozeNotifications(10)}>10분</button>
+                    <button type="button" style={st.snoozeBtn} onClick={() => snoozeNotifications(60)}>1시간</button>
+                  </div>
+                )}
+              </div>
               {/* 다크 모드 토글 */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
                 <span style={{ fontSize: 14, fontWeight: 500, color: isDark ? '#e2e8f0' : '#333' }}>다크 모드</span>
@@ -1046,7 +1165,7 @@ export default function Main() {
             onClick={() => setActiveTab('chat')}
           >
             <span style={st.bottomNavIcon}><IconChat filled={activeTab === 'chat'} /></span>
-            <span>채팅</span>
+            <span style={st.navLabel}>채팅</span>
           </button>
           <button
             type="button"
@@ -1054,7 +1173,7 @@ export default function Main() {
             onClick={() => setActiveTab('schedule')}
           >
             <span style={st.bottomNavIcon}><IconSchedule filled={activeTab === 'schedule'} /></span>
-            <span>일정</span>
+            <span style={st.navLabel}>일정</span>
           </button>
           <button
             type="button"
@@ -1062,7 +1181,10 @@ export default function Main() {
             onClick={() => setActiveTab('more')}
           >
             <span style={st.bottomNavIcon}><IconMore /></span>
-            <span>더보기</span>
+            <span style={st.navLabel}>
+              더보기
+              {notificationsSnoozedUntil > Date.now() && <span style={st.snoozeDot} />}
+            </span>
           </button>
         </nav>
       </div>
@@ -1129,6 +1251,13 @@ export default function Main() {
           </button>
           <button
             type="button"
+            style={st.contextMenuItem}
+            onClick={() => handleToggleMuteRoom(roomContextMenu.room.id)}
+          >
+            {mutedRoomIds.has(roomContextMenu.room.id) ? '알림 켜기' : '알림 끄기'}
+          </button>
+          <button
+            type="button"
             style={{ ...st.contextMenuItem, color: '#c62828' }}
             onClick={() => handleLeaveRoom(roomContextMenu.room.id)}
           >
@@ -1168,6 +1297,12 @@ export default function Main() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {showSnoozeEndToast && (
+        <div style={st.toast}>
+          알림 일시 중지가 해제되었습니다
         </div>
       )}
     </div>
@@ -1238,15 +1373,29 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     roomName: { fontWeight: 600, fontSize: 13, color: text, marginBottom: 2, display: 'flex', alignItems: 'center' },
     roomPreview: { fontSize: 12, color: sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     roomMeta: { flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 },
+    roomMuted: { fontSize: 11, color: '#94a3b8' },
     roomTime: { fontSize: 11, color: sub },
     roomUnreadBadge: { minWidth: 20, height: 20, padding: '0 6px', borderRadius: 10, background: '#e53935', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
     morePanel: { padding: 24, display: 'flex', flexDirection: 'column', gap: 12 },
+    snoozeSection: { padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column', gap: 8 },
+    snoozeTitle: { fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' },
+    snoozeButtons: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+    snoozeBtn: { padding: '6px 12px', border: `1px solid ${inputBorder}`, borderRadius: 8, background: contentBg, fontSize: 12, cursor: 'pointer' },
+    snoozeActive: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: muted },
+    snoozeBadge: { padding: '6px 10px', borderRadius: 999, background: isDark ? '#6366f1' : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' },
+    snoozeSection: { padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column', gap: 8 },
+    snoozeTitle: { fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' },
+    snoozeButtons: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+    snoozeBtn: { padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', fontSize: 12, cursor: 'pointer' },
+    snoozeActive: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' },
     noticeStatus: { padding: '10px 12px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', color: isDark ? '#94a3b8' : '#334155', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4 },
     noticeHint: { fontSize: 12, color: muted },
     moreBtn: { padding: '12px 16px', border: 'none', borderRadius: 10, background: cardBg, color: text, cursor: 'pointer', fontSize: 14, textAlign: 'left' as const },
     moreBtnLogout: { padding: '12px 16px', border: 'none', borderRadius: 10, background: isDark ? '#334155' : '#f0f0f0', color: '#c62828', cursor: 'pointer', fontSize: 14, fontWeight: 600, textAlign: 'left' as const, marginTop: 8 },
     bottomNav: { flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '8px 12px', background: contentBg, borderTop: `1px solid ${border}` },
     bottomNavItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 12px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, color: sub },
+    navLabel: { position: 'relative' as const, display: 'inline-flex', alignItems: 'center', gap: 6 },
+    snoozeDot: { width: 6, height: 6, borderRadius: 999, background: '#f59e0b', display: 'inline-block' },
     bottomNavItemActive: { color: text, fontWeight: 600 },
     bottomNavIcon: { fontSize: 16, lineHeight: 1 },
     main: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: bg, boxShadow: 'inset 2px 0 8px rgba(0,0,0,0.04)' },
@@ -1330,5 +1479,18 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     profileRow: { margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' },
     profileOnline: { color: '#4caf50', fontWeight: 600 },
     profileOffline: { color: isDark ? '#64748b' : '#999' },
+    toast: {
+      position: 'fixed',
+      bottom: 16,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      background: '#0f172a',
+      color: '#fff',
+      padding: '10px 14px',
+      borderRadius: 999,
+      fontSize: 12,
+      boxShadow: '0 6px 18px rgba(0,0,0,0.2)',
+      zIndex: 100000,
+    },
   };
 }

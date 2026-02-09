@@ -26,12 +26,27 @@ eventsRouter.post('/', async (req, res) => {
     if (!title || !startAt || !endAt) {
       return res.status(400).json({ error: 'title, startAt, endAt required' });
     }
+    const normalizedTitle = String(title).trim();
+    const normalizedStart = new Date(startAt);
+    const normalizedEnd = new Date(endAt);
+    const dup = await prisma.event.findFirst({
+      where: {
+        userId: req.userId,
+        title: normalizedTitle,
+        startAt: normalizedStart,
+        endAt: normalizedEnd,
+      },
+      select: { id: true },
+    });
+    if (dup) {
+      return res.status(409).json({ error: 'Duplicate event' });
+    }
     const event = await prisma.event.create({
       data: {
         userId: req.userId,
-        title: String(title).trim(),
-        startAt: new Date(startAt),
-        endAt: new Date(endAt),
+        title: normalizedTitle,
+        startAt: normalizedStart,
+        endAt: normalizedEnd,
         description: description != null ? String(description).trim() || null : null,
       },
     });
@@ -56,6 +71,23 @@ eventsRouter.put('/:id', async (req, res) => {
     if (startAt !== undefined) data.startAt = new Date(startAt);
     if (endAt !== undefined) data.endAt = new Date(endAt);
     if (description !== undefined) data.description = description != null ? String(description).trim() || null : null;
+
+    const nextTitle = data.title ?? existing.title;
+    const nextStart = data.startAt ?? existing.startAt;
+    const nextEnd = data.endAt ?? existing.endAt;
+    const dup = await prisma.event.findFirst({
+      where: {
+        userId: req.userId,
+        title: nextTitle,
+        startAt: nextStart,
+        endAt: nextEnd,
+        id: { not: existing.id },
+      },
+      select: { id: true },
+    });
+    if (dup) {
+      return res.status(409).json({ error: 'Duplicate event' });
+    }
 
     const event = await prisma.event.update({
       where: { id: req.params.id },

@@ -19,6 +19,18 @@ export default function EventCard({ title, startAt, endAt, description, isMine }
     if (adding || added) return;
     setAdding(true);
     try {
+      const list = await eventsApi.list();
+      const norm = (v: string) => new Date(v).toISOString();
+      const exists = list.some(
+        (ev) =>
+          ev.title === title &&
+          norm(ev.startAt) === norm(startAt) &&
+          norm(ev.endAt) === norm(endAt)
+      );
+      if (exists) {
+        setAdded(true);
+        return;
+      }
       await eventsApi.create({
         title,
         startAt,

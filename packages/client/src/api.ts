@@ -18,6 +18,18 @@ function authHeaders(): HeadersInit {
   return h;
 }
 
+function mapUploadError(status: number, serverMessage?: string) {
+  if (serverMessage) return serverMessage;
+  if (status === 0) return '네트워크 오류가 발생했습니다';
+  if (status === 401) return '로그인이 필요합니다';
+  if (status === 403) return '권한이 없습니다';
+  if (status === 404) return '업로드 경로를 찾을 수 없습니다';
+  if (status === 413) return '파일이 너무 큽니다';
+  if (status === 415) return '지원하지 않는 파일 형식입니다';
+  if (status >= 500) return '서버 오류가 발생했습니다';
+  return '업로드 실패';
+}
+
 export const api = {
   async post(path: string, body: object) {
     const res = await fetch(`${BASE}${path}`, {
@@ -72,13 +84,13 @@ export const api = {
         try {
           const data = JSON.parse(xhr.responseText);
           if (xhr.status >= 200 && xhr.status < 300) resolve(data);
-          else reject(new Error(data.error || xhr.statusText));
+          else reject(new Error(mapUploadError(xhr.status, data.error)));
         } catch {
-          reject(new Error(xhr.statusText));
+          reject(new Error(mapUploadError(xhr.status)));
         }
       });
-      xhr.addEventListener('error', () => reject(new Error('Upload failed')));
-      xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+      xhr.addEventListener('error', () => reject(new Error(mapUploadError(0))));
+      xhr.addEventListener('abort', () => reject(new Error('업로드가 취소되었습니다')));
       xhr.send(formData);
     });
   },

@@ -1,6 +1,6 @@
 {
   "name": "client",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -11,7 +11,10 @@
     "preview": "vite preview",
     "electron:build": "npm run build && electron-builder --publish never",
     "electron:build:mac": "npm run build && electron-builder --mac --publish never",
-    "electron:build:win": "npm run build && electron-builder --win --x64 --arm64 --publish never"
+    "electron:build:win": "npm run build && electron-builder --win --x64 --arm64 --publish never",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.0",
@@ -26,13 +29,19 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "concurrently": "^9.0.1",
     "electron": "33.2.0",
     "electron-builder": "^25.1.8",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react": "^7.36.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
     "png-to-ico": "^3.0.1",
     "png2icons": "^2.0.1",
     "sharp": "^0.34.5",
     "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
     "vite": "^5.4.10",
     "wait-on": "^8.0.1"
   },
