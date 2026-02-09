@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, ipcMain, Notification, Tray } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { autoUpdater } = require('electron-updater');
 
 const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
@@ -37,8 +38,20 @@ function createWindow(options = {}) {
 
   const url = getLoadURL();
   const file = getLoadFile();
-  if (url) win.loadURL(url);
-  if (file) win.loadFile(file);
+  if (url) {
+    win.loadURL(url);
+  } else if (file) {
+    // Windows 등에서 file:// URL을 명시적으로 사용 (pathToFileURL로 정규화)
+    win.loadURL(pathToFileURL(file).href);
+  }
+
+  if (process.argv.includes('--debug')) {
+    win.webContents.once('did-finish-load', () => win.webContents.openDevTools());
+  }
+  win.webContents.on('did-fail-load', (_, code, desc, url) => {
+    console.error('did-fail-load', code, desc, url);
+  });
+
   return win;
 }
 
@@ -54,13 +67,20 @@ function getBaseURL() {
   const url = getLoadURL();
   const file = getLoadFile();
   if (url) return url;
-  if (file) return 'file://' + file.replace(/\\/g, '/');
+  if (file) return pathToFileURL(file).href;
   return 'http://localhost:5173';
 }
 
-function openChatWindow(roomId) {
+function getRouteURL(routePath) {
   const base = getBaseURL();
-  const chatUrl = (base.endsWith('/') ? base : base + '/') + 'chat/' + encodeURIComponent(roomId);
+  if (base.startsWith('file:')) {
+    return base.split('#')[0] + '#' + routePath;
+  }
+  return (base.endsWith('/') ? base : base + '/') + routePath.replace(/^\//, '');
+}
+
+function openChatWindow(roomId) {
+  const chatUrl = getRouteURL('/chat/' + encodeURIComponent(roomId));
   const win = createWindow({
     width: 480,
     height: 680,
@@ -72,8 +92,7 @@ function openChatWindow(roomId) {
 }
 
 function openKanbanWindow(roomId) {
-  const base = getBaseURL();
-  const kanbanUrl = (base.endsWith('/') ? base : base + '/') + 'kanban/' + encodeURIComponent(roomId);
+  const kanbanUrl = getRouteURL('/kanban/' + encodeURIComponent(roomId));
   const win = createWindow({
     width: 1100,
     height: 750,
@@ -85,8 +104,7 @@ function openKanbanWindow(roomId) {
 }
 
 function openGanttWindow(roomId) {
-  const base = getBaseURL();
-  const ganttUrl = (base.endsWith('/') ? base : base + '/') + 'gantt/' + encodeURIComponent(roomId);
+  const ganttUrl = getRouteURL('/gantt/' + encodeURIComponent(roomId));
   const win = createWindow({
     width: 1200,
     height: 700,
