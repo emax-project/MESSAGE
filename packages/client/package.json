@@ -9,7 +9,9 @@
     "build:icon": "node scripts/build-icon.js",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:build": "npm run build && electron-builder"
+    "electron:build": "npm run build && electron-builder --publish never",
+    "electron:build:mac": "npm run build && electron-builder --mac --publish never",
+    "electron:build:win": "npm run build && electron-builder --win --x64 --arm64 --publish never"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.0",
@@ -25,7 +27,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "concurrently": "^9.0.1",
-    "electron": "^33.2.0",
+    "electron": "33.2.0",
     "electron-builder": "^25.1.8",
     "png-to-ico": "^3.0.1",
     "png2icons": "^2.0.1",
@@ -37,6 +39,7 @@
   "build": {
     "appId": "com.emax.message",
     "productName": "EMAX",
+    "electronVersion": "33.2.0",
     "directories": {
       "output": "release"
     },

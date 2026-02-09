@@ -30,17 +30,22 @@ npm run build:app
 
 ### Windows용 (.exe 설치 파일)
 
-- **Windows**에서만 빌드 가능합니다. (또는 CI에서 Windows 러너 사용)
+- **Mac에서도 Windows용 .exe 빌드 가능**합니다. (electron-builder가 Wine으로 크로스 빌드)
 
 ```bash
-# 프로젝트 루트에서
-npm run build:app
+# 프로젝트 루트에서 (Windows용만 빌드)
+npm run build:app:win
 ```
 
 - 결과물: `packages/client/release/` 폴더
-  - **EMAX Setup 1.0.0.exe** (NSIS 설치 프로그램)
+  - **EMAX Setup 1.0.0.exe** (x64·arm64 둘 다 빌드 시 파일명이 아키텍처별로 나뉠 수 있음)
+  - 일반 PC(Intel/AMD) → **x64**용, Windows on ARM(Surface 등) → **arm64**용
 
-> 한 PC에서 macOS·Windows 둘 다 만들 수는 없습니다. macOS에서는 .dmg만, Windows에서는 .exe만 생성됩니다. 둘 다 제공하려면 GitHub Actions 등 CI로 각 OS에서 빌드하는 방법을 쓰면 됩니다.
+- **Windows PC에서 직접 빌드**하려면:
+  - 해당 PC에 Node.js 설치 후 `npm run build:app` 또는 `npm run build:app:win` 실행
+  - 또는 GitHub Actions에서 `windows-latest` 러너로 빌드 후 아티팩트/릴리스에 첨부
+
+> **한 번에 Mac + Windows 둘 다** 만들려면: Mac에서 `npm run build:app:mac` 실행 후 `npm run build:app:win` 실행하면 .dmg와 .exe를 모두 얻을 수 있습니다.
 
 ---
 
@@ -52,7 +57,7 @@ npm run build:app
    https://github.com/emax-project/MESSAGE/releases
 
 2. **새 릴리스 만들기**
-   - "Draft a new release" 클릭
+   - **"Create a new release"** 클릭
    - **Tag**: `packages/client/package.json`의 `version`과 맞추기 (예: 버전이 `1.0.1`이면 태그 `v1.0.1`)
    - **Release title**: `v1.0.1` 또는 `EMAX 1.0.1`
    - **Describe**: 변경 사항 요약
@@ -90,8 +95,8 @@ npm run build:app
 
 > **EMAX 메신저 설치**
 >
-> - **Mac**: [최신 릴리스](https://github.com/emax-project/MESSAGE/releases/latest)에서 `EMAX-xxx.dmg` 다운로드 후, 열어서 앱을 Applications로 드래그하세요.
-> - **Windows**: [최신 릴리스](https://github.com/emax-project/MESSAGE/releases/latest)에서 `EMAX Setup xxx.exe` 다운로드 후 실행해 설치하세요.
+> - **Mac**: [최신 릴리스](https://github.com/emax-project/MESSAGE/releases/latest)에서 `EMAX-xxx.dmg`(또는 arm64.dmg) 다운로드 후, 열어서 앱을 Applications로 드래그하세요.
+> - **Windows**: [최신 릴리스](https://github.com/emax-project/MESSAGE/releases/latest)에서 `EMAX Setup xxx.exe`(일반 PC는 x64용) 다운로드 후 실행해 설치하세요.
 >
 > 설치 후 앱을 실행하면 로그인 화면이 나옵니다.  
 > (서버 주소는 회사에서 안내한 주소를 사용해 주세요.)
@@ -113,7 +118,7 @@ npm run build:app
 | 단계 | 내용 |
 |------|------|
 | 1 | `packages/client/package.json` 의 `version` 올리기 (예: 1.0.0 → 1.0.1) |
-| 2 | macOS/Windows 각각 해당 OS에서 `npm run build:app` 실행 |
+| 2 | Mac에서 `npm run build:app:mac` → .dmg, `npm run build:app:win` → .exe (Windows PC에서만 빌드해도 됨) |
 | 3 | `packages/client/release/` 에서 .dmg / .exe 확인 |
 | 4 | GitHub Releases에 **같은 버전** 태그로 새 릴리스 만들고 해당 파일 업로드 (예: 태그 `v1.0.1`) |
 | 5 | (최초 설치자) 사용자에게 `https://github.com/emax-project/MESSAGE/releases/latest` 링크 전달 |

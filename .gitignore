@@ -8,6 +8,7 @@ node_modules/
 
 # Build / dist
 packages/client/dist/
+packages/client/release/
 
 # Uploads (server)
 packages/server/uploads/*

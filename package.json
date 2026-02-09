@@ -9,6 +9,8 @@
     "build:server": "npm run build --workspace=server",
     "build:client": "npm run build --workspace=client",
     "build:app": "cd packages/client && npm run build:icon && npm run electron:build",
+    "build:app:mac": "cd packages/client && npm run build:icon && npm run electron:build:mac",
+    "build:app:win": "cd packages/client && npm run build:icon && npm run electron:build:win",
     "postinstall": "npm run db:generate --workspace=server"
   },
   "workspaces": [
