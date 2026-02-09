@@ -424,10 +424,10 @@ cd /경로/MESSAGE   # runner가 체크아웃한 경로 또는 본인이 클론�
 cat /tmp/dump_YYYYMMDD_HHMM.sql | docker compose exec -T db psql -U message -d message
 ```
 
-**Windows (PowerShell)** — 덤프 파일이 있는 경로로 바꿔서 실행
+**Windows (PowerShell)** — 덤프 파일이 있는 경로로 바꿔서 실행 (Runner 기준 예시)
 ```powershell
-cd C:\경로\MESSAGE
-Get-Content "C:\경로\dump_20260209_1156.sql" -Raw | docker compose exec -T db psql -U message -d message
+cd C:\actions-runner\_work\MESSAGE\MESSAGE
+Get-Content "C:\actions-runner\_work\MESSAGE\MESSAGE\dump_20260209_1156.sql" -Raw | docker compose exec -T db psql -U message -d message
 ```
 
 - 파일명·경로는 실제 덤프 파일 위치에 맞게 수정합니다.
