@@ -3,7 +3,8 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const { autoUpdater } = require('electron-updater');
 
-const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
+// 패키징된 앱은 항상 빌드된 파일 로드. NODE_ENV 미설정 시에도 5173 로드되는 것 방지
+const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
 const preloadPath = path.join(__dirname, 'preload.js');
 const iconPath = path.join(__dirname, '../build/icons/icon.png');
 let tray = null;

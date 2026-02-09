@@ -385,6 +385,61 @@ openssl rand -base64 32
 
 ---
 
+### 로컬 DB를 서버에 똑같이 반영하기
+
+로컬에서 쓰던 DB 데이터를 서버 DB에 그대로 넣고 싶을 때 아래 순서대로 하면 됩니다.
+
+**1. 로컬에서 DB 덤프**
+
+- 로컬에서 Docker로 DB를 띄운 상태에서, **프로젝트 루트**에서 실행:
+
+```bash
+chmod +x scripts/dump-db.sh
+./scripts/dump-db.sh
+```
+
+- `scripts/dump_YYYYMMDD_HHMM.sql` 파일이 생성됩니다.
+- **로컬 DB가 이 프로젝트 Docker가 아닐 때**(다른 Postgres 주소를 쓰는 경우):  
+  `packages/server/.env`의 `DATABASE_URL`을 쓰려면  
+  `pg_dump "$DATABASE_URL" --no-owner --clean --if-exists -F p -f scripts/dump_수동.sql`  
+  처럼 직접 덤프한 뒤, 아래 2단계부터 동일하게 진행하면 됩니다.
+
+**2. 덤프 파일을 서버로 복사**
+
+- 서버 IP·계정을 알고 있다고 할 때 예시 (실제 주소는 본인 환경에 맞게):
+
+```bash
+scp scripts/dump_*.sql 사용자명@서버IP:/tmp/
+```
+
+- 또는 USB·다른 방법으로 서버의 `/tmp` 등 접근 가능한 경로에 `dump_*.sql`을 올립니다.
+
+**3. 서버에 SSH 접속 후 복원**
+
+- 서버에서 MESSAGE 프로젝트가 있는 디렉터리로 이동한 뒤 실행합니다.
+
+**Linux / macOS**
+```bash
+cd /경로/MESSAGE   # runner가 체크아웃한 경로 또는 본인이 클론한 경로
+cat /tmp/dump_YYYYMMDD_HHMM.sql | docker compose exec -T db psql -U message -d message
+```
+
+**Windows (PowerShell)** — 덤프 파일이 있는 경로로 바꿔서 실행
+```powershell
+cd C:\경로\MESSAGE
+Get-Content "C:\경로\dump_20260209_1156.sql" -Raw | docker compose exec -T db psql -U message -d message
+```
+
+- 파일명·경로는 실제 덤프 파일 위치에 맞게 수정합니다.
+- 복원이 끝나면 서버 DB가 로컬과 같은 데이터를 갖습니다.
+
+**4. (선택) 업로드 파일까지 맞추고 싶을 때**
+
+- 채팅에 올린 파일들은 `packages/server/uploads/`(로컬), 서버는 Docker 볼륨 `upload_data`에 있습니다.
+- 로컬 `packages/server/uploads/` 내용을 서버로 복사한 뒤, 서버에서 해당 파일들을 `upload_data` 볼륨이 마운트된 컨테이너 경로(예: `/app/uploads`)로 넣어 주면 됩니다. (필요 시 `docker compose cp` 또는 볼륨 마운트 경로에 직접 복사)
+
+---
+
 ### 요약 체크리스트
 
 | 순서 | 할 일 |
