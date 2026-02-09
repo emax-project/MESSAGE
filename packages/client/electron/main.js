@@ -45,7 +45,7 @@ function createWindow(options = {}) {
     win.loadURL(pathToFileURL(file).href);
   }
 
-  if (process.argv.includes('--debug')) {
+  if (process.argv.includes('--devtools')) {
     win.webContents.once('did-finish-load', () => win.webContents.openDevTools());
   }
   win.webContents.on('did-fail-load', (_, code, desc, url) => {

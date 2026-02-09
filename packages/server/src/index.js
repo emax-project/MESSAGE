@@ -42,6 +42,21 @@ app.use('/projects', projectsRouter);
 // Health check
 app.get('/health', (_, res) => res.json({ ok: true }));
 
+// 루트 접속 시 안내 (브라우저/도커 접속 시 "Cannot GET /" 방지)
+app.get('/', (_, res) => {
+  res.type('html').send(`
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>EMAX</title></head>
+<body style="font-family:sans-serif;max-width:560px;margin:2rem auto;padding:0 1rem;">
+  <h1>EMAX 메신저 API</h1>
+  <p>이 주소는 <strong>API 서버</strong>입니다. 채팅·로그인은 <strong>EMAX 데스크톱 앱</strong>으로 접속해 주세요.</p>
+  <p><a href="/health">/health</a> — 서버 상태 확인</p>
+</body>
+</html>
+  `);
+});
+
 const PORT = process.env.PORT || 3001;
 
 // Socket.io with CORS for Electron
