@@ -1,0 +1,35 @@
+# 서버 PC의 Docker에 자동 배포
+# main 브랜치에 push 하거나, Actions 탭에서 수동 실행 가능
+
+name: Deploy to Server (Docker)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # 수동 실행
+
+jobs:
+  deploy:
+    # 서버 PC에 설치한 self-hosted runner에서 실행됩니다
+    runs-on: [self-hosted, server]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set JWT_SECRET for Docker Compose
+        run: |
+          if [ -n "${{ secrets.JWT_SECRET }}" ]; then
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          fi
+        continue-on-error: true
+
+      - name: Docker Compose up
+        run: |
+          docker compose up -d --build
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+      - name: Log result
+        run: |
+          docker compose ps

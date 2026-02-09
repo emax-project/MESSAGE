@@ -122,3 +122,122 @@ npm run build:app
 - **이후 업데이트**: 새 릴리스를 올리면, 이미 설치한 사용자는 앱 실행 시 자동으로 새 버전을 받고, **앱 종료 후 다시 실행**하면 새 버전이 적용됩니다. URL에 다시 접속할 필요 없습니다.
 
 > **참고**: macOS에서 자동 업데이트가 완벽히 동작하려면 앱 서명(code signing)이 필요할 수 있습니다. 서명 없이 배포해도 수동 다운로드·설치는 가능합니다.
+
+---
+
+## 서버에 DB 변경사항 반영하기 (Git으로 올린 뒤)
+
+개발자가 `schema.prisma`를 수정해 Git에 올리면, **코드만** 올라갑니다. 서버의 실제 DB에 반영하려면 **서버 PC에서 한 번 더 실행**해야 합니다.
+
+### 방법 1: `db push` (지금 구조에 맞음)
+
+스키마만 바꾸고 마이그레이션 파일을 쓰지 않는 경우:
+
+```bash
+# 서버 PC에서
+cd /경로/MESSAGE
+git pull origin main
+cd packages/server
+npm install
+npm run db:push
+```
+
+→ `schema.prisma` 내용이 그대로 DB에 반영됩니다 (테이블 추가/컬럼 추가 등).
+
+### 방법 2: 마이그레이션 사용 시 (`migrate deploy`)
+
+나중에 `prisma migrate dev`로 마이그레이션 파일을 만들어서 관리하는 경우:
+
+```bash
+# 서버 PC에서
+cd /경로/MESSAGE
+git pull origin main
+cd packages/server
+npm install
+npm run db:migrate:deploy
+```
+
+→ `prisma/migrations/` 안의 마이그레이션이 순서대로 DB에 적용됩니다.
+
+**정리**: Git pull만 하면 **코드**만 갱신되고, **DB는 그대로**입니다. 위 둘 중 하나를 실행해야 DB 변경이 서버에 반영됩니다.
+
+---
+
+## GitHub Actions로 서버 PC Docker 자동 배포
+
+`main` 브랜치에 push 하면 **서버 PC의 Docker**에 자동으로 반영되게 하려면, 서버 PC에 **GitHub Actions self-hosted runner**를 설치하면 됩니다.
+
+### 1. 서버 PC 준비
+
+- **Docker**와 **Docker Compose** 설치
+- 서버 PC가 GitHub에서 **인터넷 접속** 가능 (아웃바운드만 되면 됨, 공인 IP 불필요)
+- Runner를 실행할 사용자가 `docker` 그룹에 있어야 함:  
+  `sudo usermod -aG docker $USER` 후 로그아웃/로그인
+
+### 2. Self-hosted Runner 설치 (서버 PC에서 한 번만)
+
+1. **GitHub 저장소** → **Settings** → **Actions** → **Runners** → **New self-hosted runner**
+2. OS 선택 (Linux / Windows / macOS) 후 화면에 나오는 **설치 명령**을 서버 PC에서 실행  
+   (예: Linux)
+   ```bash
+   mkdir actions-runner && cd actions-runner
+   curl -o actions-runner-linux-x64-2.311.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.311.0/actions-runner-linux-x64-2.311.0.tar.gz
+   tar xzf ./actions-runner-linux-x64-2.311.0.tar.gz
+   ./config.sh --url https://github.com/emax-project/MESSAGE --token <화면에_나오는_토큰>
+   ```
+3. **Runner 이름** 입력 시 그대로 두거나 `server` 등 입력
+4. **Labels**에 **`server`** 를 꼭 추가 (워크플로우가 `runs-on: [self-hosted, server]` 로 이 runner를 사용함)
+5. **설치 및 서비스 등록** (Linux 예시)
+   ```bash
+   ./svc.sh install
+   ./svc.sh start
+   ```
+6. GitHub **Runners** 페이지에서 runner가 **Idle** 상태로 보이면 준비 완료
+
+### 3. JWT_SECRET 등록 방법 (GitHub Actions Secret)
+
+운영 환경에서 로그인 토큰 서명에 쓰는 비밀값입니다. 등록해 두면 배포 시 Docker Compose에 자동으로 전달됩니다.
+
+#### 1) JWT_SECRET 값 만들기
+
+터미널에서 아래 중 하나로 **랜덤 문자열**을 만듭니다.
+
+```bash
+# macOS / Linux
+openssl rand -base64 32
+```
+
+또는  
+[https://generate-secret.vercel.app/32](https://generate-secret.vercel.app/32) 같은 사이트에서 32자 이상 랜덤 문자열을 복사해도 됩니다.
+
+→ 이 값을 **어딘가에 메모**해 두고, 아래 2)에서 **Value**에 그대로 붙여넣습니다.
+
+#### 2) GitHub 저장소에 Secret 추가
+
+1. **GitHub**에서 **emax-project/MESSAGE** 저장소 페이지로 이동
+2. 상단 메뉴 **Settings** 클릭
+3. 왼쪽에서 **Secrets and variables** → **Actions** 클릭
+4. **Repository secrets** 영역에서 **New repository secret** 버튼 클릭
+5. **Name**에 **`JWT_SECRET`** 입력 (대소문자·밑줄 정확히)
+6. **Secret**에 1)에서 만든 랜덤 문자열 붙여넣기
+7. **Add secret** 클릭
+
+이후 Deploy 워크플로우가 실행될 때 이 값이 사용됩니다.  
+등록하지 않으면 `docker-compose.yml`의 기본값(`change-me-in-production`)이 쓰이므로, **운영 환경에서는 반드시 등록하는 것을 권장**합니다.
+
+### 4. 동작 방식
+
+- **main** 브랜치에 **push** 하면 워크플로우가 실행됩니다.
+- 또는 **Actions** 탭 → **Deploy to Server (Docker)** → **Run workflow** 로 수동 실행 가능합니다.
+- 워크플로우가 **서버 PC의 runner**에서 실행되며, **checkout** → **docker compose up -d --build** 를 실행합니다.
+- DB는 Docker 볼륨으로 유지되고, **server** 이미지는 매번 최신 코드로 다시 빌드됩니다.  
+  (서버 컨테이너 CMD에 `prisma db push`가 있으므로, 스키마 변경도 컨테이너 기동 시 자동 반영됩니다.)
+
+### 5. 정리
+
+| 단계 | 내용 |
+|------|------|
+| 1 | 서버 PC에 Docker, Docker Compose 설치 및 runner 사용자를 `docker` 그룹에 추가 |
+| 2 | GitHub에서 self-hosted runner 추가, Labels에 **server** 포함 |
+| 3 | (선택) `JWT_SECRET` 저장소 Secret 등록 |
+| 4 | 이후 **main에 push** 하면 서버 PC Docker에 자동 배포됨 |
