@@ -163,36 +163,139 @@ npm run db:migrate:deploy
 
 ---
 
-## GitHub Actions로 서버 PC Docker 자동 배포
+## GitHub Actions로 서버 PC Docker 자동 배포 (Self-hosted Runner)
 
-`main` 브랜치에 push 하면 **서버 PC의 Docker**에 자동으로 반영되게 하려면, 서버 PC에 **GitHub Actions self-hosted runner**를 설치하면 됩니다.
+`main` 브랜치에 push 하면 **서버 PC의 Docker**에 자동으로 반영되게 하는 방법입니다.  
+**서버 IP를 GitHub에 알려줄 필요가 없습니다.** 서버가 GitHub 쪽으로 나가서 연결하는 방식이라, 방화벽·공인 IP 설정 없이 사용할 수 있습니다.
 
-### 1. 서버 PC 준비
+---
 
-- **Docker**와 **Docker Compose** 설치
-- 서버 PC가 GitHub에서 **인터넷 접속** 가능 (아웃바운드만 되면 됨, 공인 IP 불필요)
-- Runner를 실행할 사용자가 `docker` 그룹에 있어야 함:  
-  `sudo usermod -aG docker $USER` 후 로그아웃/로그인
+### 이 방식이 어떻게 동작하는지
 
-### 2. Self-hosted Runner 설치 (서버 PC에서 한 번만)
+1. **서버 PC**에 **GitHub Actions Runner** 프로그램을 설치해 둡니다.
+2. 이 프로그램이 **서버 → GitHub** 방향으로 연결을 유지합니다. (GitHub가 서버로 접속하는 게 아님)
+3. `main`에 push 하면 GitHub이 "이 작업을 실행해라"는 지시만 runner에게 보냅니다.
+4. **실제 실행은 서버 PC에서** 일어납니다. (checkout → `docker compose up -d --build`)
+5. 그래서 **서버 IP, SSH, 포트 오픈**이 전혀 필요 없습니다.
 
-1. **GitHub 저장소** → **Settings** → **Actions** → **Runners** → **New self-hosted runner**
-2. OS 선택 (Linux / Windows / macOS) 후 화면에 나오는 **설치 명령**을 서버 PC에서 실행  
-   (예: Linux)
-   ```bash
-   mkdir actions-runner && cd actions-runner
-   curl -o actions-runner-linux-x64-2.311.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.311.0/actions-runner-linux-x64-2.311.0.tar.gz
-   tar xzf ./actions-runner-linux-x64-2.311.0.tar.gz
-   ./config.sh --url https://github.com/emax-project/MESSAGE --token <화면에_나오는_토큰>
-   ```
-3. **Runner 이름** 입력 시 그대로 두거나 `server` 등 입력
-4. **Labels**에 **`server`** 를 꼭 추가 (워크플로우가 `runs-on: [self-hosted, server]` 로 이 runner를 사용함)
-5. **설치 및 서비스 등록** (Linux 예시)
-   ```bash
-   ./svc.sh install
-   ./svc.sh start
-   ```
-6. GitHub **Runners** 페이지에서 runner가 **Idle** 상태로 보이면 준비 완료
+---
+
+### 1단계: 서버 PC 준비
+
+서버가 될 PC(또는 VM)에서 아래를 준비합니다.
+
+#### 1-1. Docker 설치
+
+```bash
+# Ubuntu / Debian 예시
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+(다른 OS는 [Docker 공식 문서](https://docs.docker.com/engine/install/) 참고)
+
+#### 1-2. Docker Compose 사용 가능 확인
+
+```bash
+docker compose version
+```
+
+`Docker Compose version v2...` 가 나오면 됩니다.
+
+#### 1-3. Docker를 sudo 없이 쓰기 (runner 사용자)
+
+Runner를 실행할 **같은 사용자**가 Docker를 쓸 수 있어야 합니다.
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+적용하려면 **해당 사용자로 로그아웃했다가 다시 로그인**하거나, 서버를 한 번 재부팅합니다.  
+이후 `docker ps` 가 sudo 없이 동작하면 됩니다.
+
+#### 1-4. 인터넷 연결
+
+서버 PC에서 `https://github.com` 으로 **나가는(아웃바운드)** 접속만 되면 됩니다.  
+공인 IP가 없어도 되고, GitHub이 서버로 들어오는 인바운드 설정은 필요 없습니다.
+
+---
+
+### 2단계: GitHub에서 Runner 추가 (한 번만)
+
+1. **GitHub**에서 **emax-project/MESSAGE** 저장소로 이동합니다.
+2. 상단 **Settings** 탭을 클릭합니다.
+3. 왼쪽 메뉴에서 **Actions** → **Runners** 를 클릭합니다.
+4. **New self-hosted runner** 버튼을 클릭합니다.
+5. **OS**를 선택합니다 (예: **Linux**).
+6. 화면에 **Configure** 단계까지 나오면,  
+   - **Token**이 한 번 표시됩니다. (복사해 두세요, 나중에 다시 안 나옵니다.)  
+   - 그 아래 **Download** / **Configure** / **Run** 명령어가 나옵니다.
+
+여기서 나오는 **정확한 명령어**를 서버 PC에서 그대로 쓰는 것이 가장 좋습니다.  
+아래는 **Linux x64** 기준 예시입니다 (버전·URL은 GitHub 화면이 최신이므로 화면 것을 우선 사용하세요).
+
+---
+
+### 3단계: 서버 PC에서 Runner 설치 및 실행
+
+서버 PC에 **SSH로 접속**하거나 **직접 터미널**을 연 뒤, 아래를 실행합니다.
+
+#### 3-1. Runner 다운로드 및 압축 해제 (Linux x64 예시)
+
+```bash
+mkdir -p ~/actions-runner && cd ~/actions-runner
+curl -o actions-runner-linux-x64-2.311.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.311.0/actions-runner-linux-x64-2.311.0.tar.gz
+tar xzf actions-runner-linux-x64-2.311.0.tar.gz
+```
+
+(다른 OS·아키텍처는 GitHub Runners 화면의 **Download** 명령을 사용하세요.)
+
+#### 3-2. Runner 설정 (토큰은 GitHub 화면에서 복사한 값으로)
+
+```bash
+./config.sh --url https://github.com/emax-project/MESSAGE --token 여기에_GitHub에서_보여준_토큰_붙여넣기
+```
+
+질문이 나오면:
+
+- **Runner name**  
+  - 그냥 Enter (기본값) 또는 `server` 입력
+- **Labels**  
+  - **반드시 `server` 포함**.  
+  - 기본 레이블에 더해 `server` 를 추가하거나, 입력할 수 있으면 `self-hosted,Linux,X64,server` 처럼 **server** 가 들어가면 됩니다.
+- **Work folder**  
+  - 그냥 Enter (기본값)
+
+#### 3-3. 서비스로 등록 (재부팅 후에도 자동 실행)
+
+```bash
+sudo ./svc.sh install
+sudo ./svc.sh start
+```
+
+실행 중인지 확인:
+
+```bash
+sudo ./svc.sh status
+```
+
+#### 3-4. GitHub에서 확인
+
+- 저장소 **Settings** → **Actions** → **Runners** 로 다시 들어갑니다.
+- 방금 추가한 runner가 **Idle** (녹색) 상태로 보이면 준비 완료입니다.
+
+---
+
+### 4단계: (선택) JWT_SECRET 등록
+
+이후 배포 시 Docker Compose에 전달할 JWT 비밀값을 등록하려면 아래 **3. JWT_SECRET 등록 방법**을 따르면 됩니다.  
+등록하지 않으면 기본값 `change-me-in-production` 이 사용됩니다.
 
 ### 3. JWT_SECRET 등록 방법 (GitHub Actions Secret)
 
@@ -225,19 +328,26 @@ openssl rand -base64 32
 이후 Deploy 워크플로우가 실행될 때 이 값이 사용됩니다.  
 등록하지 않으면 `docker-compose.yml`의 기본값(`change-me-in-production`)이 쓰이므로, **운영 환경에서는 반드시 등록하는 것을 권장**합니다.
 
-### 4. 동작 방식
+### 5단계: 이후 동작 (push 하면)
 
-- **main** 브랜치에 **push** 하면 워크플로우가 실행됩니다.
-- 또는 **Actions** 탭 → **Deploy to Server (Docker)** → **Run workflow** 로 수동 실행 가능합니다.
-- 워크플로우가 **서버 PC의 runner**에서 실행되며, **checkout** → **docker compose up -d --build** 를 실행합니다.
-- DB는 Docker 볼륨으로 유지되고, **server** 이미지는 매번 최신 코드로 다시 빌드됩니다.  
-  (서버 컨테이너 CMD에 `prisma db push`가 있으므로, 스키마 변경도 컨테이너 기동 시 자동 반영됩니다.)
+- **main** 브랜치에 **push** 하면 **Deploy to Server (Docker)** 워크플로우가 자동으로 실행됩니다.
+- 실행 위치는 **서버 PC의 runner**입니다. (GitHub 호스트가 아님)
+- 워크플로우가 하는 일:
+  1. **Checkout**: 최신 코드를 서버 PC의 runner 작업 폴더에 받습니다.
+  2. **Docker Compose**: `docker compose up -d --build` 를 실행해 DB·서버 컨테이너를 갱신합니다.
+- DB 데이터는 Docker 볼륨(`postgres_data`, `upload_data`)에 남고, **server** 이미지만 최신 코드로 다시 빌드됩니다.  
+  (서버 컨테이너 CMD에 `prisma db push`가 있으므로, DB 스키마 변경도 컨테이너 기동 시 자동 반영됩니다.)
+- **수동 실행**도 가능합니다: **Actions** 탭 → **Deploy to Server (Docker)** → **Run workflow** → **Run workflow** 버튼 클릭.
 
-### 5. 정리
+---
 
-| 단계 | 내용 |
-|------|------|
-| 1 | 서버 PC에 Docker, Docker Compose 설치 및 runner 사용자를 `docker` 그룹에 추가 |
-| 2 | GitHub에서 self-hosted runner 추가, Labels에 **server** 포함 |
-| 3 | (선택) `JWT_SECRET` 저장소 Secret 등록 |
-| 4 | 이후 **main에 push** 하면 서버 PC Docker에 자동 배포됨 |
+### 요약 체크리스트
+
+| 순서 | 할 일 |
+|------|--------|
+| 1 | 서버 PC에 Docker, Docker Compose 설치, 사용자를 `docker` 그룹에 추가 |
+| 2 | GitHub: **Settings** → **Actions** → **Runners** → **New self-hosted runner** → OS 선택 후 나오는 **토큰·명령어** 확인 |
+| 3 | 서버 PC: Runner 다운로드 → `config.sh` (토큰·URL 입력, Label에 **server** 포함) → `svc.sh install` / `svc.sh start` |
+| 4 | GitHub Runners 페이지에서 runner가 **Idle** 인지 확인 |
+| 5 | (선택) **Settings** → **Secrets and variables** → **Actions** 에서 **JWT_SECRET** 등록 |
+| 6 | 이후 **main에 push** 하면 서버 PC Docker에 자동 배포됨 (서버 IP는 GitHub에 알려줄 필요 없음) |
