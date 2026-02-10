@@ -5,7 +5,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/client packages/client
 COPY packages/server/package.json packages/server/package.json
-RUN npm ci
+# postinstall은 server의 prisma generate인데 client-builder에는 prisma 없음 → 스크립트 생략
+RUN npm ci --ignore-scripts
 ENV VITE_API_URL=
 RUN npm run build --workspace=client
 
