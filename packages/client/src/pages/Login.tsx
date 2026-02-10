@@ -101,6 +101,7 @@ export default function Login() {
 function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
   return {
     container: {
+      width: '100%',
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',

@@ -209,6 +209,7 @@ function createWindow(options = {}) {
     minHeight: 560,
     frame: false,
     titleBarStyle: 'hidden',
+    show: false,
     // macOS: 창에 icon 지정 시 타이틀 바에 거대하게 표시되므로 제외. 도크 아이콘은 app.dock.setIcon으로만 설정.
     ...(process.platform !== 'darwin' ? { icon: iconPath } : {}),
     webPreferences: {
@@ -227,6 +228,14 @@ function createWindow(options = {}) {
     // Windows 등에서 file:// URL을 명시적으로 사용 (pathToFileURL로 정규화)
     win.loadURL(pathToFileURL(file).href);
   }
+
+  // 첫 실행 시 흰 화면 방지: 페이지 로드 후 React가 그릴 시간을 두고 창 표시
+  win.webContents.once('did-finish-load', () => {
+    if (win.isDestroyed()) return;
+    setTimeout(() => {
+      if (!win.isDestroyed()) win.show();
+    }, 150);
+  });
 
   if (process.argv.includes('--devtools')) {
     win.webContents.once('did-finish-load', () => win.webContents.openDevTools());
