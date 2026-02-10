@@ -229,13 +229,25 @@ function createWindow(options = {}) {
     win.loadURL(pathToFileURL(file).href);
   }
 
-  // 첫 실행 시 흰 화면 방지: 페이지 로드 후 React가 그릴 시간을 두고 창 표시
-  win.webContents.once('did-finish-load', () => {
-    if (win.isDestroyed()) return;
-    setTimeout(() => {
+  // 첫 실행 시 흰 화면 방지: 메인 창은 렌더러가 'app-ready' 보낼 때만 표시, 그 외는 로드 후 표시
+  const isMainWindow = !options.secondWindow;
+  if (isMainWindow) {
+    const showFallback = setTimeout(() => {
+      if (!win.isDestroyed() && !win.isVisible()) win.show();
+    }, 5000);
+    const onAppReady = (event) => {
+      if (event.sender !== win.webContents) return;
+      ipcMain.removeListener('app-ready', onAppReady);
+      clearTimeout(showFallback);
       if (!win.isDestroyed()) win.show();
-    }, 150);
-  });
+    };
+    ipcMain.on('app-ready', onAppReady);
+  } else {
+    win.webContents.once('did-finish-load', () => {
+      if (win.isDestroyed()) return;
+      setTimeout(() => { if (!win.isDestroyed()) win.show(); }, 150);
+    });
+  }
 
   if (process.argv.includes('--devtools')) {
     win.webContents.once('did-finish-load', () => win.webContents.openDevTools());

@@ -57,6 +57,18 @@ export default function App() {
     }
   }, []);
 
+  // Electron: 첫 페인트 후 창 표시 (첫 실행 흰 화면 방지)
+  useEffect(() => {
+    const api = (window as unknown as { electronAPI?: { notifyAppReady?: () => void } }).electronAPI;
+    if (!api?.notifyAppReady) return;
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        api.notifyAppReady();
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
     <Router>
       <Routes>

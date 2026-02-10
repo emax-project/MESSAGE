@@ -421,6 +421,35 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     }
   };
 
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    if (!roomId || dropUploading) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    let file: File | null = null;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        file = item.getAsFile();
+        break;
+      }
+    }
+    if (!file) return;
+    e.preventDefault();
+    if (file.size > MAX_DROP_SIZE) return;
+    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/gif' ? 'gif' : file.type === 'image/webp' ? 'webp' : 'png';
+    const namedFile = new File([file], `image-${Date.now()}.${ext}`, { type: file.type });
+    setDropUploading(true);
+    setDropProgress(0);
+    try {
+      await filesApi.upload(roomId, namedFile, (pct) => setDropProgress(pct));
+    } catch (err) {
+      console.error('Paste image upload failed:', err);
+    } finally {
+      setDropUploading(false);
+      setDropProgress(0);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       if (e.nativeEvent.isComposing) return;
@@ -1053,6 +1082,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             style={s.input(isDark)}
           />
           <button type="button" onClick={sendMessage} style={s.sendBtn(isDark)}>
