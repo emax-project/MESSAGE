@@ -55,6 +55,21 @@ app.use('/folders', foldersRouter);
 // Health check
 app.get('/health', (_, res) => res.json({ ok: true }));
 
+// API 안내 (예전처럼 "이 주소는 API 서버입니다" 화면이 필요할 때)
+app.get('/api-info', (_, res) => {
+  res.type('html').send(`
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>EMAX API</title></head>
+<body style="font-family:sans-serif;max-width:560px;margin:2rem auto;padding:0 1rem;">
+  <h1>EMAX 메신저 API</h1>
+  <p>이 주소는 <strong>API 서버</strong>입니다. 채팅·로그인은 <strong>EMAX 데스크톱 앱</strong> 또는 브라우저에서 <a href="/">/</a> 로 접속해 주세요.</p>
+  <p><a href="/health">/health</a> — 서버 상태 확인</p>
+</body>
+</html>
+  `);
+});
+
 // 배포 확인용 (브라우저에서 이 주소 열어서 클라이언트 서빙 여부 확인 가능)
 app.get('/debug-client', (_, res) => {
   const hasIndex = fs.existsSync(clientIndexPath);
