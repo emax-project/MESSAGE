@@ -405,6 +405,14 @@ openssl rand -base64 32
   (서버 컨테이너 CMD에 `prisma db push`가 있으므로, DB 스키마 변경도 컨테이너 기동 시 자동 반영됩니다.)
 - **수동 실행**도 가능합니다: **Actions** 탭 → **Deploy to Server (Docker)** → **Run workflow** → **Run workflow** 버튼 클릭.
 
+**배포 후 웹에서 흰 화면만 나올 때 (개발자 도구 없이 확인)**
+
+1. 브라우저에서 **`http://서버주소:3001/debug-client`** 를 엽니다.
+   - `{"ok":true,"clientServed":true,"hasAssets":true}` 이면 클라이언트 파일은 서버에 있습니다.
+   - `clientServed: false` 이면 Docker 이미지에 client-dist가 없거나 경로가 잘못된 것입니다. (배포 워크플로·Dockerfile 확인)
+2. **`http://서버주소:3001/`** 로 접속했을 때 **"로딩 중..."** 이 잠깐 보였다가 **"페이지를 불러오지 못했습니다..."** 로 바뀌면, HTML은 로드됐지만 JS(asset) 요청이 실패한 것입니다. (리버스 프록시 경로, 방화벽, HTTPS/HTTP 혼용 등 확인)
+3. **`/health`** → `{"ok":true}` 이면 API 서버는 동작 중입니다.
+
 ---
 
 ### 로컬 DB를 서버에 똑같이 반영하기

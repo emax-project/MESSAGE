@@ -55,6 +55,13 @@ app.use('/folders', foldersRouter);
 // Health check
 app.get('/health', (_, res) => res.json({ ok: true }));
 
+// 배포 확인용 (브라우저에서 이 주소 열어서 클라이언트 서빙 여부 확인 가능)
+app.get('/debug-client', (_, res) => {
+  const hasIndex = fs.existsSync(clientIndexPath);
+  const hasAssets = fs.existsSync(path.join(clientDist, 'assets'));
+  res.json({ ok: true, clientServed: hasIndex, hasAssets });
+});
+
 // 웹 클라이언트(SPA) 서빙: client-dist에 index.html이 있으면 정적 파일 + SPA 폴백
 const clientDist = process.env.CLIENT_DIST || path.join(__dirname, '..', 'client-dist');
 const clientIndexPath = path.join(clientDist, 'index.html');

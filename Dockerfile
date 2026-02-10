@@ -15,6 +15,7 @@ RUN npm run build --workspace=client
 FROM node:20-bookworm-slim
 RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+ENV CLIENT_DIST=/app/client-dist
 COPY packages/server/package.json ./
 RUN npm install --omit=dev
 COPY packages/server/prisma ./prisma
