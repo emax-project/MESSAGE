@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User } from './api';
+import { authApi, type User } from './api';
 
 type AuthState = {
   user: User | null;
@@ -20,6 +20,7 @@ export const useAuthStore = create<AuthState>()(
         set({ user, token });
       },
       logout: () => {
+        authApi.logout().catch(() => {});
         localStorage.removeItem('token');
         set({ user: null, token: null });
       },

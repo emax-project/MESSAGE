@@ -5,15 +5,23 @@ export function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
     if (socket.userId) {
       const uid = String(socket.userId);
+      const wasOnline = onlineUsers.has(uid);
       onlineUsers.add(uid);
       socket.emit('online_list', { userIds: onlineUsers.getAll() });
-      io.emit('user_online', { userId: uid });
+      if (!wasOnline) {
+        io.emit('user_online', { userId: uid });
+      }
     }
+    socket.on('get_online_list', () => {
+      socket.emit('online_list', { userIds: onlineUsers.getAll() });
+    });
     socket.on('disconnect', () => {
       if (socket.userId) {
         const uid = String(socket.userId);
         onlineUsers.remove(uid);
-        io.emit('user_offline', { userId: uid });
+        if (!onlineUsers.has(uid)) {
+          io.emit('user_offline', { userId: uid });
+        }
       }
     });
     async function isRoomMember(roomId, userId) {

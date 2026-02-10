@@ -21,15 +21,16 @@ announcementRouter.get('/', async (_req, res) => {
 /** 공지 등록/수정 (관리자만) */
 announcementRouter.put('/', authMiddleware, async (req, res) => {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL || '';
-    if (!adminEmail) {
+    const adminEmails = (process.env.ADMIN_EMAIL || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+    if (adminEmails.length === 0) {
       return res.status(503).json({ error: 'Admin not configured (ADMIN_EMAIL)' });
     }
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
       select: { email: true },
     });
-    if (!user || user.email !== adminEmail) {
+    const userEmail = (user?.email || '').trim().toLowerCase();
+    if (!user || !adminEmails.includes(userEmail)) {
       return res.status(403).json({ error: 'Admin only' });
     }
     const { content } = req.body;

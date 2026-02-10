@@ -12,6 +12,27 @@
 - 사용자는 매번 URL에 접속해 받을 필요 없이, 앱을 켜 두었다가 종료 후 다시 실행하면 최신 버전으로 갱신됩니다.
 - 메뉴 **도움말 → 업데이트 확인**으로 수동 확인도 가능합니다.
 
+### GitHub이 404일 때 (비공개 저장소 등)
+
+- 앱이 `https://github.com/emax-project/MESSAGE/releases.atom` 을 조회할 때 **404**가 나면 자동 업데이트가 동작하지 않습니다.
+- **비공개(Private) 저장소**는 인증 없이 조회하면 404를 반환합니다. 이 경우 아래 **Generic 서버**를 사용하세요.
+
+**Generic 업데이트 서버 사용 (공개 URL에서 배포)**
+
+1. `packages/client/release/` 안의 **설치 파일**과 **latest.yml**, **latest-mac.yml** 을 **공개 URL**에 올립니다.  
+   (예: 본인 서버, S3, GitHub Pages, CDN 등. `latest.yml` / `latest-mac.yml`이 있는 디렉터리 기준으로 URL을 정합니다.)
+2. 빌드 시 해당 **베이스 URL**을 지정합니다.
+
+   ```bash
+   # 예: https://your-domain.com/emax-releases 에 파일을 올린 경우
+   ELECTRON_UPDATER_BASE_URL=https://your-domain.com/emax-releases npm run build:app
+   ELECTRON_UPDATER_BASE_URL=https://your-domain.com/emax-releases npm run build:app:win
+   ```
+
+3. 이렇게 빌드한 앱은 GitHub 대신 위 URL에서 `latest.yml`(Windows) / `latest-mac.yml`(Mac)을 조회해 자동 업데이트합니다.
+
+- **공개 저장소**를 쓰는 경우에는 위 설정 없이 그대로 GitHub Releases를 사용하면 됩니다.
+
 ---
 
 ## 1. 설치 파일 빌드하기
@@ -64,18 +85,19 @@ npm run build:app:win
    - ⚠️ **자동 업데이트**가 동작하려면, 빌드 전에 `packages/client/package.json`의 `version`을 올리고, 릴리스 태그를 그 버전과 맞춰야 합니다.
 
 3. **빌드한 파일 첨부**
-   - "Attach binaries by dropping them here or selecting them" 영역에
-   - macOS: `EMAX-1.0.0.dmg` (또는 arm64.dmg)
-   - Windows: `EMAX Setup 1.0.0.exe`
-   - 드래그하거나 선택해서 업로드
+   - "Attach binaries by dropping them here or selecting them" 영역에 **아래 파일을 모두** 첨부해야 합니다.
+   - **설치 파일**: `EMAX-1.0.0-arm64.dmg` (Mac), `EMAX-Setup-1.0.0.exe` (Windows)
+   - **자동 업데이트용 메타데이터**: `latest.yml`, `latest-mac.yml`  
+     → 이 두 파일이 없으면 **도움말 → 업데이트 확인** 및 자동 업데이트가 동작하지 않습니다.
+   - 위치: `packages/client/release/` 폴더
 
 4. **"Publish release"** 클릭
 
 5. **다운로드 URL** (릴리스 공개 후 자동 생성)
    - macOS 예:  
-     `https://github.com/emax-project/MESSAGE/releases/download/v1.0.0/EMAX-1.0.0.dmg`
+     `https://github.com/emax-project/MESSAGE/releases/download/v1.0.0/EMAX-1.0.0-arm64.dmg`
    - Windows 예:  
-     `https://github.com/emax-project/MESSAGE/releases/download/v1.0.0/EMAX%20Setup%201.0.0.exe`
+     `https://github.com/emax-project/MESSAGE/releases/download/v1.0.0/EMAX-Setup-1.0.0.exe`
 
 사용자에게는 **릴리스 페이지** 링크를 주면 됩니다.  
 → https://github.com/emax-project/MESSAGE/releases/latest  

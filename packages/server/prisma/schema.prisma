@@ -36,15 +36,20 @@ model User {
   roomMemberships  RoomMember[]
   sentMessages     Message[]       @relation("Sender")
   readReceipts     ReadReceipt[]
+  sessions         UserSession[]
+  bookmarks        Bookmark[]
   @@index([departmentId])
 }
 
 model Room {
-  id        String   @id @default(cuid())
-  name      String?
-  isGroup   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String?
+  description String?  @db.Text
+  viewMode    String   @default("chat")
+  isGroup     Boolean  @default(false)
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   members        RoomMember[]
   messages       Message[]
@@ -60,13 +65,16 @@ model RoomMember {
   lastReadAt  DateTime?
   isFavorite  Boolean   @default(false)
   leftAt      DateTime?
+  folderId    String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room   Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  folder Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@unique([userId, roomId])
   @@index([userId])
   @@index([roomId])
+  @@index([folderId])
 }
 
 model Message {
@@ -100,6 +108,7 @@ model Message {
   mentions     Mention[]
   poll         Poll?
   pinnedIn     PinnedMessage[]
+  bookmarks    Bookmark[]
 
   @@index([roomId])
   @@index([senderId])
@@ -140,6 +149,17 @@ model Announcement {
   updatedAt DateTime @updatedAt
 }
 
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+  lastSeen  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 model Reaction {
   id        String   @id @default(cuid())
   messageId String
@@ -154,9 +174,10 @@ model Reaction {
 }
 
 model Mention {
-  id        String @id @default(cuid())
+  id        String    @id @default(cuid())
   messageId String
   userId    String
+  readAt    DateTime?
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
@@ -274,4 +295,28 @@ model TaskComment {
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  messageId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId])
+  @@index([userId])
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  roomMemberships RoomMember[]
+
+  @@index([userId])
 }

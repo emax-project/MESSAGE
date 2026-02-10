@@ -12,8 +12,12 @@ import { announcementRouter } from './routes/announcement.js';
 import { eventsRouter } from './routes/events.js';
 import { pollsRouter } from './routes/polls.js';
 import { projectsRouter } from './routes/projects.js';
+import { bookmarksRouter } from './routes/bookmarks.js';
+import { mentionsRouter } from './routes/mentions.js';
+import { linkPreviewRouter } from './routes/linkPreview.js';
+import { foldersRouter } from './routes/folders.js';
 import { prisma } from './db.js';
-import { verifyToken } from './auth.js';
+import { verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
 import { UPLOAD_DIR } from './upload.js';
 import { startCleanupJob } from './cleanup.js';
@@ -36,6 +40,10 @@ app.use('/announcement', announcementRouter);
 app.use('/events', eventsRouter);
 app.use('/polls', pollsRouter);
 app.use('/projects', projectsRouter);
+app.use('/bookmarks', bookmarksRouter);
+app.use('/mentions', mentionsRouter);
+app.use('/link-preview', linkPreviewRouter());
+app.use('/folders', foldersRouter);
 // Disable public uploads to enforce auth/expiry checks via /files/download
 // app.use('/uploads', express.static(UPLOAD_DIR));
 
@@ -65,12 +73,13 @@ const io = new Server(httpServer, {
   path: '/socket.io',
 });
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) return next(new Error('auth required'));
-  const payload = verifyToken(token);
+  const payload = await verifySessionToken(token);
   if (!payload) return next(new Error('invalid token'));
   socket.userId = payload.userId;
+  socket.sessionId = payload.sessionId;
   next();
 });
 

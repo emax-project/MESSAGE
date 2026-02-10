@@ -118,9 +118,12 @@ filesRouter.get('/download/:messageId', async (req, res) => {
     }
 
     const downloadName = message.fileName || filename;
+    // RFC 5987: 한글 등 UTF-8 파일명이 깨지지 않도록 filename*=UTF-8'' 사용
+    const asciiFallback = /^[\x20-\x7e]*$/.test(downloadName) ? downloadName : 'download';
+    const encoded = encodeURIComponent(downloadName);
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(downloadName)}"`
+      `attachment; filename="${asciiFallback.replace(/"/g, '\\"')}"; filename*=UTF-8''${encoded}`
     );
     if (message.fileMimeType) {
       res.setHeader('Content-Type', message.fileMimeType);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { type Message, filesApi } from '../api';
+import { useThemeStore } from '../store';
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -128,9 +129,10 @@ export default function FileMessage({ message }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
+  const isDark = useThemeStore((s) => s.isDark);
 
   if (!fileUrl) {
-    return <span style={styles.expired}>파일이 만료되었습니다</span>;
+    return <span style={{ fontSize: 13, color: isDark ? '#64748b' : '#999', fontStyle: 'italic' }}>파일이 만료되었습니다</span>;
   }
 
   const expiresAt = fileExpiresAt ? new Date(fileExpiresAt) : null;
@@ -163,22 +165,24 @@ export default function FileMessage({ message }: Props) {
     }
   };
 
+  const st = getFileStyles(isDark);
+
   return (
-    <div style={styles.container}>
+    <div style={st.container}>
       {isImageMime(fileMimeType) ? (
         <>
           {previewUrl && !previewError ? (
             <img
               src={previewUrl}
               alt={fileName || 'image'}
-              style={styles.imagePreview}
+              style={st.imagePreview}
               loading="lazy"
               onClick={() => setLightboxOpen(true)}
             />
           ) : previewError ? (
-            <span style={styles.fileLink}>미리보기를 불러올 수 없습니다</span>
+            <span style={st.fileLink}>미리보기를 불러올 수 없습니다</span>
           ) : (
-            <span style={styles.fileLink}>미리보기 로딩 중...</span>
+            <span style={st.fileLink}>미리보기 로딩 중...</span>
           )}
           {lightboxOpen && (
             <ImageLightbox
@@ -190,20 +194,20 @@ export default function FileMessage({ message }: Props) {
           )}
         </>
       ) : (
-        <button type="button" onClick={handleDownload} style={styles.fileLink}>
-          <div style={styles.fileIcon}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <button type="button" onClick={handleDownload} style={st.fileLink}>
+          <div style={st.fileIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
             </svg>
           </div>
-          <div style={styles.fileInfo}>
-            <span style={styles.fileName}>{fileName || 'file'}</span>
+          <div style={st.fileInfo}>
+            <span style={st.fileName}>{fileName || 'file'}</span>
             {fileSize != null && (
-              <span style={styles.fileSize}>{formatFileSize(fileSize)}</span>
+              <span style={st.fileSize}>{formatFileSize(fileSize)}</span>
             )}
           </div>
-          <div style={styles.downloadIcon}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div style={st.downloadIcon}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#64748b' : '#888'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
@@ -212,67 +216,76 @@ export default function FileMessage({ message }: Props) {
         </button>
       )}
       {isExpiringSoon && (
-        <span style={styles.expiryWarning}>곧 만료됩니다</span>
+        <span style={st.expiryWarning}>곧 만료됩니다</span>
       )}
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  container: { marginTop: 4 },
-  imagePreview: {
-    maxWidth: 420,
-    maxHeight: 320,
-    borderRadius: 8,
-    cursor: 'pointer',
-    display: 'block',
-    width: '100%',
-    objectFit: 'contain',
-  },
-  fileLink: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '10px 14px',
-    background: 'rgba(0,0,0,0.04)',
-    borderRadius: 10,
-    color: 'inherit',
-    border: 'none',
-    cursor: 'pointer',
-    width: '100%',
-    textAlign: 'left',
-  },
-  fileIcon: {
-    flexShrink: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fileInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-    flex: 1,
-    minWidth: 0,
-  },
-  fileName: {
-    fontSize: 13,
-    fontWeight: 500,
-    wordBreak: 'break-all',
-    color: '#333',
-  },
-  fileSize: { fontSize: 11, color: '#888' },
-  downloadIcon: {
-    flexShrink: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  expired: { fontSize: 13, color: '#999', fontStyle: 'italic' },
-  expiryWarning: {
-    fontSize: 11,
-    color: '#e65100',
-    marginTop: 4,
-    display: 'block',
-  },
-};
+function getFileStyles(isDark: boolean): Record<string, React.CSSProperties> {
+  return {
+    container: { marginTop: 4 },
+    imagePreview: {
+      maxWidth: 420,
+      maxHeight: 320,
+      borderRadius: 8,
+      cursor: 'pointer',
+      display: 'block',
+      width: '100%',
+      objectFit: 'contain',
+    },
+    fileLink: {
+      display: 'flex',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 14px',
+      background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      borderRadius: 10,
+      color: 'inherit',
+      border: 'none',
+      cursor: 'pointer',
+      width: '100%',
+      minWidth: 220,
+      textAlign: 'left',
+    },
+    fileIcon: {
+      flexShrink: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fileInfo: {
+      display: 'flex',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
+      minWidth: 0,
+      overflow: 'hidden',
+    },
+    fileName: {
+      fontSize: 13,
+      fontWeight: 500,
+      color: isDark ? '#e2e8f0' : '#1e293b',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      minWidth: 0,
+      flex: 1,
+    },
+    fileSize: { fontSize: 11, color: isDark ? '#64748b' : '#888', flexShrink: 0 },
+    downloadIcon: {
+      flexShrink: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    expiryWarning: {
+      fontSize: 11,
+      color: '#e65100',
+      marginTop: 4,
+      display: 'block',
+    },
+  };
+}

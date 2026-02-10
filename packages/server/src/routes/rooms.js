@@ -20,6 +20,47 @@ function aggregateReactions(reactions) {
   return Object.values(map);
 }
 
+// List public rooms (must be before /:id routes)
+roomsRouter.get('/public', async (req, res) => {
+  try {
+    const rooms = await prisma.room.findMany({
+      where: { isPublic: true },
+      include: {
+        members: {
+          where: { leftAt: null },
+          include: { user: { select: { id: true, name: true } } },
+        },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          include: { sender: { select: { id: true, name: true } } },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const result = rooms.map((r) => {
+      const isMember = r.members.some((m) => m.userId === req.userId);
+      const last = r.messages[0];
+      return {
+        id: r.id,
+        name: r.name || '채팅방',
+        memberCount: r.members.length,
+        isMember,
+        lastMessage: last
+          ? { content: last.deletedAt ? '[삭제된 메시지]' : last.content, createdAt: last.createdAt, senderName: last.sender.name }
+          : null,
+        updatedAt: r.updatedAt,
+      };
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch public rooms' });
+  }
+});
+
 // List rooms I'm in, with last message and unread count
 roomsRouter.get('/', async (req, res) => {
   try {
@@ -83,6 +124,105 @@ roomsRouter.get('/', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch rooms' });
+  }
+});
+
+// Create a topic (named group room) directly
+roomsRouter.post('/topic', async (req, res) => {
+  try {
+    const { name, description, isPublic, viewMode, memberIds, folderId } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: '토픽 이름을 입력해주세요' });
+    }
+    if (name.trim().length > 60) {
+      return res.status(400).json({ error: '토픽 이름은 60자 이내로 입력해주세요' });
+    }
+    if (description && description.length > 300) {
+      return res.status(400).json({ error: '토픽 설명은 300자 이내로 입력해주세요' });
+    }
+    const validViewModes = ['chat', 'board'];
+    const roomViewMode = validViewModes.includes(viewMode) ? viewMode : 'chat';
+
+    const allMemberIds = new Set([req.userId]);
+    if (Array.isArray(memberIds)) {
+      for (const id of memberIds) allMemberIds.add(id);
+    }
+
+    // Validate folderId if provided
+    if (folderId) {
+      const folder = await prisma.folder.findFirst({
+        where: { id: folderId, userId: req.userId },
+      });
+      if (!folder) return res.status(400).json({ error: '폴더를 찾을 수 없습니다' });
+    }
+
+    const requester = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, name: true },
+    });
+
+    const newRoom = await prisma.$transaction(async (tx) => {
+      const room = await tx.room.create({
+        data: {
+          isGroup: true,
+          name: name.trim(),
+          description: description?.trim() || null,
+          viewMode: roomViewMode,
+          isPublic: !!isPublic,
+          members: {
+            create: [...allMemberIds].map((uid) => ({ userId: uid })),
+          },
+        },
+        include: {
+          members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        },
+      });
+
+      // Assign folder to creator's membership if folderId provided
+      if (folderId) {
+        const creatorMembership = room.members.find((m) => m.userId === req.userId);
+        if (creatorMembership) {
+          await tx.roomMember.update({
+            where: { id: creatorMembership.id },
+            data: { folderId },
+          });
+        }
+      }
+
+      await tx.message.create({
+        data: {
+          roomId: room.id,
+          senderId: req.userId,
+          content: `${requester.name}님이 토픽을 만들었습니다`,
+        },
+      });
+
+      return room;
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      const sockets = await io.fetchSockets();
+      for (const s of sockets) {
+        if (allMemberIds.has(s.userId)) {
+          s.join(newRoom.id);
+        }
+      }
+    }
+
+    return res.status(201).json({
+      id: newRoom.id,
+      name: newRoom.name,
+      description: newRoom.description,
+      viewMode: newRoom.viewMode,
+      isGroup: true,
+      isPublic: newRoom.isPublic,
+      members: newRoom.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
+      updatedAt: newRoom.updatedAt,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to create topic' });
   }
 });
 
@@ -210,7 +350,7 @@ roomsRouter.post('/:id/read', async (req, res) => {
 // Invite members → create a NEW group room
 roomsRouter.post('/:id/members', async (req, res) => {
   try {
-    const { userIds } = req.body;
+    const { userIds, isPublic } = req.body;
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ error: 'userIds array required' });
     }
@@ -258,6 +398,7 @@ roomsRouter.post('/:id/members', async (req, res) => {
         data: {
           isGroup: true,
           name: groupName,
+          isPublic: !!isPublic,
           members: {
             create: allMemberIds.map((uid) => ({ userId: uid })),
           },
@@ -775,5 +916,219 @@ roomsRouter.get('/:id/pins', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch pins' });
+  }
+});
+
+// Get files in room
+roomsRouter.get('/:id/files', async (req, res) => {
+  try {
+    const member = await prisma.roomMember.findFirst({
+      where: { roomId: req.params.id, userId: req.userId },
+    });
+    if (!member) return res.status(404).json({ error: 'Room not found' });
+
+    const cursor = req.query.cursor;
+    const limit = Math.min(Number(req.query.limit) || 30, 100);
+    const messages = await prisma.message.findMany({
+      where: {
+        roomId: req.params.id,
+        fileUrl: { not: null },
+        deletedAt: null,
+      },
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      orderBy: { createdAt: 'desc' },
+      include: {
+        sender: { select: { id: true, name: true } },
+      },
+    });
+
+    const hasMore = messages.length > limit;
+    const list = hasMore ? messages.slice(0, limit) : messages;
+    const nextCursor = hasMore ? list[list.length - 1].id : null;
+
+    return res.json({
+      files: list.map((m) => ({
+        id: m.id,
+        fileName: m.fileName,
+        fileSize: m.fileSize != null ? Number(m.fileSize) : null,
+        fileMimeType: m.fileMimeType,
+        fileExpiresAt: m.fileExpiresAt,
+        createdAt: m.createdAt,
+        sender: m.sender,
+      })),
+      nextCursor,
+      hasMore,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch files' });
+  }
+});
+
+// Get message readers (detailed read receipts)
+roomsRouter.get('/:roomId/messages/:messageId/readers', async (req, res) => {
+  try {
+    const member = await prisma.roomMember.findFirst({
+      where: { roomId: req.params.roomId, userId: req.userId },
+    });
+    if (!member) return res.status(403).json({ error: 'Not a member' });
+
+    const receipts = await prisma.readReceipt.findMany({
+      where: { messageId: req.params.messageId },
+      include: {
+        user: { select: { id: true, name: true } },
+      },
+      orderBy: { readAt: 'desc' },
+    });
+
+    return res.json({
+      readers: receipts.map((r) => ({
+        userId: r.user.id,
+        userName: r.user.name,
+        readAt: r.readAt,
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch readers' });
+  }
+});
+
+// Get thread replies for a message
+roomsRouter.get('/:roomId/messages/:messageId/thread', async (req, res) => {
+  try {
+    const member = await prisma.roomMember.findFirst({
+      where: { roomId: req.params.roomId, userId: req.userId },
+    });
+    if (!member) return res.status(403).json({ error: 'Not a member' });
+
+    const parent = await prisma.message.findUnique({
+      where: { id: req.params.messageId },
+      include: {
+        sender: { select: { id: true, name: true } },
+        readReceipts: { select: { userId: true } },
+        reactions: true,
+      },
+    });
+    if (!parent || parent.roomId !== req.params.roomId) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const replies = await prisma.message.findMany({
+      where: { replyToId: req.params.messageId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        sender: { select: { id: true, name: true } },
+        readReceipts: { select: { userId: true } },
+        reactions: true,
+      },
+    });
+
+    const normalize = (m) => ({
+      ...m,
+      content: m.deletedAt ? '[삭제된 메시지]' : m.content,
+      fileSize: m.fileSize != null ? Number(m.fileSize) : null,
+      readCount: m.readReceipts.filter((r) => String(r.userId) !== String(m.senderId)).length,
+      reactions: aggregateReactions(m.reactions),
+      readReceipts: undefined,
+    });
+
+    return res.json({
+      parent: normalize(parent),
+      replies: replies.map(normalize),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch thread' });
+  }
+});
+
+// Join a public room
+roomsRouter.post('/:id/join', async (req, res) => {
+  try {
+    const room = await prisma.room.findUnique({
+      where: { id: req.params.id },
+      include: {
+        members: {
+          where: { leftAt: null },
+          include: { user: { select: { id: true, name: true, email: true } } },
+        },
+      },
+    });
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+    if (!room.isPublic) return res.status(403).json({ error: 'Room is not public' });
+
+    const existingMember = room.members.find((m) => m.userId === req.userId);
+    if (existingMember) {
+      return res.json({
+        id: room.id,
+        name: room.name || '채팅방',
+        isGroup: room.isGroup,
+        members: room.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
+      });
+    }
+
+    // Check if user had left previously
+    const leftMember = await prisma.roomMember.findFirst({
+      where: { roomId: req.params.id, userId: req.userId, leftAt: { not: null } },
+    });
+
+    if (leftMember) {
+      await prisma.roomMember.update({
+        where: { id: leftMember.id },
+        data: { leftAt: null },
+      });
+    } else {
+      await prisma.roomMember.create({
+        data: { roomId: req.params.id, userId: req.userId },
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { name: true },
+    });
+
+    const systemMsg = await prisma.message.create({
+      data: {
+        roomId: req.params.id,
+        senderId: req.userId,
+        content: `${user.name}님이 채널에 참가했습니다`,
+      },
+      include: { sender: { select: { id: true, name: true, email: true } } },
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      const sockets = await io.fetchSockets();
+      for (const s of sockets) {
+        if (s.userId === req.userId) {
+          s.join(req.params.id);
+        }
+      }
+      io.to(req.params.id).emit('message', { ...systemMsg, readCount: 0 });
+      io.to(req.params.id).emit('members_added', { roomId: req.params.id });
+    }
+
+    const updatedRoom = await prisma.room.findUnique({
+      where: { id: req.params.id },
+      include: {
+        members: {
+          where: { leftAt: null },
+          include: { user: { select: { id: true, name: true, email: true } } },
+        },
+      },
+    });
+
+    return res.json({
+      id: updatedRoom.id,
+      name: updatedRoom.name || '채팅방',
+      isGroup: updatedRoom.isGroup,
+      members: updatedRoom.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to join room' });
   }
 });

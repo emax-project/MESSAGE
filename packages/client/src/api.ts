@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+export const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 function getToken(): string | null {
   return localStorage.getItem('token');
@@ -30,6 +30,21 @@ function mapUploadError(status: number, serverMessage?: string) {
   return '업로드 실패';
 }
 
+function handleForcedLogout(path: string, status: number, serverMessage?: string) {
+  if (status !== 401) return;
+  if (path.startsWith('/auth/login') || path.startsWith('/auth/register')) return;
+  const msg = serverMessage || '다른 기기에서 로그인되어 로그아웃되었습니다.';
+  try {
+    localStorage.setItem('forcedLogoutMessage', msg);
+    localStorage.removeItem('token');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export const api = {
   async post(path: string, body: object) {
     const res = await fetch(`${BASE}${path}`, {
@@ -38,13 +53,19 @@ export const api = {
       body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((data as { error?: string }).error || res.statusText);
+    if (!res.ok) {
+      handleForcedLogout(path, res.status, (data as { error?: string }).error);
+      throw new Error((data as { error?: string }).error || res.statusText);
+    }
     return data;
   },
   async get(path: string) {
     const res = await fetch(`${BASE}${path}`, { headers: headers() });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((data as { error?: string }).error || res.statusText);
+    if (!res.ok) {
+      handleForcedLogout(path, res.status, (data as { error?: string }).error);
+      throw new Error((data as { error?: string }).error || res.statusText);
+    }
     return data;
   },
   async put(path: string, body: object) {
@@ -54,13 +75,19 @@ export const api = {
       body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((data as { error?: string }).error || res.statusText);
+    if (!res.ok) {
+      handleForcedLogout(path, res.status, (data as { error?: string }).error);
+      throw new Error((data as { error?: string }).error || res.statusText);
+    }
     return data;
   },
   async delete(path: string) {
     const res = await fetch(`${BASE}${path}`, { method: 'DELETE', headers: headers() });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((data as { error?: string }).error || res.statusText);
+    if (!res.ok) {
+      handleForcedLogout(path, res.status, (data as { error?: string }).error);
+      throw new Error((data as { error?: string }).error || res.statusText);
+    }
     return data;
   },
   upload(
@@ -178,11 +205,72 @@ export type Event = {
   updatedAt?: string;
 };
 
+export type Bookmark = {
+  id: string;
+  messageId: string;
+  createdAt: string;
+  message: {
+    id: string;
+    content: string;
+    createdAt: string;
+    sender: { id: string; name: string };
+    fileUrl?: string | null;
+    fileName?: string | null;
+    fileSize?: number | null;
+    room: { id: string; name: string };
+  };
+};
+
+export type MentionItem = {
+  id: string;
+  messageId: string;
+  readAt: string | null;
+  message: {
+    id: string;
+    content: string;
+    createdAt: string;
+    sender: { id: string; name: string };
+    room: { id: string; name: string };
+  };
+};
+
+export type ReaderInfo = {
+  userId: string;
+  userName: string;
+  readAt: string;
+};
+
+export type FileInfo = {
+  id: string;
+  fileName: string | null;
+  fileSize: number | null;
+  fileMimeType: string | null;
+  fileExpiresAt: string | null;
+  createdAt: string;
+  sender: { id: string; name: string };
+};
+
+export type PublicRoom = {
+  id: string;
+  name: string;
+  memberCount: number;
+  isMember: boolean;
+  lastMessage: { content: string; createdAt: string; senderName: string } | null;
+  updatedAt: string;
+};
+
+export type ThreadData = {
+  parent: Message;
+  replies: Message[];
+};
+
 export const authApi = {
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }) as Promise<{ user: User; token: string }>,
   register: (email: string, password: string, name: string) =>
     api.post('/auth/register', { email, password, name }) as Promise<{ user: User; token: string }>,
+  me: () => api.get('/auth/me') as Promise<{ user: User }>,
+  logout: () => api.post('/auth/logout', {}) as Promise<{ ok: boolean }>,
 };
 
 export const usersApi = {
@@ -213,6 +301,8 @@ export const eventsApi = {
 export const roomsApi = {
   list: () => api.get('/rooms') as Promise<Room[]>,
   create: (otherUserId: string) => api.post('/rooms', { otherUserId }) as Promise<Room & { members: { user: User }[] }>,
+  createTopic: (data: { name: string; description?: string; isPublic?: boolean; viewMode?: string; memberIds: string[]; folderId?: string }) =>
+    api.post('/rooms/topic', data) as Promise<Room>,
   get: (id: string) => api.get(`/rooms/${id}`) as Promise<Room>,
   markRead: (roomId: string) => api.post(`/rooms/${roomId}/read`, {}) as Promise<{ ok: boolean }>,
   messages: (roomId: string, cursor?: string) =>
@@ -221,8 +311,8 @@ export const roomsApi = {
       nextCursor: string | null;
       hasMore: boolean;
     }>,
-  addMembers: (roomId: string, userIds: string[]) =>
-    api.post(`/rooms/${roomId}/members`, { userIds }) as Promise<Room>,
+  addMembers: (roomId: string, userIds: string[], isPublic?: boolean) =>
+    api.post(`/rooms/${roomId}/members`, { userIds, isPublic }) as Promise<Room>,
   searchMessages: (roomId: string, query: string) =>
     api.get(`/rooms/${roomId}/messages/search?q=${encodeURIComponent(query)}`) as Promise<{ messages: Message[] }>,
   editMessage: (roomId: string, messageId: string, content: string) =>
@@ -243,6 +333,16 @@ export const roomsApi = {
     api.delete(`/rooms/${roomId}/pin/${messageId}`) as Promise<{ ok: boolean }>,
   getPins: (roomId: string) =>
     api.get(`/rooms/${roomId}/pins`) as Promise<{ pins: PinnedMessageItem[] }>,
+  files: (roomId: string, cursor?: string) =>
+    api.get(`/rooms/${roomId}/files${cursor ? `?cursor=${cursor}` : ''}`) as Promise<{ files: FileInfo[]; nextCursor: string | null; hasMore: boolean }>,
+  messageReaders: (roomId: string, messageId: string) =>
+    api.get(`/rooms/${roomId}/messages/${messageId}/readers`) as Promise<{ readers: ReaderInfo[] }>,
+  thread: (roomId: string, messageId: string) =>
+    api.get(`/rooms/${roomId}/messages/${messageId}/thread`) as Promise<ThreadData>,
+  listPublic: () =>
+    api.get('/rooms/public') as Promise<PublicRoom[]>,
+  join: (roomId: string) =>
+    api.post(`/rooms/${roomId}/join`, {}) as Promise<Room>,
 };
 
 export const filesApi = {
@@ -264,11 +364,31 @@ export const filesApi = {
     return res.blob();
   },
   async download(messageId: string, filename?: string | null) {
-    const blob = await this.fetchBlob(messageId);
+    const res = await fetch(`${BASE}/files/download/${messageId}`, {
+      method: 'GET',
+      headers: authHeaders(),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as { error?: string }).error || res.statusText);
+    }
+    const blob = await res.blob();
+    let downloadName = filename || 'download';
+    const disp = res.headers.get('Content-Disposition');
+    if (disp) {
+      const utf8Match = disp.match(/filename\*=UTF-8''([^;\s]+)/i);
+      if (utf8Match) {
+        try {
+          downloadName = decodeURIComponent(utf8Match[1]);
+        } catch {
+          // keep filename from param
+        }
+      }
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename || 'download';
+    a.download = downloadName;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -357,6 +477,48 @@ export const projectsApi = {
     api.get(`/projects/${id}/tasks/${taskId}/comments`) as Promise<TaskComment[]>,
   addComment: (id: string, taskId: string, content: string) =>
     api.post(`/projects/${id}/tasks/${taskId}/comments`, { content }) as Promise<TaskComment>,
+};
+
+export const bookmarksApi = {
+  list: () => api.get('/bookmarks') as Promise<Bookmark[]>,
+  add: (messageId: string) => api.post('/bookmarks', { messageId }) as Promise<{ id: string }>,
+  remove: (messageId: string) => api.delete(`/bookmarks/${messageId}`) as Promise<{ ok: boolean }>,
+};
+
+export const mentionsApi = {
+  list: () => api.get('/mentions') as Promise<MentionItem[]>,
+  markRead: (id: string) => api.post(`/mentions/${id}/read`, {}) as Promise<{ ok: boolean }>,
+  unreadCount: () => api.get('/mentions/unread-count') as Promise<{ count: number }>,
+};
+
+export type LinkPreviewData = { url: string; title: string | null; description: string | null; imageUrl: string | null };
+
+export const linkPreviewApi = {
+  get: (url: string) =>
+    api.get(`/link-preview?url=${encodeURIComponent(url)}`) as Promise<LinkPreviewData>,
+  /** 썸네일 이미지를 서버 경유로 가져와서 외부 차단 시에도 표시 */
+  async fetchImageBlob(imageUrl: string, pageUrl?: string): Promise<Blob> {
+    let url = `${BASE}/link-preview/image?imageUrl=${encodeURIComponent(imageUrl)}`;
+    if (pageUrl) url += `&referer=${encodeURIComponent(pageUrl)}`;
+    const res = await fetch(url, { headers: authHeaders() });
+    if (!res.ok) throw new Error('이미지를 불러올 수 없습니다.');
+    return res.blob();
+  },
+};
+
+export type Folder = {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: string;
+};
+
+export const foldersApi = {
+  list: () => api.get('/folders') as Promise<Folder[]>,
+  create: (name: string) => api.post('/folders', { name }) as Promise<Folder>,
+  delete: (id: string) => api.delete(`/folders/${id}`) as Promise<{ ok: boolean }>,
+  assign: (roomId: string, folderId: string | null) =>
+    api.put('/folders/assign', { roomId, folderId }) as Promise<{ ok: boolean }>,
 };
 
 export function getSocketUrl(): string {

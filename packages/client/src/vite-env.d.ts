@@ -10,6 +10,7 @@ interface ImportMeta {
 
 interface Window {
   electronAPI?: {
+    platform: string;
     openSecondWindow: () => Promise<void>;
     openChatWindow: (roomId: string) => Promise<void>;
     showNotification: (title: string, body: string) => Promise<void>;

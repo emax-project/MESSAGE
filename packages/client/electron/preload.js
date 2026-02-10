@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  platform: process.platform,
   openSecondWindow: () => ipcRenderer.invoke('open-second-window'),
   openChatWindow: (roomId) => ipcRenderer.invoke('open-chat-window', roomId),
   openKanbanWindow: (roomId) => ipcRenderer.invoke('open-kanban-window', roomId),

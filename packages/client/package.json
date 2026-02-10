@@ -1,6 +1,6 @@
 {
   "name": "client",
-  "version": "1.0.1",
+  "version": "1.0.7",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -9,9 +9,10 @@
     "build:icon": "node scripts/build-icon.js",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:build": "npm run build && electron-builder --publish never",
-    "electron:build:mac": "npm run build && electron-builder --mac --publish never",
-    "electron:build:win": "npm run build && electron-builder --win --x64 --arm64 --publish never",
+    "generate-updater-config": "node scripts/generate-updater-config.js",
+    "electron:build": "npm run build && npm run generate-updater-config && electron-builder --publish never",
+    "electron:build:mac": "npm run build && npm run generate-updater-config && electron-builder --mac --publish never",
+    "electron:build:win": "npm run build && npm run generate-updater-config && electron-builder --win --x64 --arm64 --publish never",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
@@ -75,7 +76,8 @@
       "target": [
         "nsis"
       ],
-      "icon": "build/icons/icon.ico"
+      "icon": "build/icons/icon.ico",
+      "artifactName": "EMAX-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
