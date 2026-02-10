@@ -1,5 +1,6 @@
 # 서버 PC의 Docker에 자동 배포
 # main 브랜치에 push 하거나, Actions 탭에서 수동 실행 가능
+# 웹 클라이언트(React)도 빌드해 API와 같은 주소에서 서빙합니다.
 
 name: Deploy to Server (Docker)
 
@@ -16,6 +17,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web client (same-origin API)
+        run: VITE_API_URL= npm run build:client
+        # VITE_API_URL 빈 값 → 브라우저가 접속한 주소와 동일한 origin으로 API 요청 (배포 URL 그대로 사용)
+
+      - name: Copy client into server for Docker
+        run: |
+          rm -rf packages/server/client-dist
+          cp -r packages/client/dist packages/server/client-dist
 
       - name: Set JWT_SECRET for Docker Compose
         run: |

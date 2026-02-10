@@ -1,8 +1,13 @@
 import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { roomsRouter } from './routes/rooms.js';
@@ -50,9 +55,15 @@ app.use('/folders', foldersRouter);
 // Health check
 app.get('/health', (_, res) => res.json({ ok: true }));
 
-// 루트 접속 시 안내 (브라우저/도커 접속 시 "Cannot GET /" 방지)
-app.get('/', (_, res) => {
-  res.type('html').send(`
+// 웹 클라이언트(SPA) 서빙: client-dist에 index.html이 있으면 정적 파일 + SPA 폴백
+const clientDist = process.env.CLIENT_DIST || path.join(__dirname, '..', 'client-dist');
+const clientIndexPath = path.join(clientDist, 'index.html');
+if (fs.existsSync(clientIndexPath)) {
+  app.use(express.static(clientDist, { index: false }));
+  app.get('*', (_, res) => res.sendFile(clientIndexPath));
+} else {
+  app.get('/', (_, res) => {
+    res.type('html').send(`
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>EMAX</title></head>
@@ -62,8 +73,9 @@ app.get('/', (_, res) => {
   <p><a href="/health">/health</a> — 서버 상태 확인</p>
 </body>
 </html>
-  `);
-});
+    `);
+  });
+}
 
 const PORT = process.env.PORT || 3001;
 

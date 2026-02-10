@@ -11,6 +11,7 @@ COPY prisma ./prisma
 RUN npx prisma generate
 
 COPY src ./src
+COPY client-dist ./client-dist
 
 EXPOSE 3001
 

@@ -1,4 +1,6 @@
-export const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// 빈 문자열이면 같은 origin 사용(배포 시 같은 서버에서 API·웹 서빙), 없으면 로컬 개발용
+export const BASE =
+  import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
 
 function getToken(): string | null {
   return localStorage.getItem('token');
@@ -522,5 +524,6 @@ export const foldersApi = {
 };
 
 export function getSocketUrl(): string {
-  return import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  if (BASE === '') return typeof window !== 'undefined' ? window.location.origin : '';
+  return BASE;
 }
