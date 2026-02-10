@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   root: '.',
-  // Electron 패키징 시 file:// 로 로드되므로 상대 경로 필수 (절대 경로면 흰 화면)
-  base: './',
+  // Electron: base './'. 웹 배포(Docker) 시 VITE_BASE_URL='/' 로 빌드해 asset 절대 경로 사용
+  base: process.env.VITE_BASE_URL ?? './',
   build: {
     outDir: 'dist',
     emptyOutDir: true,

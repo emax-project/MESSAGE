@@ -60,7 +60,11 @@ const clientDist = process.env.CLIENT_DIST || path.join(__dirname, '..', 'client
 const clientIndexPath = path.join(clientDist, 'index.html');
 if (fs.existsSync(clientIndexPath)) {
   app.use(express.static(clientDist, { index: false }));
-  app.get('*', (_, res) => res.sendFile(clientIndexPath));
+  // 확장자 있는 요청(asset)은 static에서 처리, 나머지만 SPA index.html
+  app.get('*', (req, res) => {
+    if (path.extname(req.path)) return res.status(404).send('Not found');
+    res.sendFile(clientIndexPath);
+  });
 } else {
   app.get('/', (_, res) => {
     res.type('html').send(`

@@ -8,6 +8,7 @@ COPY packages/server/package.json packages/server/package.json
 # postinstall은 server의 prisma generate인데 client-builder에는 prisma 없음 → 스크립트 생략
 RUN npm ci --ignore-scripts
 ENV VITE_API_URL=
+ENV VITE_BASE_URL=/
 RUN npm run build --workspace=client
 
 # Stage 2: API 서버 + 클라이언트 정적 파일
