@@ -874,8 +874,8 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
   const inputBg = isDark ? '#334155' : '#f5f5f5';
 
   return {
-    appWrap: { display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: bg },
-    layout: { display: 'flex', flex: 1, flexDirection: 'row', minHeight: 0 },
+    appWrap: { display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', minWidth: 0, overflow: 'hidden', background: bg },
+    layout: { display: 'flex', flex: 1, flexDirection: 'row', minHeight: 0, minWidth: 0 },
 
     /* Sidebar */
     sidebar: { width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', background: sidebarBg, borderRight: `1px solid ${border}` },
@@ -927,7 +927,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     menuBtn: { width: 34, height: 34, padding: 0, border: 'none', borderRadius: 8, background: 'transparent', color: isDark ? '#94a3b8' : '#666', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     menuBtnActive: { background: isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb', color: isDark ? '#fff' : '#333' },
     menuBadge: { position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: '#e53935', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    contentArea: { flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' },
+    contentArea: { flex: 1, minHeight: 0, minWidth: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' },
 
     /* Empty state */
     emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 },

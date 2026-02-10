@@ -560,7 +560,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const members = (room as Room).members ?? [];
 
   const wrapperStyle: React.CSSProperties = embedded
-    ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: isDark ? '#0f172a' : '#fafafa' }
+    ? { flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: isDark ? '#0f172a' : '#fafafa' }
     : s.appWrap(isDark);
 
   return (
@@ -578,7 +578,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       `}</style>
       {!embedded && hasElectron && <TitleBar title={room.name} isDark={isDark} />}
       <div
-        style={embedded ? { ...s.layout(isDark), flex: 1, minHeight: 0 } : s.layout(isDark)}
+        style={embedded ? { ...s.layout(isDark), flex: 1, minHeight: 0, minWidth: 0 } : s.layout(isDark)}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

@@ -40,7 +40,8 @@ function handleForcedLogout(path: string, status: number, serverMessage?: string
     localStorage.setItem('forcedLogoutMessage', msg);
     localStorage.removeItem('token');
     if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+      const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/register';
+      if (!isLoginPage) window.location.href = '/login';
     }
   } catch {
     // ignore

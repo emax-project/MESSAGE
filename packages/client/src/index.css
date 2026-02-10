@@ -3,16 +3,22 @@
 * {
   box-sizing: border-box;
 }
-body {
+html, body {
   margin: 0;
+  width: 100%;
+  min-width: 100%;
+}
+body {
   font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   background: #0f172a;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 #root {
   height: 100vh;
   width: 100%;
+  min-width: 100%;
 }
 
 ::-webkit-scrollbar {
