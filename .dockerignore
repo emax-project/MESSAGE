@@ -1,0 +1,14 @@
+node_modules
+packages/*/node_modules
+packages/client/dist
+.git
+.github
+release
+*.log
+.env
+.env.*
+.DS_Store
+packages/client/electron
+packages/client/build
+packages/server/uploads
+packages/server/client-dist
