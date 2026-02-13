@@ -9,7 +9,13 @@ export function registerSocketHandlers(io) {
       onlineUsers.add(uid);
       socket.emit('online_list', { userIds: onlineUsers.getAll() });
       if (!wasOnline) {
-        io.emit('user_online', { userId: uid });
+        prisma.user.findUnique({ where: { id: uid }, select: { name: true } })
+          .then((user) => {
+            io.emit('user_online', { userId: uid, userName: user?.name ?? null });
+          })
+          .catch(() => {
+            io.emit('user_online', { userId: uid, userName: null });
+          });
       }
     }
     socket.on('get_online_list', () => {

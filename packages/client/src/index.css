@@ -5,20 +5,27 @@
 }
 html, body {
   margin: 0;
+  padding: 0;
   width: 100%;
-  min-width: 100%;
+  min-height: 100vh;
 }
 body {
   font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   background: #0f172a;
   overflow-x: hidden;
-  min-height: 100vh;
 }
 #root {
-  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   width: 100%;
-  min-width: 100%;
+}
+#root > * {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 ::-webkit-scrollbar {

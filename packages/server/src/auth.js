@@ -30,16 +30,20 @@ export async function verifySessionToken(token) {
 }
 
 export async function authMiddleware(req, res, next) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const payload = await verifySessionToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    req.userId = payload.userId;
+    req.sessionId = payload.sessionId;
+    next();
+  } catch (err) {
+    next(err);
   }
-  const payload = await verifySessionToken(token);
-  if (!payload) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
-  }
-  req.userId = payload.userId;
-  req.sessionId = payload.sessionId;
-  next();
 }

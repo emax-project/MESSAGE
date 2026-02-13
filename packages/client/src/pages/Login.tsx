@@ -27,7 +27,7 @@ export default function Login() {
       const { user, token } = await authApi.login(email, password);
       setAuth(user, token);
       if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { showNotification?: (a: string, b: string) => void } }).electronAPI?.showNotification) {
-        (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification('EMAX', `${user.name}님 로그인되었습니다.`);
+        (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification('로그인', `${user.name}님 로그인되었습니다.`);
       }
       navigate('/', { replace: true });
     } catch (err) {
@@ -52,7 +52,7 @@ export default function Login() {
       <div style={s.body}>
         <div style={s.card}>
           <div style={s.logoWrap}>
-            <div style={s.logo}>E</div>
+            <img src={`${import.meta.env.BASE_URL}emax-logo.png?v=5`} alt="EMAX" style={s.logo} />
           </div>
           <h1 style={s.title}>EMAX</h1>
           <p style={s.subtitle}>업무 메신저에 로그인</p>
@@ -132,17 +132,11 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       marginBottom: 16,
     },
     logo: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
-      background: '#475569',
-      color: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 22,
-      fontWeight: 800,
-      letterSpacing: '-0.02em',
+      width: 72,
+      height: 72,
+      objectFit: 'contain',
+      display: 'block',
+      background: 'transparent',
     },
     title: {
       margin: '0 0 4px',

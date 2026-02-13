@@ -46,12 +46,13 @@ filesRouter.post('/upload', (req, res, next) => {
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf-8');
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const userContent = req.body.content?.trim();
 
     const message = await prisma.message.create({
       data: {
         roomId,
         senderId: req.userId,
-        content: `[파일] ${originalName}`,
+        content: userContent || `[파일] ${originalName}`,
         fileUrl,
         fileName: originalName,
         fileSize: BigInt(req.file.size),

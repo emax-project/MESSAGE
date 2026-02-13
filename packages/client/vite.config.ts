@@ -10,5 +10,13 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
   },
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    proxy: {
+      '^/(auth|users|rooms|org|files|announcement|events|polls|projects|bookmarks|mentions|link-preview|folders|ollama)': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
 });

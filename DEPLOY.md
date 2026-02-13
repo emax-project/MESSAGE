@@ -470,6 +470,36 @@ Get-Content "C:\actions-runner\_work\MESSAGE\MESSAGE\dump_20260209_1156.sql" -Ra
 
 ---
 
+### Ollama AI 채팅 (선택)
+
+**방법 A: Docker Compose로 Ollama 포함 (권장)**
+
+- `docker-compose.yml`에 **Ollama 서비스**가 이미 포함되어 있습니다.
+- `docker compose up -d --build` 실행 시 Ollama 컨테이너가 자동으로 기동됩니다.
+- 서버는 내부 주소 `http://ollama:11434`로 접속합니다.
+- **모델 다운로드**는 최초 한 번 수동으로 실행합니다:
+
+```bash
+docker compose exec ollama ollama run llama3.1:8b
+```
+
+- CPU 전용입니다. GPU를 쓰려면 `docker-compose.yml`의 ollama 서비스에 `deploy.resources.reservations.devices` 설정을 추가하세요. (NVIDIA: [Docker 공식 문서](https://docs.docker.com/config/containers/resource_constraints/#gpu) 참고)
+
+**방법 B: 외부 Ollama 사용**
+
+- 서버 PC와 Ollama가 **다른 IP**에 있는 경우 (예: 192.168.0.204)
+- 프로젝트 루트에 `.env` 파일을 만들고 **# 없이** 다음을 추가하세요:
+
+```env
+OLLAMA_BASE_URL=http://192.168.0.204:11434
+OLLAMA_MODEL=llama3.1:8b
+```
+
+- ⚠️ `# OLLAMA_BASE_URL=...` 처럼 `#`으로 주석 처리하면 적용되지 않습니다.
+- 설정 후 `docker compose up -d --build`로 재시작해야 적용됩니다.
+
+---
+
 ### 요약 체크리스트
 
 | 순서 | 할 일 |

@@ -21,6 +21,7 @@ import { bookmarksRouter } from './routes/bookmarks.js';
 import { mentionsRouter } from './routes/mentions.js';
 import { linkPreviewRouter } from './routes/linkPreview.js';
 import { foldersRouter } from './routes/folders.js';
+import { ollamaRouter } from './routes/ollama.js';
 import { prisma } from './db.js';
 import { verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
@@ -49,11 +50,25 @@ app.use('/bookmarks', bookmarksRouter);
 app.use('/mentions', mentionsRouter);
 app.use('/link-preview', linkPreviewRouter());
 app.use('/folders', foldersRouter);
+app.use('/ollama', ollamaRouter);
 // Disable public uploads to enforce auth/expiry checks via /files/download
 // app.use('/uploads', express.static(UPLOAD_DIR));
 
 // Health check
 app.get('/health', (_, res) => res.json({ ok: true }));
+
+// Ollama 연결 테스트 (인증 없음, curl로 확인용)
+app.get('/ollama-health', async (_, res) => {
+  const base = process.env.OLLAMA_BASE_URL;
+  if (!base) return res.status(503).json({ ok: false, error: 'OLLAMA_BASE_URL 미설정' });
+  try {
+    const r = await fetch(`${base}/api/tags`);
+    const data = await r.json().catch(() => ({}));
+    return res.json({ ok: r.ok, status: r.status, data });
+  } catch (e) {
+    return res.status(502).json({ ok: false, error: e.message });
+  }
+});
 
 // API 안내 (예전처럼 "이 주소는 API 서버입니다" 화면이 필요할 때)
 app.get('/api-info', (_, res) => {
@@ -104,6 +119,14 @@ if (fs.existsSync(clientIndexPath)) {
 }
 
 const PORT = process.env.PORT || 3001;
+
+// API 요청은 항상 JSON 에러 응답 (HTML "Internal Server Error" 방지)
+app.use((err, req, res, _next) => {
+  console.error('Express error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || '서버 오류가 발생했습니다.',
+  });
+});
 
 // Socket.io with CORS for Electron
 const io = new Server(httpServer, {

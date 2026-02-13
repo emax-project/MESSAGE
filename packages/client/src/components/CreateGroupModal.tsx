@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { usersApi, roomsApi, foldersApi, type User, type Folder } from '../api';
-import { useThemeStore } from '../store';
+import { usersApi, roomsApi, foldersApi, type User, type Folder, type Room } from '../api';
+import { useAuthStore, useThemeStore } from '../store';
 
 type Props = {
   mode: 'topic' | 'chat';
   onClose: () => void;
-  onCreated: (roomId: string) => void;
+  onCreated: (roomId: string, viewMode?: 'chat' | 'board') => void;
 };
 
 export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
@@ -21,7 +21,9 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formSnapshot, setFormSnapshot] = useState<{ folderId: string; viewMode: 'chat' | 'board' } | null>(null);
   const isDark = useThemeStore((s) => s.isDark);
+  const myId = useAuthStore((s) => s.user?.id);
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading: usersLoading } = useQuery({
@@ -64,19 +66,46 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
     try {
       if (mode === 'topic') {
         if (!topicName.trim()) {
-          setError('토픽 이름을 입력해주세요');
+          setError('아젠다 이름을 입력해주세요');
           setLoading(false);
           return;
         }
-        const room = await roomsApi.createTopic({
+        const snap = formSnapshot ?? { folderId, viewMode };
+        const payload: { name: string; description?: string; isPublic: boolean; viewMode: string; memberIds: string[]; folderId?: string } = {
           name: topicName.trim(),
           description: topicDesc.trim() || undefined,
           isPublic,
-          viewMode,
+          viewMode: snap.viewMode || 'chat',
           memberIds: Array.from(selected),
-          folderId: folderId || undefined,
-        });
-        onCreated(room.id);
+        };
+        const trimmedFolderId = snap.folderId ? String(snap.folderId).trim() : '';
+        if (trimmedFolderId) payload.folderId = trimmedFolderId;
+        if (import.meta.env.DEV) console.log('[CreateGroupModal] sending:', payload);
+        const room = await roomsApi.createTopic(payload);
+        const viewModeToUse = (room as { viewMode?: string })?.viewMode ?? snap.viewMode ?? viewMode;
+        const folderIdFromServer = (room as { folderId?: string | null })?.folderId ?? (trimmedFolderId || null);
+        const newRoomData = {
+          id: room.id,
+          name: room.name,
+          isGroup: room.isGroup,
+          viewMode: viewModeToUse,
+          members: room.members ?? [],
+          updatedAt: room.updatedAt,
+          lastMessage: null,
+          folderId: folderIdFromServer,
+          isFavorite: (room as { isFavorite?: boolean })?.isFavorite ?? false,
+          unreadCount: 0,
+        };
+        queryClient.setQueryData(['rooms', room.id], newRoomData);
+        // rooms 목록에 새 방 추가 (viewMode, folderId 즉시 반영)
+        if (myId) {
+          queryClient.setQueryData<Room[]>(['rooms', myId], (prev) => {
+            if (!prev) return prev;
+            if (prev.some((r) => r.id === room.id)) return prev.map((r) => (r.id === room.id ? { ...r, viewMode: viewModeToUse, folderId: folderIdFromServer } : r));
+            return [{ ...newRoomData, lastMessage: null, unreadCount: 0 } as Room, ...prev];
+          });
+        }
+        onCreated(room.id, viewModeToUse);
       } else {
         const ids = Array.from(selected);
         if (ids.length === 0) { setLoading(false); return; }
@@ -99,7 +128,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
 
   const st = getStyles(isDark);
   const isTopic = mode === 'topic';
-  const title = isTopic ? '새 토픽 생성' : '새 채팅';
+  const title = isTopic ? '새 아젠다 생성' : '새 채팅';
   const canCreate = isTopic ? topicName.trim().length > 0 : selected.size > 0;
 
   return (
@@ -127,7 +156,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
               </div>
               <input
                 type="text"
-                placeholder="토픽 이름을 입력하세요"
+                placeholder="아젠다 이름을 입력하세요"
                 value={topicName}
                 onChange={(e) => setTopicName(e.target.value.slice(0, 60))}
                 maxLength={60}
@@ -139,11 +168,11 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
             {/* Description */}
             <div style={st.fieldGroup}>
               <div style={st.labelRow}>
-                <label style={st.label}>토픽 설명</label>
+                <label style={st.label}>아젠다 설명</label>
                 <span style={{ ...st.charCount, ...(topicDesc.length > 300 ? { color: '#ef4444' } : {}) }}>{topicDesc.length}/300</span>
               </div>
               <textarea
-                placeholder="토픽에 대한 설명을 입력하세요 (선택)"
+                placeholder="아젠다에 대한 설명을 입력하세요 (선택)"
                 value={topicDesc}
                 onChange={(e) => setTopicDesc(e.target.value.slice(0, 300))}
                 maxLength={300}
@@ -173,14 +202,14 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
                   </div>
                 </label>
               </div>
-              <p style={st.fieldHint}>토픽 생성 이후 변경 불가</p>
+              <p style={st.fieldHint}>아젠다 생성 이후 변경 불가</p>
             </div>
 
-            {/* View Mode */}
+            {/* View Mode: 챗뷰(메시지 기반) vs 보드뷰(게시글 기반) - JANDI 참고 */}
             <div style={st.fieldGroup}>
               <div style={st.labelRow}>
                 <label style={st.label}>보기 방식 <span style={st.required}>*</span></label>
-                <span style={st.fieldHintInline}>토픽 생성 이후 변경 불가</span>
+                <span style={st.fieldHintInline}>아젠다 생성 이후 변경 불가</span>
               </div>
               <div style={st.viewModeGroup}>
                 <label style={{ ...st.viewModeCard, ...(viewMode === 'chat' ? st.viewModeCardActive : {}) }}>
@@ -191,7 +220,10 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
                     </svg>
                   </div>
                   <div style={st.viewModeRadio}>{viewMode === 'chat' ? '\u25C9' : '\u25CB'}</div>
-                  <span style={st.viewModeLabel}>챗 뷰</span>
+                  <div>
+                    <span style={st.viewModeLabel}>챗뷰</span>
+                    <div style={st.viewModeHint}>메시지 기반 · 빠른 대화·실시간 논의</div>
+                  </div>
                 </label>
                 <label style={{ ...st.viewModeCard, ...(viewMode === 'board' ? st.viewModeCardActive : {}) }}>
                   <input type="radio" name="viewMode" checked={viewMode === 'board'} onChange={() => setViewMode('board')} style={st.radioHidden} />
@@ -201,7 +233,10 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
                     </svg>
                   </div>
                   <div style={st.viewModeRadio}>{viewMode === 'board' ? '\u25C9' : '\u25CB'}</div>
-                  <span style={st.viewModeLabel}>보드 뷰</span>
+                  <div>
+                    <span style={st.viewModeLabel}>보드뷰</span>
+                    <div style={st.viewModeHint}>게시글 기반 · 공지·회의록·장문 기록</div>
+                  </div>
                 </label>
               </div>
             </div>
@@ -215,7 +250,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
                   onChange={(e) => setFolderId(e.target.value)}
                   style={st.select}
                 >
-                  <option value="">토픽을 생성 할 폴더를 선택해 주세요.</option>
+                  <option value="">아젠다를 생성할 폴더를 선택해 주세요.</option>
                   {(folders as Folder[]).map((f) => (
                     <option key={f.id} value={f.id}>{f.name}</option>
                   ))}
@@ -320,7 +355,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
                 type="button"
                 style={{ ...st.createBtn, ...(!topicName.trim() ? st.createBtnDisabled : {}) }}
                 disabled={!topicName.trim()}
-                onClick={() => setStep('members')}
+                onClick={() => { setFormSnapshot({ folderId, viewMode }); setStep('members'); }}
               >다음</button>
             ) : (
               <button
@@ -329,7 +364,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
                 disabled={!canCreate || loading}
                 onClick={handleCreate}
               >
-                {loading ? '만드는 중...' : isTopic ? '토픽 만들기' : (selected.size <= 1 ? '1:1 채팅 만들기' : '그룹 채팅 만들기')}
+                {loading ? '만드는 중...' : isTopic ? '아젠다 만들기' : (selected.size <= 1 ? '1:1 채팅 만들기' : '그룹 채팅 만들기')}
               </button>
             )}
           </div>
@@ -544,6 +579,12 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       fontSize: 12,
       fontWeight: 600,
       color: text,
+    },
+    viewModeHint: {
+      fontSize: 10,
+      color: sub,
+      marginTop: 2,
+      lineHeight: 1.3,
     },
 
     /* Folder */

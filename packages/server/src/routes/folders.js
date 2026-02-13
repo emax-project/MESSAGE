@@ -37,23 +37,7 @@ foldersRouter.post('/', async (req, res) => {
   }
 });
 
-// Delete folder
-foldersRouter.delete('/:id', async (req, res) => {
-  try {
-    const folder = await prisma.folder.findFirst({
-      where: { id: req.params.id, userId: req.userId },
-    });
-    if (!folder) return res.status(404).json({ error: 'Folder not found' });
-
-    await prisma.folder.delete({ where: { id: folder.id } });
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Failed to delete folder' });
-  }
-});
-
-// Assign room to folder
+// Assign room to folder (must be before /:id to avoid "assign" being matched as id)
 foldersRouter.put('/assign', async (req, res) => {
   try {
     const { roomId, folderId } = req.body;
@@ -78,7 +62,46 @@ foldersRouter.put('/assign', async (req, res) => {
 
     return res.json({ ok: true });
   } catch (err) {
-    console.error(err);
+    console.error('[folders/assign]', err);
     return res.status(500).json({ error: 'Failed to assign folder' });
+  }
+});
+
+// Update folder (rename)
+foldersRouter.put('/:id', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: '폴더 이름을 입력해주세요' });
+    }
+    const folder = await prisma.folder.findFirst({
+      where: { id: req.params.id, userId: req.userId },
+    });
+    if (!folder) return res.status(404).json({ error: 'Folder not found' });
+
+    const updated = await prisma.folder.update({
+      where: { id: folder.id },
+      data: { name: name.trim() },
+    });
+    return res.json(updated);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to update folder' });
+  }
+});
+
+// Delete folder
+foldersRouter.delete('/:id', async (req, res) => {
+  try {
+    const folder = await prisma.folder.findFirst({
+      where: { id: req.params.id, userId: req.userId },
+    });
+    if (!folder) return res.status(404).json({ error: 'Folder not found' });
+
+    await prisma.folder.delete({ where: { id: folder.id } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to delete folder' });
   }
 });

@@ -1,5 +1,5 @@
 {
-  "name": "04-message",
+  "name": "emax",
   "private": true,
   "scripts": {
     "dev:server": "npm run dev --workspace=server",

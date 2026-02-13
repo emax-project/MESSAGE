@@ -1,6 +1,20 @@
 const { app, BrowserWindow, Menu, ipcMain, Tray, screen } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { pathToFileURL } = require('url');
+
+// #region agent log
+const DEBUG_LOG_PATH = path.join(__dirname, '..', '..', '..', '.cursor', 'debug.log');
+function debugLog(message, data, hypothesisId) {
+  try {
+    const line = JSON.stringify({ timestamp: Date.now(), location: 'main.js', message, data: data || {}, hypothesisId }) + '\n';
+    fs.appendFileSync(DEBUG_LOG_PATH, line);
+  } catch (e) { /* ignore */ }
+}
+ipcMain.on('debug-log', (_, payload) => {
+  if (payload && typeof payload.message === 'string') debugLog(payload.message, payload.data, payload.hypothesisId);
+});
+// #endregion
 
 const NOTIF_WIDTH = 360;
 const NOTIF_HEIGHT = 88;
@@ -202,14 +216,19 @@ function getLoadFile() {
 }
 
 function createWindow(options = {}) {
+  // #region agent log
+  debugLog('createWindow called', { platform: process.platform, isMainWindow: !options.secondWindow }, 'A');
+  // #endregion
   const win = new BrowserWindow({
-    width: 960,
-    height: 700,
+    width: 1250,
+    height: 900,
     minWidth: 780,
     minHeight: 560,
     frame: false,
     titleBarStyle: 'hidden',
     show: false,
+    // 흰 화면 플래시 방지 (특히 Windows 첫 실행)
+    backgroundColor: '#0f172a',
     // macOS: 창에 icon 지정 시 타이틀 바에 거대하게 표시되므로 제외. 도크 아이콘은 app.dock.setIcon으로만 설정.
     ...(process.platform !== 'darwin' ? { icon: iconPath } : {}),
     webPreferences: {
@@ -222,6 +241,9 @@ function createWindow(options = {}) {
 
   const url = getLoadURL();
   const file = getLoadFile();
+  // #region agent log
+  debugLog('loadURL called', { type: url ? 'url' : 'file', value: (url || file || '').toString().slice(0, 120) }, 'C');
+  // #endregion
   if (url) {
     win.loadURL(url);
   } else if (file) {
@@ -229,30 +251,35 @@ function createWindow(options = {}) {
     win.loadURL(pathToFileURL(file).href);
   }
 
-  // 첫 실행 시 흰 화면 방지: 메인 창은 렌더러가 'app-ready' 보낼 때만 표시, 그 외는 로드 후 표시
-  const isMainWindow = !options.secondWindow;
-  if (isMainWindow) {
-    const showFallback = setTimeout(() => {
-      if (!win.isDestroyed() && !win.isVisible()) win.show();
-    }, 5000);
-    const onAppReady = (event) => {
-      if (event.sender !== win.webContents) return;
-      ipcMain.removeListener('app-ready', onAppReady);
-      clearTimeout(showFallback);
-      if (!win.isDestroyed()) win.show();
-    };
-    ipcMain.on('app-ready', onAppReady);
-  } else {
-    win.webContents.once('did-finish-load', () => {
-      if (win.isDestroyed()) return;
-      setTimeout(() => { if (!win.isDestroyed()) win.show(); }, 150);
-    });
-  }
+  // ready-to-show: HTML 첫 프레임이 그려지면 바로 표시 ("로딩 중..." 텍스트가 보임)
+  // Windows 첫 실행 시 React 마운트가 느려도 사용자가 빈 화면을 보지 않음
+  // 안전망: ready-to-show가 3초 내 안 오면 강제 표시
+  const showFallback = setTimeout(() => {
+    // #region agent log
+    debugLog('show() from fallback (3s)', { visible: !win.isDestroyed() && !win.isVisible() }, 'D');
+    // #endregion
+    if (!win.isDestroyed() && !win.isVisible()) win.show();
+  }, 3000);
+  win.once('ready-to-show', () => {
+    // #region agent log
+    debugLog('ready-to-show fired', { isDestroyed: win.isDestroyed() }, 'B');
+    // #endregion
+    clearTimeout(showFallback);
+    if (!win.isDestroyed()) win.show();
+  });
 
+  win.webContents.once('did-finish-load', () => {
+    // #region agent log
+    debugLog('did-finish-load', {}, 'C');
+    // #endregion
+  });
   if (process.argv.includes('--devtools')) {
     win.webContents.once('did-finish-load', () => win.webContents.openDevTools());
   }
   win.webContents.on('did-fail-load', (_, code, desc, url) => {
+    // #region agent log
+    debugLog('did-fail-load', { code, desc, url: (url || '').slice(0, 80) }, 'C');
+    // #endregion
     console.error('did-fail-load', code, desc, url);
   });
 

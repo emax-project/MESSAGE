@@ -103,6 +103,8 @@ roomsRouter.get('/', async (req, res) => {
           id: m.room.id,
           name: displayName,
           isGroup: m.room.isGroup,
+          viewMode: m.room.viewMode || 'chat',
+          folderId: m.folderId || null,
           members: m.room.members.map((mb) => ({ id: mb.user.id, name: mb.user.name, email: mb.user.email })),
           lastMessage: last
             ? { id: last.id, content: last.deletedAt ? '[삭제된 메시지]' : last.content, createdAt: last.createdAt, senderName: last.sender.name }
@@ -130,18 +132,22 @@ roomsRouter.get('/', async (req, res) => {
 // Create a topic (named group room) directly
 roomsRouter.post('/topic', async (req, res) => {
   try {
-    const { name, description, isPublic, viewMode, memberIds, folderId } = req.body;
+    const { name, description, isPublic, viewMode: viewModeRaw, memberIds, folderId: folderIdRaw } = req.body;
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[createTopic] received:', JSON.stringify({ viewMode: viewModeRaw, folderId: folderIdRaw }));
+    }
+    const folderId = folderIdRaw && typeof folderIdRaw === 'string' ? folderIdRaw.trim() : null;
     if (!name || typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: '토픽 이름을 입력해주세요' });
+      return res.status(400).json({ error: '아젠다 이름을 입력해주세요' });
     }
     if (name.trim().length > 60) {
-      return res.status(400).json({ error: '토픽 이름은 60자 이내로 입력해주세요' });
+      return res.status(400).json({ error: '아젠다 이름은 60자 이내로 입력해주세요' });
     }
     if (description && description.length > 300) {
-      return res.status(400).json({ error: '토픽 설명은 300자 이내로 입력해주세요' });
+      return res.status(400).json({ error: '아젠다 설명은 300자 이내로 입력해주세요' });
     }
     const validViewModes = ['chat', 'board'];
-    const roomViewMode = validViewModes.includes(viewMode) ? viewMode : 'chat';
+    const roomViewMode = (typeof viewModeRaw === 'string' && validViewModes.includes(viewModeRaw)) ? viewModeRaw : 'chat';
 
     const allMemberIds = new Set([req.userId]);
     if (Array.isArray(memberIds)) {
@@ -180,7 +186,7 @@ roomsRouter.post('/topic', async (req, res) => {
 
       // Assign folder to creator's membership if folderId provided
       if (folderId) {
-        const creatorMembership = room.members.find((m) => m.userId === req.userId);
+        const creatorMembership = room.members.find((m) => String(m.userId) === String(req.userId));
         if (creatorMembership) {
           await tx.roomMember.update({
             where: { id: creatorMembership.id },
@@ -193,7 +199,7 @@ roomsRouter.post('/topic', async (req, res) => {
         data: {
           roomId: room.id,
           senderId: req.userId,
-          content: `${requester.name}님이 토픽을 만들었습니다`,
+          content: `${requester.name}님이 아젠다를 만들었습니다`,
         },
       });
 
@@ -219,6 +225,7 @@ roomsRouter.post('/topic', async (req, res) => {
       isPublic: newRoom.isPublic,
       members: newRoom.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
       updatedAt: newRoom.updatedAt,
+      folderId: folderId || null,
     });
   } catch (err) {
     console.error(err);
@@ -303,12 +310,37 @@ roomsRouter.get('/:id', async (req, res) => {
       id: room.id,
       name: displayName,
       isGroup: room.isGroup,
+      viewMode: room.viewMode || 'chat',
       members: room.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
       updatedAt: room.updatedAt,
     });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch room' });
+  }
+});
+
+// Update room viewMode (chat/board) - DB에 저장
+roomsRouter.put('/:id', async (req, res) => {
+  try {
+    const { viewMode } = req.body;
+    const validViewModes = ['chat', 'board'];
+    if (!viewMode || !validViewModes.includes(viewMode)) {
+      return res.status(400).json({ error: 'viewMode는 chat 또는 board여야 합니다' });
+    }
+    const member = await prisma.roomMember.findFirst({
+      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
+    });
+    if (!member) return res.status(404).json({ error: 'Room not found' });
+
+    const updated = await prisma.room.update({
+      where: { id: req.params.id },
+      data: { viewMode },
+    });
+    return res.json({ viewMode: updated.viewMode });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to update viewMode' });
   }
 });
 

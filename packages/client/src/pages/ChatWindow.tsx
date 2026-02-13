@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore } from '../store';
-import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, type Room, type Message, type ReactionGroup, type ReaderInfo, type FileInfo } from '../api';
+import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, type Room, type Message, type ReactionGroup, type ReaderInfo, type FileInfo, type User, type PinnedMessageItem } from '../api';
+import { ollamaSummarize } from '../ollama';
 import FileMessage from '../components/FileMessage';
 import FileUploadButton from '../components/FileUploadButton';
 import InviteModal from '../components/InviteModal';
@@ -39,6 +40,94 @@ function canEditOrDelete(msg: Message, myId?: string): boolean {
   return Date.now() - new Date(msg.createdAt).getTime() < EDIT_LIMIT_MS;
 }
 
+function RightPanelMembers({ members, isDark, onInvite }: { members: User[]; isDark: boolean; onInvite: () => void }) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onInvite}
+        style={{
+          width: '100%',
+          padding: '10px 14px',
+          borderRadius: 8,
+          border: 'none',
+          background: isDark ? '#334155' : '#f1f5f9',
+          color: isDark ? '#94a3b8' : '#475569',
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: 'pointer',
+          marginBottom: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
+        </svg>
+        초대하기
+      </button>
+      {members.length === 0 ? (
+        <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14 }}>멤버가 없습니다</p>
+      ) : (
+        members.map((m) => (
+          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, marginBottom: 4, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
+            <span style={{ width: 32, height: 32, borderRadius: '50%', background: isDark ? '#475569' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569', flexShrink: 0 }}>
+              {m.name?.trim()?.[0]?.toUpperCase() || '?'}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b' }}>{m.name}</div>
+              {m.email && <div style={{ fontSize: 12, color: isDark ? '#64748b' : '#999' }}>{m.email}</div>}
+            </div>
+          </div>
+        ))
+      )}
+    </>
+  );
+}
+
+function RightPanelPins({ roomId, isDark }: { roomId: string; isDark: boolean }) {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ['rooms', roomId, 'pins'],
+    queryFn: () => roomsApi.getPins(roomId),
+    enabled: !!roomId,
+  });
+  const pins = data?.pins ?? [];
+
+  const handleUnpin = async (messageId: string) => {
+    try {
+      await roomsApi.unpinMessage(roomId, messageId);
+      queryClient.invalidateQueries({ queryKey: ['rooms', roomId, 'pins'] });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (pins.length === 0) {
+    return <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14, marginTop: 24 }}>고정된 메시지가 없습니다</p>;
+  }
+
+  return (
+    <>
+      {pins.map((p: PinnedMessageItem) => (
+        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', borderRadius: 8, marginBottom: 8, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b' }}>{p.message.sender.name}</span>
+            <button type="button" onClick={() => handleUnpin(p.message.id)} style={{ border: 'none', background: 'none', color: '#c62828', cursor: 'pointer', fontSize: 11, padding: '2px 6px', flexShrink: 0 }}>
+              해제
+            </button>
+          </div>
+          <div style={{ fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 48 }}>
+            {p.message.content}
+          </div>
+          <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>{new Date(p.message.createdAt).toLocaleString('ko-KR')}</div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function renderContentWithMentions(content: string, isDark: boolean): React.ReactNode {
   const parts = content.split(/(@\S+)/g);
   return parts.map((part, i) => {
@@ -54,14 +143,16 @@ type ChatWindowProps = { embedded?: boolean; onOpenInNewWindow?: () => void };
 export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowProps = {}) {
   const { roomId } = useParams<{ roomId?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const token = useAuthStore((s) => s.token);
   const myId = useAuthStore((s) => s.user?.id);
   const isDark = useThemeStore((s) => s.isDark);
   const [input, setInput] = useState('');
   const [socket, setSocket] = useState<Socket | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [dropUploading, setDropUploading] = useState(false);
-  const [dropProgress, setDropProgress] = useState(0);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileUploadProgress, setFileUploadProgress] = useState(0);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [shareEventOpen, setShareEventOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -81,14 +172,18 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [readersPopup, setReadersPopup] = useState<{ messageId: string; readers: ReaderInfo[]; x: number; y: number } | null>(null);
   const [threadOpen, setThreadOpen] = useState<{ parentId: string; parent: Message; replies: Message[] } | null>(null);
-  const [fileDrawerOpen, setFileDrawerOpen] = useState(false);
   const [fileDrawerData, setFileDrawerData] = useState<FileInfo[]>([]);
+  const [rightPanel, setRightPanel] = useState<'none' | 'file' | 'members' | 'pins'>('none');
+  const [boardCommentInputs, setBoardCommentInputs] = useState<Record<string, string>>({});
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryText, setSummaryText] = useState('');
+  const summaryDismissedRef = useRef(false);
   const socketRef = useRef<Socket | null>(null);
   const myIdRef = useRef<string | undefined>(myId);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMarkReadRef = useRef<number>(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const SCROLL_BOTTOM_THRESHOLD = 80;
   const checkAtBottom = () => {
@@ -103,10 +198,31 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const queryClient = useQueryClient();
   myIdRef.current = myId;
 
+  const { data: roomsList = [] } = useQuery({
+    queryKey: ['rooms', myId],
+    queryFn: roomsApi.list,
+    enabled: !!myId && !!roomId,
+  });
+
   const { data: room, isLoading: roomLoading } = useQuery({
     queryKey: ['rooms', roomId],
-    queryFn: () => (roomId ? roomsApi.get(roomId) : Promise.reject(new Error('no roomId'))),
+    queryFn: async () => {
+      if (!roomId) return Promise.reject(new Error('no roomId'));
+      // list를 먼저 로드해 viewMode 동기화 (보드뷰가 챗뷰로 보이는 문제 방지)
+      const list = myId
+        ? await queryClient.ensureQueryData<Room[]>({ queryKey: ['rooms', myId], queryFn: roomsApi.list, staleTime: 0 })
+        : queryClient.getQueryData<Room[]>(['rooms', myId]);
+      const data = await roomsApi.get(roomId);
+      const fromList = list?.find((r) => r.id === roomId)?.viewMode;
+      const apiViewMode = (data as Room).viewMode;
+      if (fromList === 'board' && apiViewMode !== 'board') {
+        return { ...data, viewMode: 'board' as const } as Room;
+      }
+      return data as Room;
+    },
     enabled: !!roomId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: messagesData } = useQuery({
@@ -120,6 +236,13 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     enabled: !!token && !!shareEventOpen,
   });
   const messages = messagesData?.messages ?? [];
+
+  const viewModeFromListNow = roomId ? roomsList.find((r) => r.id === roomId)?.viewMode : undefined;
+  useEffect(() => {
+    if (roomId && room && viewModeFromListNow === 'board' && (room as Room).viewMode !== 'board') {
+      queryClient.setQueryData(['rooms', roomId], { ...room, viewMode: 'board' as const });
+    }
+  }, [roomId, room, viewModeFromListNow, queryClient]);
 
   useEffect(() => {
     const t = setTimeout(checkAtBottom, 100);
@@ -338,6 +461,17 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     return () => clearTimeout(t);
   }, [messages]);
 
+  // 요약 표시 시 맨 아래로 스크롤
+  useEffect(() => {
+    if (!summaryText && !summaryLoading) return;
+    const el = messagesScrollRef.current;
+    if (!el) return;
+    const run = () => { el.scrollTop = el.scrollHeight; };
+    requestAnimationFrame(run);
+    const t = setTimeout(run, 200);
+    return () => clearTimeout(t);
+  }, [summaryText, summaryLoading]);
+
   // Close context menu on outside click
   useEffect(() => {
     if (!contextMenu) return;
@@ -346,11 +480,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     return () => { clearTimeout(t); document.removeEventListener('click', close); };
   }, [contextMenu]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const text = input.trim();
-    if (!text || !socket || !roomId) return;
 
     if (editingMsg) {
+      if (!text || !roomId) return;
       roomsApi.editMessage(roomId, editingMsg.id, text).then(() => {
         setEditingMsg(null);
         setInput('');
@@ -358,6 +492,32 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       return;
     }
 
+    // 파일 + 메시지 전송
+    if (pendingFiles.length > 0) {
+      if (!roomId) return;
+      setFileUploading(true);
+      try {
+        for (let i = 0; i < pendingFiles.length; i++) {
+          const content = (i === 0 && text) ? text : undefined;
+          await filesApi.upload(roomId, pendingFiles[i], (pct) => {
+            setFileUploadProgress(((i / pendingFiles.length) + (pct / 100 / pendingFiles.length)) * 100);
+          }, content);
+        }
+      } catch (err) {
+        console.error('Upload failed:', err);
+      } finally {
+        setFileUploading(false);
+        setFileUploadProgress(0);
+      }
+      setPendingFiles([]);
+      setInput('');
+      setReplyTo(null);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      return;
+    }
+
+    // 텍스트만 전송
+    if (!text || !socket || !roomId) return;
     socket.emit('message', {
       roomId,
       content: text,
@@ -376,7 +536,38 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     } catch { setSearchResults([]); }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSummarize = async () => {
+    const msgList = [...messages].reverse();
+    const chatText = msgList
+      .filter((m: Message) => !m.deletedAt && !isSystemMessage(m.content) && (m.content || m.fileUrl))
+      .map((m: Message) => {
+        const name = m.sender?.name ?? '알 수 없음';
+        const body = m.content || (m.fileUrl ? '(파일)' : '');
+        return `[${name}] ${body}`;
+      })
+      .join('\n');
+    if (!chatText.trim()) {
+      setSummaryText('요약할 채팅 내용이 없습니다.');
+      return;
+    }
+    setSummaryLoading(true);
+    setSummaryText('');
+    summaryDismissedRef.current = false;
+    try {
+      const summary = await ollamaSummarize(chatText);
+      if (!summaryDismissedRef.current) {
+        setSummaryText(summary || '요약할 내용이 없습니다.');
+      }
+    } catch (err) {
+      if (!summaryDismissedRef.current) {
+        setSummaryText(`오류: ${(err as Error).message}`);
+      }
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInput(val);
 
@@ -403,26 +594,17 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOver(true); };
   const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setDragOver(false); };
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (!file || !roomId || dropUploading) return;
-    if (file.size > MAX_DROP_SIZE) return;
-    setDropUploading(true);
-    setDropProgress(0);
-    try {
-      await filesApi.upload(roomId, file, (pct) => setDropProgress(pct));
-    } catch (err) {
-      console.error('Drop upload failed:', err);
-    } finally {
-      setDropUploading(false);
-      setDropProgress(0);
-    }
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length === 0 || fileUploading) return;
+    const valid = droppedFiles.filter((f) => f.size <= MAX_DROP_SIZE);
+    if (valid.length > 0) setPendingFiles((prev) => [...prev, ...valid]);
   };
 
-  const handlePaste = async (e: React.ClipboardEvent) => {
-    if (!roomId || dropUploading) return;
+  const handlePaste = (e: React.ClipboardEvent) => {
+    if (fileUploading) return;
     const items = e.clipboardData?.items;
     if (!items) return;
     let file: File | null = null;
@@ -438,16 +620,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     if (file.size > MAX_DROP_SIZE) return;
     const ext = file.type === 'image/png' ? 'png' : file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/gif' ? 'gif' : file.type === 'image/webp' ? 'webp' : 'png';
     const namedFile = new File([file], `image-${Date.now()}.${ext}`, { type: file.type });
-    setDropUploading(true);
-    setDropProgress(0);
-    try {
-      await filesApi.upload(roomId, namedFile, (pct) => setDropProgress(pct));
-    } catch (err) {
-      console.error('Paste image upload failed:', err);
-    } finally {
-      setDropUploading(false);
-      setDropProgress(0);
-    }
+    setPendingFiles((prev) => [...prev, namedFile]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -554,10 +727,15 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
   const handleOpenFileDrawer = async () => {
     if (!roomId) return;
+    const isClosing = rightPanel === 'file';
+    if (isClosing) {
+      setRightPanel('none');
+      return;
+    }
     try {
       const { files } = await roomsApi.files(roomId);
       setFileDrawerData(files);
-      setFileDrawerOpen(true);
+      setRightPanel('file');
     } catch (err) {
       console.error(err);
     }
@@ -570,6 +748,27 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     const t = setTimeout(() => document.addEventListener('click', close), 50);
     return () => { clearTimeout(t); document.removeEventListener('click', close); };
   }, [readersPopup]);
+
+  const viewModeFromState = (location.state as { viewMode?: 'chat' | 'board' })?.viewMode;
+  const isBoardView = (room as Room)?.viewMode === 'board' || viewModeFromListNow === 'board' || viewModeFromState === 'board';
+
+  // 보드뷰: 루트 포스트와 댓글(reply) 분리 - 훅은 early return 전에 호출
+  const { rootPosts, repliesMap } = useMemo(() => {
+    if (!isBoardView) return { rootPosts: [] as Message[], repliesMap: new Map<string, Message[]>() };
+    const reversed = [...messages].reverse();
+    const map = new Map<string, Message[]>();
+    const roots: Message[] = [];
+    for (const m of reversed) {
+      if (m.replyToId) {
+        const arr = map.get(m.replyToId) || [];
+        arr.push(m);
+        map.set(m.replyToId, arr);
+      } else {
+        roots.push(m);
+      }
+    }
+    return { rootPosts: roots, repliesMap: map };
+  }, [messages, isBoardView]);
 
   if (!roomId) {
     if (!embedded) navigate('/', { replace: true });
@@ -606,21 +805,27 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         }
       `}</style>
       {!embedded && hasElectron && <TitleBar title={room.name} isDark={isDark} />}
-      <div
-        style={embedded ? { ...s.layout(isDark), flex: 1, minHeight: 0, minWidth: 0 } : s.layout(isDark)}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {(dragOver || dropUploading) && (
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0 }}>
+        <div
+          style={embedded ? { ...s.layout(isDark), flex: 1, minHeight: 0, minWidth: 0 } : { ...s.layout(isDark), flex: 1, minWidth: 0 }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+        {dragOver && (
           <div style={s.dropOverlay()}>
             <div style={s.dropContent()}>
-              <span style={s.dropText()}>{dropUploading ? `업로드 중 ${dropProgress}%` : '파일을 여기에 놓으세요'}</span>
+              <span style={s.dropText()}>파일을 여기에 놓으세요</span>
             </div>
           </div>
         )}
         <header style={s.chatHeader(isDark)}>
-          <span style={s.chatHeaderName(isDark)}>{room.name}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', minWidth: 0 }}>
+            <span style={s.chatHeaderName(isDark)}>{room.name}</span>
+            {isBoardView && (
+              <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b', padding: '2px 8px', borderRadius: 6, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', flexShrink: 0 }}>보드뷰</span>
+            )}
+          </span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {embedded && onOpenInNewWindow && (
               <button type="button" style={s.headerIconBtn(isDark)} onClick={onOpenInNewWindow} title="새 창으로 열기">
@@ -632,6 +837,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             <button type="button" style={s.headerIconBtn(isDark)} onClick={() => setSearchOpen(!searchOpen)} title="검색">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+              </svg>
+            </button>
+            <button type="button" style={s.headerIconBtn(isDark)} onClick={handleSummarize} title="채팅 요약" disabled={summaryLoading}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
               </svg>
             </button>
             <button type="button" style={s.headerIconBtn(isDark)} onClick={() => {
@@ -713,7 +923,208 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             onScroll={checkAtBottom}
             style={s.messages(isDark)}
           >
-          {displayMessages.map((m, idx) => {
+          {/* ===== 보드뷰: 루트 포스트 + 인라인 댓글 ===== */}
+          {isBoardView ? rootPosts.map((m, idx) => {
+            const elements: React.ReactNode[] = [];
+            const prevMsg = idx > 0 ? rootPosts[idx - 1] : null;
+            const curDateKey = getDateKey(m.createdAt);
+            const prevDateKey = prevMsg ? getDateKey(prevMsg.createdAt) : null;
+            if (idx === 0 || curDateKey !== prevDateKey) {
+              elements.push(
+                <div key={`date-${curDateKey}-${m.id}`} style={s.dateSeparator()}>
+                  <span style={s.dateSeparatorText()}>{formatDateLabel(new Date(m.createdAt))}</span>
+                </div>
+              );
+            }
+            if (isSystemMessage(m.content) && !m.fileUrl && m.eventTitle == null && !m.poll) {
+              elements.push(
+                <div key={m.id} style={s.systemMessageRow()}>
+                  <span style={s.systemMessageText()}>{m.content}</span>
+                </div>
+              );
+              return elements;
+            }
+            // 삭제된 포스트
+            if (m.deletedAt) {
+              elements.push(
+                <div key={m.id} style={s.boardCard(isDark)}>
+                  <div style={s.boardCardHeader(isDark)}>
+                    <div style={s.boardCardHeaderLeft(isDark)}>
+                      <span style={s.boardCardAvatar(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
+                      <div style={s.boardCardAuthor(isDark)}>
+                        <span style={s.boardCardAuthorName(isDark)}>{m.sender?.name ?? '알 수 없음'}</span>
+                        <span style={s.boardCardTime(isDark)}>{new Date(m.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ ...s.boardCardBody(isDark), opacity: 0.6, fontStyle: 'italic' }}>[삭제된 메시지]</div>
+                </div>
+              );
+              return elements;
+            }
+            const replies = repliesMap.get(m.id) || [];
+            elements.push(
+              <div
+                key={m.id}
+                id={`msg-${m.id}`}
+                style={s.boardCard(isDark)}
+                onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, message: m }); }}
+              >
+                {/* 헤더: 아바타 + 작성자 + 날짜 + ⋮ 메뉴 */}
+                <div style={s.boardCardHeader(isDark)}>
+                  <div style={s.boardCardHeaderLeft(isDark)}>
+                    <span style={s.boardCardAvatar(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
+                    <div style={s.boardCardAuthor(isDark)}>
+                      <span style={s.boardCardAuthorName(isDark)}>{m.sender?.name ?? '알 수 없음'}</span>
+                      <span style={s.boardCardTime(isDark)}>
+                        {new Date(m.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    style={s.boardMenuBtn(isDark)}
+                    onClick={(e) => { e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, message: m }); }}
+                    title="더보기"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill={isDark ? '#94a3b8' : '#6b7280'}>
+                      <circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13" r="1.5" />
+                    </svg>
+                  </button>
+                </div>
+                {/* 본문 */}
+                <div style={s.boardCardBody(isDark)}>
+                  {m.poll ? (
+                    <PollCard poll={m.poll} myId={myId} isMine={m.senderId === myId} />
+                  ) : m.eventTitle != null ? (
+                    <EventCard title={m.eventTitle} startAt={m.eventStartAt!} endAt={m.eventEndAt!} description={m.eventDescription ?? undefined} isMine={m.senderId === myId} />
+                  ) : m.fileUrl ? (
+                    <FileMessage message={m} />
+                  ) : (
+                    <>
+                      {renderContentWithMentions(m.content, isDark)}
+                      {extractFirstUrl(m.content) && <LinkPreview url={extractFirstUrl(m.content)!} isDark={isDark} />}
+                    </>
+                  )}
+                  {m.editedAt && <span style={{ fontSize: 11, opacity: 0.6, marginTop: 4, display: 'block' }}>(수정됨)</span>}
+                </div>
+                {/* 푸터: 읽음 + 좋아요 반응 */}
+                <div style={s.boardCardFooter(isDark)}>
+                  {m.senderId === myId && room && (() => {
+                    const memberCount = room.members?.length ?? 0;
+                    if (memberCount <= 2) return null;
+                    const totalReaders = memberCount - 1;
+                    const readCount = m.readCount ?? 0;
+                    const unreadCount = Math.max(0, totalReaders - readCount);
+                    return (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        style={{ cursor: 'pointer' }}
+                        onClick={(e) => handleShowReaders(m.id, e)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleShowReaders(m.id, e as unknown as React.MouseEvent); }}
+                        title="읽음 상세 보기"
+                      >
+                        읽음 {readCount}{unreadCount > 0 && ` · 미읽음 ${unreadCount}`}
+                      </span>
+                    );
+                  })()}
+                  {m.reactions && m.reactions.length > 0 ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {m.reactions.map((r: ReactionGroup) => (
+                        <button key={r.emoji} type="button" onClick={() => handleReaction(m.id, r.emoji)} style={s.reactionBadge(isDark, myId ? r.userIds.includes(myId) : false)}>
+                          {r.emoji} {r.count}
+                        </button>
+                      ))}
+                    </span>
+                  ) : (
+                    <button type="button" style={s.boardCardFooterBtn(isDark)} onClick={() => handleReaction(m.id, '👍')}>
+                      👍 좋아요
+                    </button>
+                  )}
+                </div>
+                {/* 인라인 댓글 섹션 */}
+                {replies.length > 0 && (
+                  <div style={s.boardCommentSection(isDark)}>
+                    {replies.map((reply) => (
+                      <div
+                        key={reply.id}
+                        id={`msg-${reply.id}`}
+                        style={s.boardCommentRow(isDark)}
+                        onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, message: reply }); }}
+                      >
+                        <span style={s.boardCommentAvatar(isDark)}>{reply.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b' }}>{reply.sender?.name ?? '알 수 없음'}</span>
+                            <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>
+                              {new Date(reply.createdAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          {reply.deletedAt ? (
+                            <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#9ca3af', fontStyle: 'italic', marginTop: 2 }}>[삭제된 댓글]</div>
+                          ) : reply.fileUrl ? (
+                            <div style={{ marginTop: 4 }}><FileMessage message={reply} /></div>
+                          ) : (
+                            <div style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#374151', lineHeight: 1.5, marginTop: 2, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                              {renderContentWithMentions(reply.content, isDark)}
+                            </div>
+                          )}
+                          {reply.reactions && reply.reactions.length > 0 && (
+                            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                              {reply.reactions.map((r: ReactionGroup) => (
+                                <button key={r.emoji} type="button" onClick={() => handleReaction(reply.id, r.emoji)} style={{ ...s.reactionBadge(isDark, myId ? r.userIds.includes(myId) : false), fontSize: 11, padding: '1px 6px' }}>
+                                  {r.emoji} {r.count}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* 인라인 댓글 입력 */}
+                <div style={s.boardCommentInputRow(isDark)}>
+                  <input
+                    type="text"
+                    value={boardCommentInputs[m.id] || ''}
+                    onChange={(e) => setBoardCommentInputs((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                    placeholder="댓글을 입력하세요..."
+                    style={s.boardCommentInput(isDark)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        if ((e.nativeEvent as KeyboardEvent).isComposing) return;
+                        e.preventDefault();
+                        const text = (boardCommentInputs[m.id] || '').trim();
+                        if (text && socket && roomId) {
+                          socket.emit('message', { roomId, content: text, replyToId: m.id });
+                          setBoardCommentInputs((prev) => ({ ...prev, [m.id]: '' }));
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    style={s.boardCommentSendBtn(isDark)}
+                    onClick={() => {
+                      const text = (boardCommentInputs[m.id] || '').trim();
+                      if (text && socket && roomId) {
+                        socket.emit('message', { roomId, content: text, replyToId: m.id });
+                        setBoardCommentInputs((prev) => ({ ...prev, [m.id]: '' }));
+                      }
+                    }}
+                  >
+                    전송
+                  </button>
+                </div>
+              </div>
+            );
+            return elements;
+          })
+
+          /* ===== 채팅뷰: 기존 말풍선 ===== */
+          : displayMessages.map((m, idx) => {
             const elements: React.ReactNode[] = [];
             const prevMsg = idx > 0 ? displayMessages[idx - 1] : null;
             const curDateKey = getDateKey(m.createdAt);
@@ -725,7 +1136,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 </div>
               );
             }
-
             if (isSystemMessage(m.content) && !m.fileUrl && m.eventTitle == null && !m.poll) {
               elements.push(
                 <div key={m.id} style={s.systemMessageRow()}>
@@ -734,7 +1144,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               );
               return elements;
             }
-
             if (m.deletedAt) {
               elements.push(
                 <div key={m.id} style={{ ...s.messageRow(), ...(m.senderId === myId ? s.messageRowMine() : {}) }}>
@@ -751,7 +1160,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             }
 
             const isHovered = hoveredMsg === m.id;
-
             const isHighlighted = highlightedMsgId === m.id;
             elements.push(
               <div
@@ -767,7 +1175,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               >
                 {m.senderId !== myId && <div style={s.senderLabel(isDark)}>{m.sender.name}</div>}
 
-                {/* Reply preview - 클릭 시 원본 메시지로 스크롤 */}
                 {m.replyTo && (
                   <div
                     role="button"
@@ -834,9 +1241,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                         </>
                       )}
                       {m.editedAt && <span style={{ fontSize: 10, opacity: 0.6, marginTop: 4, display: 'block' }}>(수정됨)</span>}
-                      {/* 보낸 시간·읽음: 말풍선 안 오른쪽 끝에 고정해 길어져도 항상 보이게 */}
                       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                        <span style={s.metaTime(isDark)}>
+                        <span style={{ ...s.metaTime(isDark), ...(m.senderId === myId ? { color: '#fff' } : {}) }}>
                           {new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         {m.senderId === myId && room && (() => {
@@ -859,7 +1265,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                         })()}
                       </div>
                     </div>
-                    {/* Hover actions - 절대 위치로 레이아웃 밀림 방지 */}
                     {isHovered && !m.deletedAt && (
                       <div style={{ position: 'absolute', left: '100%', top: 0, marginLeft: 6, display: 'flex', gap: 2, alignItems: 'center' }}>
                         <button type="button" onClick={() => setReplyTo(m)} style={s.hoverActionBtn(isDark)} title="답장">
@@ -878,7 +1283,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                   </div>
                 </div>
 
-                {/* Reactions display */}
                 {m.reactions && m.reactions.length > 0 && (
                   <div style={s.reactionsRow(m.senderId === myId)}>
                     {m.reactions.map((r: ReactionGroup) => (
@@ -897,6 +1301,44 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             );
             return elements;
           })}
+
+          {/* AI 채팅 요약 (채팅 메시지 형태) */}
+          {(summaryLoading || summaryText) && (
+            <div style={s.messageRow()}>
+              <div style={s.senderLabel(isDark)}>AI 요약</div>
+              <div style={s.messageRowInner()}>
+                <div style={s.avatarWrap()} aria-hidden>
+                  <span style={{ ...s.avatarCircle(isDark), background: isDark ? '#6366f1' : '#4f46e5', color: '#fff' }}>AI</span>
+                </div>
+                <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+                  <div
+                    style={{
+                      ...s.messageBubble(isDark),
+                      background: isDark ? '#334155' : '#e8f5e9',
+                      border: `1px solid ${isDark ? '#475569' : '#c8e6c9'}`,
+                      maxWidth: '75%',
+                      minWidth: 200,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => { summaryDismissedRef.current = true; setSummaryText(''); setSummaryLoading(false); }}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '2px 6px', fontSize: 12, color: isDark ? '#64748b' : '#666' }}
+                        title="닫기"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 14, lineHeight: 1.6, color: isDark ? '#e2e8f0' : '#333', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {summaryLoading ? '요약 중...' : summaryText}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
         {showScrollToBottom && (
@@ -1058,6 +1500,42 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           )}
         </div>
 
+        {/* 첨부 파일 프리뷰 바 */}
+        {pendingFiles.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '8px 16px', background: isDark ? '#1e293b' : '#f8fafc', borderTop: `1px solid ${isDark ? '#334155' : '#e2e8f0'}` }}>
+            {pendingFiles.map((f, idx) => {
+              const isImage = f.type.startsWith('image/');
+              const sizeStr = f.size < 1024 * 1024 ? `${(f.size / 1024).toFixed(0)}KB` : `${(f.size / (1024 * 1024)).toFixed(1)}MB`;
+              return (
+                <div key={`${f.name}-${idx}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: isDark ? '#334155' : '#e2e8f0', maxWidth: 260 }}>
+                  {isImage ? (
+                    <img src={URL.createObjectURL(f)} alt="" style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  )}
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                    <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>{sizeStr}</div>
+                  </div>
+                  <button type="button" onClick={() => setPendingFiles((prev) => prev.filter((_, i) => i !== idx))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: isDark ? '#94a3b8' : '#888', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>x</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 업로드 프로그레스 바 */}
+        {fileUploading && (
+          <div style={{ padding: '0 16px 4px', background: isDark ? '#1e293b' : '#f8fafc' }}>
+            <div style={{ height: 4, borderRadius: 2, background: isDark ? '#334155' : '#e2e8f0', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${fileUploadProgress}%`, background: '#3b82f6', borderRadius: 2, transition: 'width 0.2s' }} />
+            </div>
+            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999', marginTop: 2 }}>업로드 중 {Math.round(fileUploadProgress)}%</div>
+          </div>
+        )}
+
         <div style={s.inputRow(isDark)}>
           <div style={s.plusWrap()}>
             <button type="button" style={s.plusBtn(isDark)} onClick={() => setActionsOpen((v) => !v)} disabled={!socket} title="추가">+</button>
@@ -1070,19 +1548,18 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 <button type="button" style={s.plusMenuItem(isDark)} onClick={() => { setActionsOpen(false); setPollCreateOpen(true); }}>
                   투표 만들기
                 </button>
-                <div style={{ height: 1, background: isDark ? '#475569' : '#eef2f7', margin: '2px 0' }} />
-                <FileUploadButton roomId={roomId!} disabled={!socket} />
               </div>
             )}
           </div>
-          <input
+          <FileUploadButton disabled={!socket || fileUploading} onFileSelected={(files) => setPendingFiles((prev) => [...prev, ...files])} />
+          <textarea
             ref={inputRef}
-            type="text"
-            placeholder="메시지를 입력하세요"
+            placeholder={isBoardView ? '글 작성 (Shift+Enter로 줄바꿈)' : '메시지를 입력하세요 (Shift+Enter로 줄바꿈)'}
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
+            rows={1}
             style={s.input(isDark)}
           />
           <button type="button" onClick={sendMessage} style={s.sendBtn(isDark)}>
@@ -1107,43 +1584,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 </div>
               ))
             )}
-          </div>
-        )}
-
-        {/* File drawer panel */}
-        {fileDrawerOpen && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 10005, background: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'flex-end' }} onClick={() => setFileDrawerOpen(false)}>
-            <div style={{ width: 340, height: '100%', background: isDark ? '#1e293b' : '#fff', boxShadow: isDark ? '-4px 0 20px rgba(0,0,0,0.3)' : '-4px 0 20px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-              <div style={{ padding: '16px 20px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 16, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' }}>파일함</span>
-                <button type="button" onClick={() => setFileDrawerOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: isDark ? '#94a3b8' : '#666', padding: 4 }}>x</button>
-              </div>
-              <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
-                {fileDrawerData.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14, marginTop: 40 }}>공유된 파일이 없습니다</p>
-                ) : (
-                  fileDrawerData.map((f) => (
-                    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, marginBottom: 4, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-                      </svg>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.fileName || 'file'}</div>
-                        <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>
-                          {f.sender.name} · {new Date(f.createdAt).toLocaleDateString('ko-KR')}
-                          {f.fileSize != null && ` · ${f.fileSize < 1024 * 1024 ? `${(f.fileSize / 1024).toFixed(0)}KB` : `${(f.fileSize / (1024 * 1024)).toFixed(1)}MB`}`}
-                        </div>
-                      </div>
-                      <button type="button" onClick={() => filesApi.download(f.id, f.fileName)} style={{ border: 'none', background: isDark ? '#334155' : '#f1f5f9', borderRadius: 6, padding: '6px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="다운로드">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
           </div>
         )}
 
@@ -1191,6 +1631,128 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             </div>
           </div>
         )}
+        </div>
+
+        {/* Right sidebar: icon bar (48px) + panel (280px) */}
+        <div
+          style={{
+            display: 'flex',
+            flexShrink: 0,
+            width: rightPanel ? 48 + 280 : 48,
+            borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+            background: isDark ? '#1e293b' : '#fff',
+            transition: 'width 0.2s ease',
+          }}
+        >
+          <div style={{ width: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 12, gap: 4 }}>
+            <button
+              type="button"
+              onClick={handleOpenFileDrawer}
+              title="파일함"
+              style={{
+                width: 40,
+                height: 40,
+                border: 'none',
+                background: rightPanel === 'file' ? (isDark ? '#334155' : '#f1f5f9') : 'transparent',
+                borderRadius: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: rightPanel === 'file' ? (isDark ? '#60a5fa' : '#2563eb') : (isDark ? '#94a3b8' : '#64748b'),
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRightPanel((p) => (p === 'members' ? 'none' : 'members'))}
+              title="멤버"
+              style={{
+                width: 40,
+                height: 40,
+                border: 'none',
+                background: rightPanel === 'members' ? (isDark ? '#334155' : '#f1f5f9') : 'transparent',
+                borderRadius: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: rightPanel === 'members' ? (isDark ? '#60a5fa' : '#2563eb') : (isDark ? '#94a3b8' : '#64748b'),
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRightPanel((p) => (p === 'pins' ? 'none' : 'pins'))}
+              title="고정 메시지"
+              style={{
+                width: 40,
+                height: 40,
+                border: 'none',
+                background: rightPanel === 'pins' ? (isDark ? '#334155' : '#f1f5f9') : 'transparent',
+                borderRadius: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: rightPanel === 'pins' ? (isDark ? '#60a5fa' : '#2563eb') : (isDark ? '#94a3b8' : '#64748b'),
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+            </button>
+          </div>
+          {rightPanel && (
+            <div style={{ width: 280, display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' }}>
+                  {rightPanel === 'file' && '파일함'}
+                  {rightPanel === 'members' && '멤버'}
+                  {rightPanel === 'pins' && '고정 메시지'}
+                </span>
+                <button type="button" onClick={() => setRightPanel('none')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: isDark ? '#94a3b8' : '#666', padding: 4 }}>×</button>
+              </div>
+              <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
+                {rightPanel === 'file' && (
+                  <>
+                    {fileDrawerData.length === 0 ? (
+                      <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14, marginTop: 24 }}>공유된 파일이 없습니다</p>
+                    ) : (
+                      fileDrawerData.map((f) => (
+                        <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, marginBottom: 4, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                          </svg>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.fileName || 'file'}</div>
+                            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>
+                              {f.sender.name} · {new Date(f.createdAt).toLocaleDateString('ko-KR')}
+                              {f.fileSize != null && ` · ${f.fileSize < 1024 * 1024 ? `${(f.fileSize / 1024).toFixed(0)}KB` : `${(f.fileSize / (1024 * 1024)).toFixed(1)}MB`}`}
+                            </div>
+                          </div>
+                          <button type="button" onClick={() => filesApi.download(f.id, f.fileName)} style={{ border: 'none', background: isDark ? '#334155' : '#f1f5f9', borderRadius: 6, padding: '6px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="다운로드">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </>
+                )}
+                {rightPanel === 'members' && <RightPanelMembers members={members} isDark={isDark} onInvite={() => setInviteOpen(true)} />}
+                {rightPanel === 'pins' && <RightPanelPins roomId={roomId!} isDark={isDark} />}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1285,11 +1847,169 @@ const s = {
   plusBtn: (dark: boolean): React.CSSProperties => ({ width: 36, height: 36, borderRadius: 10, border: 'none', background: dark ? '#334155' : '#f1f5f9', color: dark ? '#94a3b8' : '#475569', fontSize: 20, lineHeight: '36px', textAlign: 'center', cursor: 'pointer', transition: 'background 0.15s' }),
   plusMenu: (dark: boolean): React.CSSProperties => ({ position: 'absolute', bottom: 48, left: 0, background: dark ? '#334155' : '#fff', border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`, borderRadius: 12, boxShadow: dark ? '0 6px 24px rgba(0,0,0,0.3)' : '0 6px 24px rgba(0,0,0,0.1)', padding: 6, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 150, zIndex: 50 }),
   plusMenuItem: (dark: boolean): React.CSSProperties => ({ border: 'none', background: 'transparent', borderRadius: 8, padding: '9px 12px', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: dark ? '#e2e8f0' : '#334155', transition: 'background 0.1s' }),
-  input: (dark: boolean): React.CSSProperties => ({ flex: 1, padding: '10px 18px', border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`, borderRadius: 20, fontSize: 14, background: dark ? '#0f172a' : '#f8fafc', color: dark ? '#e2e8f0' : '#1e293b', outline: 'none', transition: 'border-color 0.15s' }),
+  input: (dark: boolean): React.CSSProperties => ({
+    flex: 1,
+    padding: '10px 18px',
+    border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`,
+    borderRadius: 20,
+    fontSize: 14,
+    lineHeight: 1.4,
+    minHeight: 42,
+    maxHeight: 160,
+    resize: 'none',
+    background: dark ? '#0f172a' : '#f8fafc',
+    color: dark ? '#e2e8f0' : '#1e293b',
+    outline: 'none',
+    transition: 'border-color 0.15s',
+    fontFamily: 'inherit',
+  }),
   sendBtn: (_dark: boolean): React.CSSProperties => ({ padding: '10px 20px', background: '#475569', color: '#fff', border: 'none', borderRadius: 20, fontWeight: 700, cursor: 'pointer', fontSize: 14, transition: 'background 0.15s' }),
   dropOverlay: (): React.CSSProperties => ({ position: 'absolute', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }),
   dropContent: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }),
   dropText: (): React.CSSProperties => ({ color: '#fff', fontSize: 16, fontWeight: 600 }),
   shareEventOverlay: (): React.CSSProperties => ({ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }),
   shareEventModal: (dark: boolean): React.CSSProperties => ({ background: dark ? '#1e293b' : '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', minWidth: 320, maxWidth: '90%', maxHeight: '70vh', overflow: 'auto', padding: 20 }),
+  /* 보드뷰: 게시글형 카드 (피드 스타일) */
+  boardCard: (dark: boolean): React.CSSProperties => ({
+    width: '100%',
+    maxWidth: '100%',
+    padding: 16,
+    borderRadius: 12,
+    background: dark ? '#1e293b' : '#fff',
+    border: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
+    boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.08)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  }),
+  boardCardHeader: (_dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  }),
+  boardCardHeaderLeft: (_dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 0,
+  }),
+  boardCardAvatar: (dark: boolean): React.CSSProperties => ({
+    width: 40,
+    height: 40,
+    borderRadius: '50%',
+    background: dark ? '#334155' : '#e5e7eb',
+    color: dark ? '#94a3b8' : '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 15,
+    fontWeight: 700,
+    flexShrink: 0,
+  }),
+  boardCardAuthor: (_dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    minWidth: 0,
+  }),
+  boardCardAuthorName: (dark: boolean): React.CSSProperties => ({ fontSize: 14, fontWeight: 600, color: dark ? '#e2e8f0' : '#111827' }),
+  boardCardTime: (dark: boolean): React.CSSProperties => ({ fontSize: 12, color: dark ? '#94a3b8' : '#6b7280', flexShrink: 0 }),
+  boardCardBody: (dark: boolean): React.CSSProperties => ({
+    fontSize: 14,
+    color: dark ? '#e2e8f0' : '#374151',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    lineHeight: 1.6,
+    paddingLeft: 0,
+  }),
+  boardCardFooter: (dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+    paddingTop: 8,
+    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
+    fontSize: 12,
+    color: dark ? '#94a3b8' : '#6b7280',
+  }),
+  boardCardFooterBtn: (dark: boolean): React.CSSProperties => ({
+    padding: '4px 10px',
+    border: `1px solid ${dark ? '#475569' : '#e5e7eb'}`,
+    borderRadius: 8,
+    background: dark ? '#334155' : '#f9fafb',
+    color: dark ? '#94a3b8' : '#6b7280',
+    fontSize: 12,
+    cursor: 'pointer',
+  }),
+  boardMenuBtn: (dark: boolean): React.CSSProperties => ({
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    padding: 6,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.15s',
+    flexShrink: 0,
+    ...(dark ? {} : {}),
+  }),
+  boardCommentSection: (dark: boolean): React.CSSProperties => ({
+    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
+    paddingTop: 12,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  }),
+  boardCommentRow: (dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: '4px 0',
+    borderBottom: `1px solid ${dark ? 'rgba(51,65,85,0.4)' : 'rgba(229,231,235,0.6)'}`,
+    paddingBottom: 10,
+  }),
+  boardCommentAvatar: (dark: boolean): React.CSSProperties => ({
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    background: dark ? '#334155' : '#e5e7eb',
+    color: dark ? '#94a3b8' : '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 11,
+    fontWeight: 700,
+    flexShrink: 0,
+  }),
+  boardCommentInputRow: (dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
+    paddingTop: 10,
+  }),
+  boardCommentInput: (dark: boolean): React.CSSProperties => ({
+    flex: 1,
+    padding: '8px 12px',
+    border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`,
+    borderRadius: 20,
+    fontSize: 13,
+    background: dark ? '#0f172a' : '#f8fafc',
+    color: dark ? '#e2e8f0' : '#1e293b',
+    outline: 'none',
+  }),
+  boardCommentSendBtn: (dark: boolean): React.CSSProperties => ({
+    padding: '6px 14px',
+    border: 'none',
+    borderRadius: 16,
+    background: dark ? '#475569' : '#3b82f6',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    flexShrink: 0,
+  }),
 };

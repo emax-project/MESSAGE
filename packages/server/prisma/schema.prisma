@@ -14,62 +14,61 @@ model Company {
 }
 
 model Department {
-  id         String   @id @default(cuid())
-  name       String
-  companyId  String
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  users      User[]
+  id        String  @id @default(cuid())
+  name      String
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users     User[]
+
   @@index([companyId])
 }
 
 model User {
-  id             String       @id @default(cuid())
-  email          String       @unique
-  password       String
-  name           String
-  departmentId   String?
-  statusMessage  String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id              String        @id @default(cuid())
+  email           String        @unique
+  password        String
+  name            String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  departmentId    String?
+  statusMessage   String?
+  bookmarks       Bookmark[]
+  sentMessages    Message[]     @relation("Sender")
+  readReceipts    ReadReceipt[]
+  roomMemberships RoomMember[]
+  department      Department?   @relation(fields: [departmentId], references: [id])
+  sessions        UserSession[]
 
-  department       Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  roomMemberships  RoomMember[]
-  sentMessages     Message[]       @relation("Sender")
-  readReceipts     ReadReceipt[]
-  sessions         UserSession[]
-  bookmarks        Bookmark[]
   @@index([departmentId])
 }
 
 model Room {
-  id          String   @id @default(cuid())
-  name        String?
-  description String?  @db.Text
-  viewMode    String   @default("chat")
-  isGroup     Boolean  @default(false)
-  isPublic    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  members        RoomMember[]
+  id             String          @id @default(cuid())
+  name           String?
+  isGroup        Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  isPublic       Boolean         @default(false)
+  description    String?
+  viewMode       String          @default("chat")
   messages       Message[]
   pinnedMessages PinnedMessage[]
   projects       Project[]
+  members        RoomMember[]
 }
 
 model RoomMember {
-  id          String    @id @default(cuid())
-  userId      String
-  roomId      String
-  joinedAt    DateTime  @default(now())
-  lastReadAt  DateTime?
-  isFavorite  Boolean   @default(false)
-  leftAt      DateTime?
-  folderId    String?
-
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room   Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  folder Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  id         String    @id @default(cuid())
+  userId     String
+  roomId     String
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime?
+  isFavorite Boolean   @default(false)
+  leftAt     DateTime?
+  folderId   String?
+  folder     Folder?   @relation(fields: [folderId], references: [id])
+  room       Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roomId])
   @@index([userId])
@@ -78,37 +77,33 @@ model RoomMember {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  roomId    String
-  senderId  String
-  content   String
-  createdAt DateTime @default(now())
-
-  fileUrl       String?
-  fileName      String?
-  fileSize      BigInt?
-  fileMimeType  String?
-  fileExpiresAt DateTime?
-
-  eventTitle       String?
-  eventStartAt     DateTime?
+  id               String          @id @default(cuid())
+  roomId           String
+  senderId         String
+  content          String
+  createdAt        DateTime        @default(now())
+  fileExpiresAt    DateTime?
+  fileMimeType     String?
+  fileName         String?
+  fileSize         BigInt?
+  fileUrl          String?
+  eventDescription String?
   eventEndAt       DateTime?
-  eventDescription String?   @db.Text
-
-  replyToId  String?
-  replyTo    Message?  @relation("Reply", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies    Message[] @relation("Reply")
-  editedAt   DateTime?
-  deletedAt  DateTime?
-
-  room         Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  sender       User          @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
-  readReceipts ReadReceipt[]
-  reactions    Reaction[]
-  mentions     Mention[]
-  poll         Poll?
-  pinnedIn     PinnedMessage[]
-  bookmarks    Bookmark[]
+  eventStartAt     DateTime?
+  eventTitle       String?
+  deletedAt        DateTime?
+  editedAt         DateTime?
+  replyToId        String?
+  bookmarks        Bookmark[]
+  mentions         Mention[]
+  replyTo          Message?        @relation("Reply", fields: [replyToId], references: [id])
+  replies          Message[]       @relation("Reply")
+  room             Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender           User            @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  pinnedIn         PinnedMessage[]
+  poll             Poll?
+  reactions        Reaction[]
+  readReceipts     ReadReceipt[]
 
   @@index([roomId])
   @@index([senderId])
@@ -122,7 +117,7 @@ model Event {
   title       String
   startAt     DateTime
   endAt       DateTime
-  description String?  @db.Text
+  description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -135,9 +130,8 @@ model ReadReceipt {
   messageId String
   userId    String
   readAt    DateTime @default(now())
-
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
   @@index([userId])
@@ -145,7 +139,7 @@ model ReadReceipt {
 
 model Announcement {
   id        String   @id @default(cuid())
-  content   String   @db.Text
+  content   String
   updatedAt DateTime @updatedAt
 }
 
@@ -154,8 +148,7 @@ model UserSession {
   userId    String
   createdAt DateTime @default(now())
   lastSeen  DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -166,8 +159,7 @@ model Reaction {
   userId    String
   emoji     String
   createdAt DateTime @default(now())
-
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
   @@index([messageId])
@@ -178,8 +170,7 @@ model Mention {
   messageId String
   userId    String
   readAt    DateTime?
-
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
   @@index([userId])
@@ -191,28 +182,25 @@ model Poll {
   question   String
   isMultiple Boolean      @default(false)
   createdAt  DateTime     @default(now())
-
-  message Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  options PollOption[]
+  message    Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  options    PollOption[]
 }
 
 model PollOption {
   id     String     @id @default(cuid())
   pollId String
   text   String
-
-  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  votes PollVote[]
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes  PollVote[]
 
   @@index([pollId])
 }
 
 model PollVote {
-  id       String @id @default(cuid())
+  id       String     @id @default(cuid())
   optionId String
   userId   String
-
-  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
 
   @@unique([optionId, userId])
   @@index([optionId])
@@ -224,9 +212,8 @@ model PinnedMessage {
   messageId String
   pinnedBy  String
   pinnedAt  DateTime @default(now())
-
-  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, messageId])
   @@index([roomId])
@@ -236,49 +223,46 @@ model Project {
   id          String   @id @default(cuid())
   roomId      String
   name        String
-  description String?  @db.Text
+  description String?
   createdBy   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  room   Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  boards Board[]
-  tasks  Task[]
+  boards      Board[]
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  tasks       Task[]
 
   @@index([roomId])
 }
 
 model Board {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   projectId String
   name      String
   position  Int
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tasks   Task[]
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]
 
   @@index([projectId])
 }
 
 model Task {
-  id          String    @id @default(cuid())
+  id          String        @id @default(cuid())
   projectId   String
   boardId     String
   title       String
-  description String?   @db.Text
+  description String?
   assigneeId  String?
-  priority    String    @default("medium")
-  startDate   DateTime?
+  priority    String        @default("medium")
   dueDate     DateTime?
-  position    Int       @default(0)
+  position    Int           @default(0)
   createdBy   String
   messageId   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  board    Board         @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  comments TaskComment[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  startDate   DateTime?
+  board       Board         @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  comments    TaskComment[]
 
   @@index([projectId])
   @@index([boardId])
@@ -289,10 +273,9 @@ model TaskComment {
   id        String   @id @default(cuid())
   taskId    String
   userId    String
-  content   String   @db.Text
+  content   String
   createdAt DateTime @default(now())
-
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
 }
@@ -302,20 +285,18 @@ model Bookmark {
   userId    String
   messageId String
   createdAt DateTime @default(now())
-
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, messageId])
   @@index([userId])
 }
 
 model Folder {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  createdAt DateTime @default(now())
-
+  id              String       @id @default(cuid())
+  userId          String
+  name            String
+  createdAt       DateTime     @default(now())
   roomMemberships RoomMember[]
 
   @@index([userId])

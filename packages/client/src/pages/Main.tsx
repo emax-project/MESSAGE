@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, getSocketUrl, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, getSocketUrl, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
+import { ollamaChat, getOllamaConfig, type OllamaMessage } from '../ollama';
 import CreateGroupModal from '../components/CreateGroupModal';
+import FolderManageModal from '../components/FolderManageModal';
 import TitleBar from '../components/TitleBar';
 import ChatWindow from './ChatWindow';
 
@@ -15,6 +17,14 @@ function SearchIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" />
       <path d="m21 21-4.35-4.35" />
+    </svg>
+  );
+}
+
+function FolderIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
     </svg>
   );
 }
@@ -59,10 +69,23 @@ function normalizeTimeRange(dateKey: string, start?: string, end?: string) {
   return { startAt: dateKeyWithTime(dateKey, toLocalInputValue(s.toISOString()).slice(11)), endAt: dateKeyWithTime(dateKey, toLocalInputValue(e.toISOString()).slice(11)) };
 }
 
+const MAIN_WINDOW_WIDTH = 1250;
+const MAIN_WINDOW_HEIGHT = 900;
+
 export default function Main() {
   const { roomId: selectedRoomId } = useParams<{ roomId?: string }>();
   const navigate = useNavigate();
   const token = useAuthStore((s) => s.token);
+
+  // Electron: 로그인 후 메인 화면 진입 시 창 넓이 확대 (로그인 화면은 기존 960x700 유지)
+  useEffect(() => {
+    const api = (window as unknown as { electronAPI?: { windowResize?: (w: number, h: number) => void } }).electronAPI;
+    if (!api?.windowResize) return;
+    const resize = () => api.windowResize!(MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT);
+    resize();
+    const t = setTimeout(resize, 300);
+    return () => clearTimeout(t);
+  }, []);
   const user = useAuthStore((s) => s.user);
   const myId = user?.id;
   const myEmail = user?.email;
@@ -71,7 +94,7 @@ export default function Main() {
   const toggleDark = useThemeStore((s) => s.toggleDark);
 
   // --- Layout state ---
-  const [activePanel, setActivePanel] = useState<'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings'>('none');
+  const [activePanel, setActivePanel] = useState<'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'ai' | 'settings'>('none');
   const [sectionOpen, setSectionOpen] = useState<{ topic: boolean; chat: boolean; app: boolean }>({ topic: true, chat: true, app: false });
   const [searchQuery, setSearchQuery] = useState('');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -95,7 +118,13 @@ export default function Main() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; user: OrgUser } | null>(null);
   const [profileModalUser, setProfileModalUser] = useState<OrgUser | null>(null);
   const [roomContextMenu, setRoomContextMenu] = useState<{ x: number; y: number; room: Room } | null>(null);
+  const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
+  const [showFolderManageModal, setShowFolderManageModal] = useState(false);
   const [statusInput, setStatusInput] = useState('');
+  const [aiMessages, setAiMessages] = useState<OllamaMessage[]>([]);
+  const [aiInput, setAiInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const aiMessagesEndRef = useRef<HTMLDivElement | null>(null);
   const [mutedRoomIds, setMutedRoomIds] = useState<Set<string>>(() => {
     try { const raw = localStorage.getItem('mutedRoomIds'); if (!raw) return new Set(); const list = JSON.parse(raw); return new Set(Array.isArray(list) ? list.map(String) : []); } catch { return new Set(); }
   });
@@ -125,11 +154,26 @@ export default function Main() {
 
   // --- Queries ---
   const { data: roomsRaw = [], isError: roomsError } = useQuery({ queryKey: ['rooms', myId], queryFn: roomsApi.list, enabled: !!myId });
+  const { data: folders = [] } = useQuery({ queryKey: ['folders'], queryFn: foldersApi.list, enabled: !!myId });
   const allRooms = (roomsRaw as Room[]) ?? [];
   const q = searchQuery.trim().toLowerCase();
   const filteredRooms = q ? allRooms.filter((r) => r.name?.toLowerCase().includes(q)) : allRooms;
   const topicRooms = filteredRooms.filter((r) => r.isGroup);
   const chatRooms = filteredRooms.filter((r) => !r.isGroup);
+
+  const toggleFolder = (folderId: string) => setFolderOpen((prev) => ({ ...prev, [folderId]: !prev[folderId] }));
+  const folderIds = useMemo(() => new Set((folders as Folder[]).map((f) => f.id)), [folders]);
+  const roomsByFolder = useMemo(() => {
+    const byFolder = new Map<string | null, Room[]>();
+    byFolder.set(null, []);
+    for (const f of folders as Folder[]) byFolder.set(f.id, []);
+    for (const r of topicRooms) {
+      const key = r.folderId && folderIds.has(r.folderId) ? r.folderId : null;
+      const list = byFolder.get(key)!;
+      list.push(r);
+    }
+    return byFolder;
+  }, [topicRooms, folders, folderIds]);
 
   const { data: orgTreeRaw = [], isLoading: orgLoading, isError: orgError, refetch: refetchOrg } = useQuery({ queryKey: ['org', 'tree'], queryFn: orgApi.tree });
   const orgTree = useMemo(() => {
@@ -167,6 +211,7 @@ export default function Main() {
   useEffect(() => { if (onlineData?.userIds) setOnlineUserIds(new Set(onlineData.userIds.map((id) => String(id)))); }, [onlineData?.userIds]);
   useEffect(() => { if (announcementData?.content?.trim()) setShowAnnouncementModal(true); }, [announcementData?.content]);
   useEffect(() => { if (announcementData?.content !== undefined) setAnnouncementEdit(announcementData.content ?? ''); }, [announcementData?.content]);
+  useEffect(() => { aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [aiMessages, aiLoading]);
   useEffect(() => { if (!contextMenu) return; const close = () => setContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [contextMenu]);
   useEffect(() => { if (!roomContextMenu) return; const close = () => setRoomContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [roomContextMenu]);
   useEffect(() => { if (statusSyncedRef.current || !myId) return; for (const company of (orgTreeRaw as OrgCompany[])) { for (const dept of company.departments) { const me = dept.users.find((u) => String(u.id) === String(myId)); if (me) { setStatusInput(me.statusMessage || ''); statusSyncedRef.current = true; return; } } } }, [orgTreeRaw, myId]);
@@ -198,7 +243,7 @@ export default function Main() {
         if (mutedRoomIdsRef.current.has(String(msg.roomId))) return;
         try { const activeRoomId = localStorage.getItem('activeChatRoomId'); const activeFocused = localStorage.getItem('activeChatFocused') === '1'; if (activeRoomId === msg.roomId && activeFocused) return; } catch { /* ignore */ }
         const senderName = msg.sender?.name ?? '알 수 없음';
-        const title = `04 Message - ${senderName}`;
+        const title = senderName;
         const body = msg.content;
         if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { showNotification?: (a: string, b: string) => void } }).electronAPI?.showNotification) {
           (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification(title, body);
@@ -217,7 +262,19 @@ export default function Main() {
       queryClient.refetchQueries({ queryKey: ['rooms', payload.roomId, 'messages'] });
     });
     s.on('online_list', (payload: { userIds?: string[] }) => { setOnlineUserIds(new Set((payload.userIds || []).map((id) => String(id)))); });
-    s.on('user_online', (payload: { userId?: string }) => { if (payload.userId) setOnlineUserIds((prev) => new Set([...prev, String(payload.userId)])); });
+    s.on('user_online', (payload: { userId?: string; userName?: string | null }) => {
+      if (payload.userId) setOnlineUserIds((prev) => new Set([...prev, String(payload.userId)]));
+      if (payload.userId && String(payload.userId) !== String(myIdRef.current)) {
+        const name = payload.userName?.trim() || '누군가';
+        const title = 'EMAX';
+        const body = `${name}님이 로그인했습니다.`;
+        if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { showNotification?: (a: string, b: string) => void } }).electronAPI?.showNotification) {
+          (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification(title, body);
+        } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && typeof document !== 'undefined' && document.hidden) {
+          new Notification(title, { body });
+        }
+      }
+    });
     s.on('user_offline', (payload: { userId?: string }) => { if (payload.userId) setOnlineUserIds((prev) => { const next = new Set(prev); next.delete(String(payload.userId)); return next; }); });
     s.on('connect', () => { s.emit('get_online_list'); });
     s.on('user_status_changed', () => { queryClient.invalidateQueries({ queryKey: ['org'] }); });
@@ -265,8 +322,8 @@ export default function Main() {
       key={r.id}
       role="button"
       tabIndex={0}
-      onClick={() => { setActivePanel('none'); navigate(`/room/${r.id}`); }}
-      onKeyDown={(e) => e.key === 'Enter' && (setActivePanel('none'), navigate(`/room/${r.id}`))}
+      onClick={() => { setActivePanel('none'); navigate(`/room/${r.id}`, r.viewMode ? { state: { viewMode: r.viewMode } } : undefined); }}
+      onKeyDown={(e) => e.key === 'Enter' && (setActivePanel('none'), navigate(`/room/${r.id}`, r.viewMode ? { state: { viewMode: r.viewMode } } : undefined))}
       onContextMenu={(e) => { e.preventDefault(); setRoomContextMenu({ x: e.clientX, y: e.clientY, room: r }); }}
       style={st.roomItem}
     >
@@ -284,7 +341,12 @@ export default function Main() {
       </div>
       <div style={st.roomInfo}>
         <div style={st.roomName}>
-          {r.name}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 0', minWidth: 0 }}>{r.name}</span>
+          {r.isGroup && r.viewMode && (
+            <span style={st.roomViewModeBadge} title={r.viewMode === 'board' ? '보드뷰: 게시글 기반' : '챗뷰: 메시지 기반'}>
+              {r.viewMode === 'board' ? '보드뷰' : '챗뷰'}
+            </span>
+          )}
         </div>
         <div style={st.roomPreview}>{r.lastMessage ? r.lastMessage.content : ''}</div>
       </div>
@@ -347,31 +409,67 @@ export default function Main() {
 
           {/* Scrollable sections */}
           <div style={st.sidebarContent}>
-            {/* TOPIC Section */}
+            {/* TOPIC Section - JANDI 스타일 폴더 구조 */}
             <div>
               <button type="button" style={st.sectionHeader} onClick={() => toggleSection('topic')}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={st.sectionChevron}>{sectionOpen.topic ? '▼' : '▶'}</span>
-                  <span style={st.sectionTitle}>토픽</span>
+                  <span style={st.sectionTitle}>아젠다</span>
                   <span style={st.sectionCount}>{topicRooms.length}개</span>
                 </span>
-                <span
-                  style={st.sectionAddBtn}
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); setCreateGroupFor('topic'); setShowCreateGroupModal(true); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setCreateGroupFor('topic'); setShowCreateGroupModal(true); } }}
-                  title="그룹 채팅 만들기"
-                >+</span>
+                <span style={{ display: 'flex', gap: 4 }}>
+                  <span
+                    style={st.sectionAddBtn}
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); setShowFolderManageModal(true); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setShowFolderManageModal(true); } }}
+                    title="폴더 관리"
+                  ><FolderIcon size={14} /></span>
+                  <span
+                    style={st.sectionAddBtn}
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); setCreateGroupFor('topic'); setShowCreateGroupModal(true); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setCreateGroupFor('topic'); setShowCreateGroupModal(true); } }}
+                    title="아젠다 만들기"
+                  >+</span>
+                </span>
               </button>
               {sectionOpen.topic && (
                 <>
                   {roomsError ? (
                     <div style={{ padding: '8px 16px', fontSize: 12, color: '#c62828' }}>목록을 불러올 수 없습니다</div>
-                  ) : topicRooms.length === 0 ? (
-                    <div style={{ padding: '8px 16px', fontSize: 12, color: isDark ? '#64748b' : '#9ca3af' }}>토픽이 없습니다</div>
+                  ) : topicRooms.length === 0 && (folders as Folder[]).length === 0 ? (
+                    <div style={{ padding: '8px 16px', fontSize: 12, color: isDark ? '#64748b' : '#9ca3af' }}>아젠다가 없습니다</div>
                   ) : (
-                    <ul style={st.roomList}>{topicRooms.map(renderRoomItem)}</ul>
+                    <div style={{ paddingLeft: 4 }}>
+                      {(folders as Folder[]).map((f) => {
+                        const rooms = roomsByFolder.get(f.id) ?? [];
+                        const isOpen = folderOpen[f.id] !== false;
+                        return (
+                          <div key={f.id}>
+                            <button
+                              type="button"
+                              style={st.folderHeader}
+                              onClick={() => toggleFolder(f.id)}
+                            >
+                              <span style={{ fontSize: 10 }}>{isOpen ? '▼' : '▶'}</span>
+                              <FolderIcon size={14} />
+                              <span>{f.name}</span>
+                              <span style={{ fontSize: 11, opacity: 0.8 }}>({rooms.length})</span>
+                            </button>
+                            {isOpen && <ul style={st.roomList}>{rooms.map(renderRoomItem)}</ul>}
+                          </div>
+                        );
+                      })}
+                      {(roomsByFolder.get(null) ?? []).length > 0 && (
+                        <div>
+                          <div style={{ padding: '6px 12px', fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>미분류</div>
+                          <ul style={st.roomList}>{(roomsByFolder.get(null) ?? []).map(renderRoomItem)}</ul>
+                        </div>
+                      )}
+                    </div>
                   )}
                   {/* Public rooms in topic section */}
                   {(publicRooms as PublicRoom[]).filter((pr) => !allRooms.some((r) => r.id === pr.id)).length > 0 && (
@@ -439,6 +537,16 @@ export default function Main() {
                     </svg>
                     <span>캘린더</span>
                   </button>
+                  <button
+                    type="button"
+                    style={{ ...st.appItem, ...(activePanel === 'ai' ? st.appItemActive : {}) }}
+                    onClick={() => setActivePanel(activePanel === 'ai' ? 'none' : 'ai')}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
+                    </svg>
+                    <span>AI 채팅</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -483,6 +591,12 @@ export default function Main() {
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
               </button>
+              {/* AI Chat */}
+              <button type="button" style={{ ...st.menuBtn, ...(activePanel === 'ai' ? st.menuBtnActive : {}) }} onClick={() => setActivePanel(activePanel === 'ai' ? 'none' : 'ai')} title="AI 채팅">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
+                </svg>
+              </button>
               {/* Settings */}
               <button type="button" style={{ ...st.menuBtn, ...(activePanel === 'settings' ? st.menuBtnActive : {}), position: 'relative' as const }} onClick={() => setActivePanel(activePanel === 'settings' ? 'none' : 'settings')} title="설정">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -507,7 +621,7 @@ export default function Main() {
                       </svg>
                     </div>
                     <p style={st.emptyText}>채팅방을 선택하세요</p>
-                    <p style={st.emptyHint}>왼쪽 토픽 또는 채팅에서 대화를 시작하세요</p>
+                    <p style={st.emptyHint}>왼쪽 아젠다 또는 채팅에서 대화를 시작하세요</p>
                   </div>
                 )}
 
@@ -756,6 +870,106 @@ export default function Main() {
               </div>
             )}
 
+            {/* AI CHAT PANEL */}
+            {activePanel === 'ai' && (
+              <div style={st.panelWrap}>
+                <div style={st.panelHeader}>
+                  <h3 style={st.panelTitle}>AI 채팅</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>{getOllamaConfig().model}</span>
+                    {aiMessages.length > 0 && (
+                      <button type="button" style={{ padding: '4px 10px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 6, background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11, cursor: 'pointer' }} onClick={() => setAiMessages([])}>대화 초기화</button>
+                    )}
+                  </div>
+                </div>
+                <div style={{ ...st.panelBody, display: 'flex', flexDirection: 'column', padding: 0 }}>
+                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16 }}>
+                    {aiMessages.length === 0 && (
+                      <div style={{ textAlign: 'center', padding: 32, color: isDark ? '#64748b' : '#9ca3af', fontSize: 13 }}>
+                        <p style={{ margin: '0 0 8px' }}>Ollama와 대화를 시작하세요</p>
+                        <p style={{ margin: 0, fontSize: 12 }}>메시지를 입력하고 전송하세요</p>
+                      </div>
+                    )}
+                    {aiMessages.map((m, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: '10px 14px',
+                          marginBottom: 8,
+                          borderRadius: 12,
+                          maxWidth: '90%',
+                          alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
+                          background: m.role === 'user' ? (isDark ? '#475569' : '#e5e7eb') : (isDark ? '#334155' : '#f1f5f9'),
+                          color: isDark ? '#e2e8f0' : '#333',
+                          fontSize: 14,
+                          lineHeight: 1.5,
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        {m.role === 'user' && <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', display: 'block', marginBottom: 4 }}>나</span>}
+                        {m.role === 'assistant' && <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', display: 'block', marginBottom: 4 }}>AI</span>}
+                        {m.content}
+                      </div>
+                    ))}
+                    {aiLoading && (
+                      <div style={{ padding: '10px 14px', marginBottom: 8, borderRadius: 12, maxWidth: '90%', alignSelf: 'flex-start', background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#94a3b8' : '#64748b', fontSize: 13 }}>
+                        <span style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>AI</span>
+                        <span>생각 중...</span>
+                      </div>
+                    )}
+                    <div ref={aiMessagesEndRef} />
+                  </div>
+                  <div style={{ flexShrink: 0, padding: 12, borderTop: `1px solid ${isDark ? '#334155' : '#e5e7eb'}` }}>
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const text = aiInput.trim();
+                        if (!text || aiLoading) return;
+                        setAiInput('');
+                        const userMsg: OllamaMessage = { role: 'user', content: text };
+                        setAiMessages((prev) => [...prev, userMsg]);
+                        setAiLoading(true);
+                        try {
+                          const reply = await ollamaChat([...aiMessages, userMsg]);
+                          setAiMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+                        } catch (err) {
+                          setAiMessages((prev) => [...prev, { role: 'assistant', content: `오류: ${(err as Error).message}` }]);
+                        } finally {
+                          setAiLoading(false);
+                          aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}
+                    >
+                      <textarea
+                        value={aiInput}
+                        onChange={(e) => setAiInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLTextAreaElement).form?.requestSubmit(); } }}
+                        placeholder="메시지 입력..."
+                        rows={2}
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`,
+                          borderRadius: 10,
+                          fontSize: 14,
+                          background: isDark ? '#1e293b' : '#fff',
+                          color: isDark ? '#e2e8f0' : '#333',
+                          outline: 'none',
+                          resize: 'none',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                      <button type="submit" disabled={aiLoading || !aiInput.trim()} style={{ ...st.formBtn, alignSelf: 'flex-end', padding: '10px 16px' }}>
+                        {aiLoading ? '대기...' : '전송'}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* SETTINGS PANEL */}
             {activePanel === 'settings' && (
               <div style={st.panelWrap}>
@@ -826,7 +1040,9 @@ export default function Main() {
         </div>
       )}
 
-      {showCreateGroupModal && <CreateGroupModal mode={createGroupFor} onClose={() => setShowCreateGroupModal(false)} onCreated={(roomId) => { queryClient.invalidateQueries({ queryKey: ['rooms'] }); queryClient.invalidateQueries({ queryKey: ['rooms', 'public'] }); setActivePanel('none'); navigate(`/room/${roomId}`); }} />}
+      {showCreateGroupModal && <CreateGroupModal mode={createGroupFor} onClose={() => setShowCreateGroupModal(false)} onCreated={(roomId, viewMode) => { queryClient.invalidateQueries({ queryKey: ['rooms'] }); setActivePanel('none'); navigate(`/room/${roomId}`, viewMode != null ? { state: { viewMode } } : undefined); }} />}
+
+      {showFolderManageModal && <FolderManageModal topicRooms={topicRooms} onClose={() => setShowFolderManageModal(false)} />}
 
       {contextMenu && (
         <div style={{ ...st.ctxMenu, left: contextMenu.x, top: contextMenu.y }} onClick={(e) => e.stopPropagation()}>
@@ -838,6 +1054,9 @@ export default function Main() {
         <div style={{ ...st.ctxMenu, left: roomContextMenu.x, top: roomContextMenu.y }} onClick={(e) => e.stopPropagation()}>
           <button type="button" style={st.ctxMenuItem} onClick={() => handleToggleFavorite(roomContextMenu.room)}>{roomContextMenu.room.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}</button>
           <button type="button" style={st.ctxMenuItem} onClick={() => handleToggleMuteRoom(roomContextMenu.room.id)}>{mutedRoomIds.has(roomContextMenu.room.id) ? '알림 켜기' : '알림 끄기'}</button>
+          {roomContextMenu.room.isGroup && (
+            <button type="button" style={st.ctxMenuItem} onClick={() => { setShowFolderManageModal(true); setRoomContextMenu(null); }}>폴더로 이동</button>
+          )}
           <button type="button" style={{ ...st.ctxMenuItem, color: '#c62828' }} onClick={() => handleLeaveRoom(roomContextMenu.room.id)}>나가기</button>
         </div>
       )}
@@ -899,6 +1118,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     sectionTitle: { fontSize: 13, fontWeight: 700, color: textStrong },
     sectionCount: { fontSize: 11, color: muted },
     sectionAddBtn: { width: 22, height: 22, borderRadius: 6, background: isDark ? '#475569' : '#e5e7eb', color: isDark ? '#e2e8f0' : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: '22px', cursor: 'pointer' },
+    folderHeader: { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 12px', border: 'none', background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 12, cursor: 'pointer', textAlign: 'left' as const },
 
     /* App items */
     appItem: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', border: 'none', borderRadius: 6, background: 'transparent', cursor: 'pointer', fontSize: 13, color: text, textAlign: 'left' as const },
@@ -912,7 +1132,8 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     roomAvatarImg: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' },
     roomAvatarInitial: { fontSize: 12, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' },
     roomInfo: { flex: 1, minWidth: 0 },
-    roomName: { fontWeight: 600, fontSize: 12, color: text, marginBottom: 1, display: 'flex', alignItems: 'center' },
+    roomName: { fontWeight: 600, fontSize: 12, color: text, marginBottom: 1, display: 'flex', alignItems: 'center', gap: 6 },
+    roomViewModeBadge: { fontSize: 10, color: muted, flexShrink: 0, padding: '1px 5px', borderRadius: 4, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
     roomPreview: { fontSize: 11, color: sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     roomMeta: { flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 },
     roomMuted: { fontSize: 10, color: '#94a3b8' },

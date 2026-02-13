@@ -1,6 +1,6 @@
 // 빈 문자열이면 같은 origin 사용(배포 시 같은 서버에서 API·웹 서빙), 없으면 로컬 개발용
 export const BASE =
-  import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
+  import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'http://192.168.0.204:3001');
 
 function getToken(): string | null {
   return localStorage.getItem('token');
@@ -153,6 +153,10 @@ export type Room = {
   id: string;
   name: string;
   isGroup: boolean;
+  /** 'chat' = 챗뷰(메시지 기반), 'board' = 보드뷰(게시글 기반) */
+  viewMode?: 'chat' | 'board';
+  /** 폴더 ID (사용자별로 RoomMember.folderId) */
+  folderId?: string | null;
   members: User[];
   lastMessage: { id: string; content: string; createdAt: string; senderName: string } | null;
   updatedAt: string;
@@ -307,6 +311,8 @@ export const roomsApi = {
   createTopic: (data: { name: string; description?: string; isPublic?: boolean; viewMode?: string; memberIds: string[]; folderId?: string }) =>
     api.post('/rooms/topic', data) as Promise<Room>,
   get: (id: string) => api.get(`/rooms/${id}`) as Promise<Room>,
+  updateViewMode: (roomId: string, viewMode: 'chat' | 'board') =>
+    api.put(`/rooms/${roomId}`, { viewMode }) as Promise<{ viewMode: string }>,
   markRead: (roomId: string) => api.post(`/rooms/${roomId}/read`, {}) as Promise<{ ok: boolean }>,
   messages: (roomId: string, cursor?: string) =>
     api.get(`/rooms/${roomId}/messages${cursor ? `?cursor=${cursor}` : ''}`) as Promise<{
@@ -349,10 +355,11 @@ export const roomsApi = {
 };
 
 export const filesApi = {
-  upload: (roomId: string, file: File, onProgress?: (percent: number) => void) => {
+  upload: (roomId: string, file: File, onProgress?: (percent: number) => void, content?: string) => {
     const formData = new FormData();
     formData.append('roomId', roomId);
     formData.append('file', file);
+    if (content) formData.append('content', content);
     return api.upload('/files/upload', formData, onProgress) as Promise<Message>;
   },
   async fetchBlob(messageId: string): Promise<Blob> {
@@ -519,6 +526,7 @@ export type Folder = {
 export const foldersApi = {
   list: () => api.get('/folders') as Promise<Folder[]>,
   create: (name: string) => api.post('/folders', { name }) as Promise<Folder>,
+  update: (id: string, name: string) => api.put(`/folders/${id}`, { name }) as Promise<Folder>,
   delete: (id: string) => api.delete(`/folders/${id}`) as Promise<{ ok: boolean }>,
   assign: (roomId: string, folderId: string | null) =>
     api.put('/folders/assign', { roomId, folderId }) as Promise<{ ok: boolean }>,
