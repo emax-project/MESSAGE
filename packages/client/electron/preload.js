@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openChatWindow: (roomId) => ipcRenderer.invoke('open-chat-window', roomId),
   openKanbanWindow: (roomId) => ipcRenderer.invoke('open-kanban-window', roomId),
   openGanttWindow: (roomId) => ipcRenderer.invoke('open-gantt-window', roomId),
-  showNotification: (title, body) => ipcRenderer.invoke('show-notification', { title, body }),
+  showNotification: (title, body, roomId) => ipcRenderer.invoke('show-notification', { title, body, roomId: roomId || null }),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   windowClose: () => ipcRenderer.invoke('window-close'),
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),
@@ -18,5 +18,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = () => handler();
     ipcRenderer.on('tray-logout', listener);
     return () => ipcRenderer.removeListener('tray-logout', listener);
+  },
+  onNavigateToRoom: (handler) => {
+    const listener = (_, roomId) => handler(roomId);
+    ipcRenderer.on('navigate-to-room', listener);
+    return () => ipcRenderer.removeListener('navigate-to-room', listener);
   },
 });

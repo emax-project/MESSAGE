@@ -2,9 +2,20 @@ const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell } = require('elec
 const path = require('path');
 const { pathToFileURL } = require('url');
 
+// Windows: GPU 프로세스 크래시로 인한 검은 화면 방지 (whenReady 전에 호출 필수)
+if (process.platform === 'win32') {
+  app.disableHardwareAcceleration();
+}
+
+// 단일 인스턴스 잠금: 두 번 실행하면 기존 창을 포커스하고 종료
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+}
+
 const NOTIF_WIDTH = 360;
-const NOTIF_HEIGHT = 88;
-const NOTIF_HEIGHT_PROGRESS = 116;
+const NOTIF_HEIGHT = 100;
+const NOTIF_HEIGHT_PROGRESS = 128;
 const NOTIF_DURATION_MS = 4500;
 
 function escapeHtml(str) {
@@ -17,7 +28,7 @@ function escapeHtml(str) {
     .replace(/\n/g, '<br>');
 }
 
-function getNotificationHTML(title, body, progressPercent) {
+function getNotificationHTML(title, body, progressPercent, hasRoomId) {
   const t = escapeHtml(title);
   const b = escapeHtml(body);
   const showProgress = typeof progressPercent === 'number';
@@ -28,6 +39,9 @@ function getNotificationHTML(title, body, progressPercent) {
       <div class="progress-bar" style="width:${pct}%"></div>
     </div>
     <div class="progress-text">${Math.round(pct)}%</div>`
+    : '';
+  const clickHint = hasRoomId && !showProgress
+    ? `<div class="toast-hint">클릭하여 채팅방으로 이동</div>`
     : '';
   return `<!DOCTYPE html>
 <html>
@@ -42,6 +56,7 @@ function getNotificationHTML(title, body, progressPercent) {
       overflow: hidden;
       width: ${NOTIF_WIDTH}px;
       height: ${showProgress ? NOTIF_HEIGHT_PROGRESS : NOTIF_HEIGHT}px;
+      cursor: ${hasRoomId && !showProgress ? 'pointer' : 'default'};
     }
     .toast {
       width: 100%;
@@ -50,11 +65,16 @@ function getNotificationHTML(title, body, progressPercent) {
       border-radius: 12px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
       border: 1px solid rgba(0,0,0,0.06);
-      padding: 14px 18px;
+      padding: 12px 16px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 4px;
+      gap: 3px;
+      transition: background 0.15s;
+    }
+    .toast:hover {
+      background: linear-gradient(145deg, #f0f4ff 0%, #e8eeff 100%);
+      border-color: rgba(99,102,241,0.2);
     }
     .toast-brand {
       font-size: 11px;
@@ -63,15 +83,27 @@ function getNotificationHTML(title, body, progressPercent) {
       letter-spacing: 0.02em;
     }
     .toast-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       color: #1e293b;
       line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .toast-body {
-      font-size: 13px;
+      font-size: 12px;
       color: #64748b;
       line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toast-hint {
+      font-size: 11px;
+      color: #6366f1;
+      margin-top: 2px;
+      opacity: 0.8;
     }
     .progress-wrap {
       height: 6px;
@@ -99,6 +131,7 @@ function getNotificationHTML(title, body, progressPercent) {
     <span class="toast-brand">EMAX</span>
     <div class="toast-title">${t}</div>
     <div class="toast-body">${b}</div>
+    ${clickHint}
     ${progressBlock}
   </div>
 </body>
@@ -107,18 +140,23 @@ function getNotificationHTML(title, body, progressPercent) {
 
 let customNotifWin = null;
 let isUpdateProgressWindow = false;
+let pendingNotifRoomId = null;
+
+const notifPreloadPath = path.join(__dirname, 'notif-preload.js');
 
 function showCustomNotification(title, body, options) {
   const opts = options || {};
   const persistent = opts.persistent === true;
   const progress = opts.progress;
   const showProgressBar = typeof progress === 'number';
+  const roomId = opts.roomId || null;
 
   if (customNotifWin && !customNotifWin.isDestroyed()) {
     customNotifWin.close();
     customNotifWin = null;
   }
   isUpdateProgressWindow = false;
+  pendingNotifRoomId = roomId;
 
   const notifHeight = showProgressBar ? NOTIF_HEIGHT_PROGRESS : NOTIF_HEIGHT;
   const primary = screen.getPrimaryDisplay();
@@ -142,11 +180,12 @@ function showCustomNotification(title, body, options) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: notifPreloadPath,
     },
   });
 
   win.setMenu(null);
-  win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(getNotificationHTML(title, body, progress)));
+  win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(getNotificationHTML(title, body, progress, !!roomId)));
   win.once('ready-to-show', () => {
     win.show();
   });
@@ -192,6 +231,9 @@ const iconPath = path.join(__dirname, '../build/icons/icon.png');
 let tray = null;
 let mainWindow = null;
 
+// 창별 show 핸들러 (Map으로 관리, win 객체에 프로퍼티 직접 부착보다 안전)
+const windowReadyHandlers = new Map();
+
 function getLoadURL() {
   if (isDev) return 'http://localhost:5173';
   return null;
@@ -232,15 +274,46 @@ function createWindow(options = {}) {
     win.loadURL(pathToFileURL(file).href);
   }
 
-  // ready-to-show: HTML 첫 프레임이 그려지면 바로 표시 ("로딩 중..." 텍스트가 보임)
-  // Windows 첫 실행 시 React 마운트가 느려도 사용자가 빈 화면을 보지 않음
-  // 안전망: ready-to-show가 3초 내 안 오면 강제 표시
-  const showFallback = setTimeout(() => {
-    if (!win.isDestroyed() && !win.isVisible()) win.show();
-  }, 3000);
-  win.once('ready-to-show', () => {
-    clearTimeout(showFallback);
-    if (!win.isDestroyed()) win.show();
+  // 창 표시 로직:
+  // 1순위: renderer가 React 마운트 후 notifyAppReady() → app-ready IPC 수신 → 즉시 표시
+  // 2순위: did-finish-load 후 600ms 대기 (React 렌더 시간 확보)
+  // 3순위: 6초 절대 타임아웃 (렌더러 문제 시 최후 보루)
+  let readyShown = false;
+  const timers = [];
+  const showWindow = () => {
+    if (!readyShown && !win.isDestroyed()) {
+      readyShown = true;
+      timers.forEach((t) => clearTimeout(t));
+      win.show();
+    }
+  };
+
+  // 절대 타임아웃 (6초)
+  timers.push(setTimeout(showWindow, 6000));
+
+  // did-finish-load: 페이지 로드 완료 후 600ms 대기
+  win.webContents.once('did-finish-load', () => {
+    timers.push(setTimeout(() => { if (!readyShown) showWindow(); }, 600));
+  });
+
+  // windowReadyHandlers에 등록 (app-ready IPC 핸들러에서 사용)
+  windowReadyHandlers.set(win.webContents.id, showWindow);
+  win.on('closed', () => {
+    windowReadyHandlers.delete(win.webContents.id);
+  });
+
+  // 렌더러 크래시 복구: 한 번만 자동 재로드
+  let crashed = false;
+  win.webContents.on('render-process-gone', (event, details) => {
+    console.error('[window] render-process-gone:', details.reason);
+    if (!crashed && details.reason !== 'clean-exit' && !win.isDestroyed()) {
+      crashed = true;
+      readyShown = false;
+      const url2 = getLoadURL();
+      const file2 = getLoadFile();
+      if (url2) win.loadURL(url2);
+      else if (file2) win.loadURL(pathToFileURL(file2).href);
+    }
   });
 
   if (process.argv.includes('--devtools')) {
@@ -392,8 +465,29 @@ ipcMain.handle('window-resize', (event, width, height) => {
   }
 });
 
-ipcMain.handle('show-notification', (_, { title, body }) => {
-  showCustomNotification(title || 'EMAX', body || '');
+ipcMain.on('app-ready', (event) => {
+  const showFn = windowReadyHandlers.get(event.sender.id);
+  if (showFn) showFn();
+});
+
+ipcMain.handle('show-notification', (_, { title, body, roomId }) => {
+  showCustomNotification(title || 'EMAX', body || '', { roomId: roomId || null });
+});
+
+ipcMain.on('notification-clicked', () => {
+  const roomId = pendingNotifRoomId;
+  pendingNotifRoomId = null;
+  if (customNotifWin && !customNotifWin.isDestroyed()) {
+    customNotifWin.close();
+    customNotifWin = null;
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+    if (roomId) {
+      mainWindow.webContents.send('navigate-to-room', roomId);
+    }
+  }
 });
 
 ipcMain.handle('open-external', (_, url) => {
@@ -427,6 +521,14 @@ function setupAutoUpdate() {
       console.error('Update check failed:', err);
     });
 }
+
+app.on('second-instance', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
 
 app.whenReady().then(() => {
   if (process.platform === 'win32') {

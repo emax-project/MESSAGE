@@ -241,7 +241,7 @@ export default function Main() {
         const title = senderName;
         const body = msg.content;
         if (window.electronAPI?.showNotification) {
-          window.electronAPI.showNotification(title, body);
+          window.electronAPI.showNotification(title, body, msg.roomId);
         } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           if (typeof document !== 'undefined' && document.hidden) new Notification(title, { body });
         }
@@ -299,6 +299,16 @@ export default function Main() {
     }, remaining);
     return () => clearTimeout(t);
   }, [notificationsSnoozedUntil]);
+
+  // 알림 클릭 시 해당 채팅방으로 이동
+  useEffect(() => {
+    if (!window.electronAPI?.onNavigateToRoom) return;
+    const unsubscribe = window.electronAPI.onNavigateToRoom((roomId: string) => {
+      setActivePanel('none');
+      navigate(`/room/${roomId}`);
+    });
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, [navigate]);
 
   // --- Handlers ---
   const toggleSection = (key: 'topic' | 'chat' | 'app') => setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1143,7 +1153,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     menuBtn: { width: 34, height: 34, padding: 0, border: 'none', borderRadius: 8, background: 'transparent', color: isDark ? '#94a3b8' : '#666', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     menuBtnActive: { background: isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb', color: isDark ? '#fff' : '#333' },
     menuBadge: { position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: '#e53935', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    contentArea: { flex: 1, minHeight: 0, minWidth: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' },
+    contentArea: { flex: 1, minHeight: 0, minWidth: 0, overflowX: 'hidden', overflowY: 'auto', display: 'flex', flexDirection: 'column' },
 
     /* Empty state */
     emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 },

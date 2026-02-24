@@ -81,17 +81,14 @@ export default function App() {
     }
   }, []);
 
-  // Electron: 첫 페인트 후 창 표시 (첫 실행 흰 화면 방지). Windows 첫 실행 시 타이밍 이슈 대비 백업 호출
+  // Electron: React 마운트 완료 후 main process에 창 표시 신호 전송
+  // requestAnimationFrame은 숨겨진 창에서 throttle되므로 setTimeout 사용
   useEffect(() => {
     if (!window.electronAPI?.notifyAppReady) return;
-    const sendReady = () => {
+    const t = setTimeout(() => {
       window.electronAPI!.notifyAppReady();
-    };
-    requestAnimationFrame(() => {
-      requestAnimationFrame(sendReady);
-    });
-    const backup = setTimeout(sendReady, 250);
-    return () => clearTimeout(backup);
+    }, 50);
+    return () => clearTimeout(t);
   }, []);
 
   return (

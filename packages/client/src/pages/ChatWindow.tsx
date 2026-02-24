@@ -852,7 +852,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         }
       `}</style>
       {!embedded && hasElectron && <TitleBar title={room.name} isDark={isDark} />}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0 }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
         <div
           style={embedded ? { ...s.layout(isDark), flex: 1, minHeight: 0, minWidth: 0 } : { ...s.layout(isDark), flex: 1, minWidth: 0 }}
           onDragOver={handleDragOver}
@@ -1194,9 +1194,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 <div key={m.id} style={{ ...s.messageRow(), ...(m.senderId === myId ? s.messageRowMine() : {}) }}>
                   <div style={s.messageRowInner()}>
                     {m.senderId !== myId && <div style={s.avatarWrap()} aria-hidden><span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span></div>}
-                    {m.senderId === myId && <div style={s.avatarSpacer()} />}
-                    <div style={{ ...s.messageBubble(isDark), ...(m.senderId === myId ? s.messageBubbleMine(isDark) : {}), opacity: 0.5, fontStyle: 'italic' }}>
-                      <span style={s.messageContent()}>[삭제된 메시지]</span>
+                    <div style={{ width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(m.senderId === myId ? { marginLeft: 'auto' } : {}) }}>
+                      <div style={{ ...s.messageBubble(isDark), ...(m.senderId === myId ? s.messageBubbleMine(isDark) : {}), opacity: 0.5, fontStyle: 'italic' }}>
+                        <span style={s.messageContent()}>[삭제된 메시지]</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1259,14 +1260,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 )}
 
                 <div style={s.messageRowInner()}>
-                  {m.senderId !== myId ? (
+                  {m.senderId !== myId && (
                     <div style={s.avatarWrap()} aria-hidden>
                       <span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
                     </div>
-                  ) : (
-                    <div style={s.avatarSpacer()} aria-hidden />
                   )}
-                  <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+                  <div style={{ position: 'relative', width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(m.senderId === myId ? { marginLeft: 'auto' } : {}) }}>
                     <div
                       className={isHighlighted ? 'message-bubble-highlight' : undefined}
                       style={{ ...s.messageBubble(isDark), ...(m.senderId === myId ? s.messageBubbleMine(isDark) : {}) }}
@@ -1311,7 +1310,16 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                       </div>
                     </div>
                     {isHovered && !m.deletedAt && (
-                      <div style={{ position: 'absolute', left: '100%', top: 0, marginLeft: 6, display: 'flex', gap: 2, alignItems: 'center' }}>
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        ...(m.senderId === myId
+                          ? { right: '100%', marginRight: 6 }
+                          : { left: '100%', marginLeft: 6 }),
+                        display: 'flex',
+                        gap: 2,
+                        alignItems: 'center',
+                      }}>
                         <button type="button" onClick={() => setReplyTo(m)} style={s.hoverActionBtn(isDark)} title="답장">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10l7-7v4c8 0 11 4 11 11-2-5-5-7-11-7v4l-7-5z"/></svg>
                         </button>
@@ -1810,7 +1818,7 @@ const s = {
   chatHeader: (dark: boolean): React.CSSProperties => ({ padding: '0 20px', height: 56, minHeight: 56, borderBottom: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, background: dark ? '#1e293b' : '#fff', boxShadow: dark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }),
   chatHeaderName: (dark: boolean): React.CSSProperties => ({ fontSize: 16, fontWeight: 700, color: dark ? '#f1f5f9' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }),
   headerIconBtn: (dark: boolean): React.CSSProperties => ({ width: 34, height: 34, borderRadius: 8, border: 'none', background: dark ? '#334155' : '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }),
-  messages: (dark: boolean): React.CSSProperties => ({ flex: 1, overflow: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, background: dark ? '#0f172a' : '#fafafa' }),
+  messages: (dark: boolean): React.CSSProperties => ({ flex: 1, overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, background: dark ? '#0f172a' : '#fafafa' }),
   scrollToBottomBtn: (dark: boolean): React.CSSProperties => ({
     position: 'absolute',
     bottom: 16,
@@ -1832,13 +1840,13 @@ const s = {
   dateSeparatorText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12 }),
   systemMessageRow: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 0' }),
   systemMessageText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12, textAlign: 'center' }),
-  messageRow: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', alignSelf: 'flex-start' }),
-  messageRowMine: (): React.CSSProperties => ({ alignItems: 'flex-end', alignSelf: 'flex-end' }),
-  messageRowInner: (): React.CSSProperties => ({ display: 'flex', alignItems: 'flex-start', gap: 8, maxWidth: '100%' }),
+  messageRow: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }),
+  messageRowMine: (): React.CSSProperties => ({ alignItems: 'flex-end' }),
+  messageRowInner: (): React.CSSProperties => ({ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%' }),
   avatarWrap: (): React.CSSProperties => ({ width: 34, height: 34, flexShrink: 0 }),
   avatarSpacer: (): React.CSSProperties => ({ width: 34, height: 34, flexShrink: 0 }),
   avatarCircle: (dark: boolean): React.CSSProperties => ({ width: 34, height: 34, borderRadius: '50%', background: dark ? '#334155' : '#e2e8f0', color: dark ? '#94a3b8' : '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }),
-  messageBubble: (dark: boolean): React.CSSProperties => ({ maxWidth: '75%', minWidth: 240, padding: '10px 14px', borderRadius: 16, borderTopLeftRadius: 4, background: dark ? '#334155' : '#fff', color: dark ? '#e2e8f0' : '#1e293b', boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)' }),
+  messageBubble: (dark: boolean): React.CSSProperties => ({ minWidth: 80, padding: '10px 14px', borderRadius: 16, borderTopLeftRadius: 4, background: dark ? '#334155' : '#fff', color: dark ? '#e2e8f0' : '#1e293b', boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)', wordBreak: 'break-word', overflowWrap: 'break-word' }),
   messageBubbleMine: (dark: boolean): React.CSSProperties => ({ borderTopLeftRadius: 16, borderTopRightRadius: 4, background: dark ? '#475569' : '#475569', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }),
   senderLabel: (dark: boolean): React.CSSProperties => ({ fontSize: 12, color: dark ? '#94a3b8' : '#475569', marginBottom: 4, marginLeft: 42 }),
   metaCol: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, fontSize: 11, color: '#64748b', flexShrink: 0, minWidth: 36 }),

@@ -90,8 +90,8 @@ export default function EventCard({ title, startAt, endAt, description, isMine }
 function getEventStyles(isDark: boolean, isMine: boolean): Record<string, React.CSSProperties> {
   return {
     card: isMine
-      ? { padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }
-      : { padding: 10, borderRadius: 8, background: isDark ? 'rgba(148,163,184,0.1)' : 'rgba(71,85,105,0.08)', border: `1px solid ${isDark ? 'rgba(148,163,184,0.2)' : 'rgba(71,85,105,0.2)'}` },
+      ? { width: '100%', boxSizing: 'border-box' as const, padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }
+      : { width: '100%', boxSizing: 'border-box' as const, padding: 10, borderRadius: 8, background: isDark ? 'rgba(148,163,184,0.1)' : 'rgba(71,85,105,0.08)', border: `1px solid ${isDark ? 'rgba(148,163,184,0.2)' : 'rgba(71,85,105,0.2)'}` },
     title: { display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 4 },
     time: { fontSize: 12, color: 'inherit', opacity: 0.9, marginBottom: 4 },
     desc: { fontSize: 13, whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
