@@ -2,9 +2,12 @@ const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell } = require('elec
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-// Windows: GPU 프로세스 크래시로 인한 검은 화면 방지 (whenReady 전에 호출 필수)
+// Windows: GPU 프로세스 관련 안정성 스위치 (whenReady 전에 호출 필수)
 if (process.platform === 'win32') {
-  app.disableHardwareAcceleration();
+  // disableHardwareAcceleration() 사용 시 소프트웨어 렌더링 fallback이
+  // 창에 페인팅하지 못하는 문제(검은 화면) 발생 → commandLine 스위치로 대체
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+  app.commandLine.appendSwitch('ignore-gpu-blocklist');
 }
 
 // 단일 인스턴스 잠금: 두 번 실행하면 기존 창을 포커스하고 종료
@@ -285,6 +288,10 @@ function createWindow(options = {}) {
       readyShown = true;
       timers.forEach((t) => clearTimeout(t));
       win.show();
+      // Windows: 창 표시 후 강제 리페인트 (컨텐츠가 그려지지 않는 현상 방지)
+      if (process.platform === 'win32') {
+        setTimeout(() => { if (!win.isDestroyed()) win.webContents.invalidate(); }, 80);
+      }
     }
   };
 
