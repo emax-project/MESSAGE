@@ -1,12 +1,10 @@
 const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell } = require('electron');
 const path = require('path');
 
-// Windows: GPU 프로세스 관련 안정성 스위치 (whenReady 전에 호출 필수)
+// Windows: GPU 렌더링 문제로 검은 화면 발생 시 소프트웨어 렌더링 강제
 if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('disable-gpu');
   app.commandLine.appendSwitch('disable-gpu-sandbox');
-  app.commandLine.appendSwitch('ignore-gpu-blocklist');
-  // GPU 프로세스를 메인 프로세스 내부에서 실행 → 컴포지터 초기화 실패 방지
-  app.commandLine.appendSwitch('in-process-gpu');
 }
 
 // 단일 인스턴스 잠금: 두 번 실행하면 기존 창을 포커스하고 종료
@@ -317,11 +315,31 @@ function createWindow(options = {}) {
     }
   });
 
+  // F12로 DevTools 열기 (디버깅용)
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' && input.type === 'keyDown') {
+      win.webContents.toggleDevTools();
+    }
+  });
+
   if (process.argv.includes('--devtools')) {
     win.webContents.once('did-finish-load', () => win.webContents.openDevTools());
   }
-  win.webContents.on('did-fail-load', (_, code, desc, url) => {
-    console.error('did-fail-load', code, desc, url);
+
+  // 파일 로드 실패 시 화면에 오류 표시
+  win.webContents.on('did-fail-load', (_, code, desc, validatedURL) => {
+    console.error('did-fail-load', code, desc, validatedURL);
+    if (code === -3) return; // 사용자 취소 (무시)
+    showWindow();
+    win.webContents.executeJavaScript(`
+      document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;background:#fff;color:#1e293b;min-height:100vh;">'
+        + '<h2 style="color:#dc2626">앱 로드 오류</h2>'
+        + '<p>오류 코드: ' + ${JSON.stringify(String(code))} + '</p>'
+        + '<p>설명: ' + ${JSON.stringify(String(desc))} + '</p>'
+        + '<p>URL: ' + ${JSON.stringify(String(validatedURL))} + '</p>'
+        + '<p style="margin-top:16px;color:#64748b">이 화면을 개발자에게 전달해 주세요.</p>'
+        + '</div>';
+    `).catch(() => {});
   });
 
   const isMainWindow = !options.secondWindow;
