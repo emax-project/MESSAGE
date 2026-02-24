@@ -4,10 +4,10 @@ const { pathToFileURL } = require('url');
 
 // Windows: GPU 프로세스 관련 안정성 스위치 (whenReady 전에 호출 필수)
 if (process.platform === 'win32') {
-  // disableHardwareAcceleration() 사용 시 소프트웨어 렌더링 fallback이
-  // 창에 페인팅하지 못하는 문제(검은 화면) 발생 → commandLine 스위치로 대체
   app.commandLine.appendSwitch('disable-gpu-sandbox');
   app.commandLine.appendSwitch('ignore-gpu-blocklist');
+  // GPU 프로세스를 메인 프로세스 내부에서 실행 → 컴포지터 초기화 실패 방지
+  app.commandLine.appendSwitch('in-process-gpu');
 }
 
 // 단일 인스턴스 잠금: 두 번 실행하면 기존 창을 포커스하고 종료
@@ -278,9 +278,9 @@ function createWindow(options = {}) {
   }
 
   // 창 표시 로직:
-  // 1순위: renderer가 React 마운트 후 notifyAppReady() → app-ready IPC 수신 → 즉시 표시
-  // 2순위: did-finish-load 후 600ms 대기 (React 렌더 시간 확보)
-  // 3순위: 6초 절대 타임아웃 (렌더러 문제 시 최후 보루)
+  // 1순위: ready-to-show 이벤트 (Electron 공식 권장, 첫 페인트 완료 후 발생)
+  // 2순위: app-ready IPC (React 마운트 완료 신호)
+  // 3순위: 8초 절대 타임아웃
   let readyShown = false;
   const timers = [];
   const showWindow = () => {
@@ -288,20 +288,14 @@ function createWindow(options = {}) {
       readyShown = true;
       timers.forEach((t) => clearTimeout(t));
       win.show();
-      // Windows: 창 표시 후 강제 리페인트 (컨텐츠가 그려지지 않는 현상 방지)
-      if (process.platform === 'win32') {
-        setTimeout(() => { if (!win.isDestroyed()) win.webContents.invalidate(); }, 80);
-      }
     }
   };
 
-  // 절대 타임아웃 (6초)
-  timers.push(setTimeout(showWindow, 6000));
+  // 절대 타임아웃 (8초)
+  timers.push(setTimeout(showWindow, 8000));
 
-  // did-finish-load: 페이지 로드 완료 후 600ms 대기
-  win.webContents.once('did-finish-load', () => {
-    timers.push(setTimeout(() => { if (!readyShown) showWindow(); }, 600));
-  });
+  // ready-to-show: 첫 번째 프레임이 실제로 그려진 후 발생 (Windows에서 가장 안정적)
+  win.once('ready-to-show', showWindow);
 
   // windowReadyHandlers에 등록 (app-ready IPC 핸들러에서 사용)
   windowReadyHandlers.set(win.webContents.id, showWindow);
