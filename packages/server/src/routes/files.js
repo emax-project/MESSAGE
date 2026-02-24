@@ -16,11 +16,12 @@ function toJson(obj) {
   ));
 }
 
+const FILE_UPLOAD_TIMEOUT_MS = 10 * 60 * 1000; // 10분
+
 // POST /files/upload — Upload a file and create a file message
 filesRouter.post('/upload', (req, res, next) => {
-  // 대용량 파일 업로드를 위한 타임아웃 해제
-  req.setTimeout(0);
-  res.setTimeout(0);
+  req.setTimeout(FILE_UPLOAD_TIMEOUT_MS);
+  res.setTimeout(FILE_UPLOAD_TIMEOUT_MS);
   next();
 }, upload.single('file'), async (req, res) => {
   try {

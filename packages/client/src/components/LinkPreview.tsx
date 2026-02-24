@@ -51,6 +51,8 @@ export default function LinkPreview({ url, isDark }: Props) {
 
   if (isLoading) return null;
 
+  const openExternal = window.electronAPI?.openExternal;
+
   // API 실패 또는 메타 없음 시에도 링크 카드만이라도 표시
   if (isError || !data) {
     const styles = getStyles(isDark);
@@ -60,7 +62,13 @@ export default function LinkPreview({ url, isDark }: Props) {
         target="_blank"
         rel="noopener noreferrer"
         style={styles.card}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (openExternal) {
+            e.preventDefault();
+            openExternal(displayUrl);
+          }
+        }}
       >
         <div style={styles.body}>
           <div style={{ ...styles.title, color: isDark ? '#94a3b8' : '#64748b', fontWeight: 500 }}>링크 미리보기를 불러올 수 없습니다</div>
@@ -78,7 +86,13 @@ export default function LinkPreview({ url, isDark }: Props) {
       target="_blank"
       rel="noopener noreferrer"
       style={styles.card}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (openExternal) {
+          e.preventDefault();
+          openExternal(data.url);
+        }
+      }}
     >
       {data.imageUrl && (
         <div style={styles.imageWrap}>

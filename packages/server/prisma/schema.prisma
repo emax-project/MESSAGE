@@ -108,6 +108,7 @@ model Message {
   @@index([roomId])
   @@index([senderId])
   @@index([roomId, createdAt])
+  @@index([roomId, senderId, createdAt])
   @@index([fileExpiresAt])
 }
 

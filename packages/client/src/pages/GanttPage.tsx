@@ -30,9 +30,8 @@ export default function GanttPage() {
   }
 
   const handleClose = () => {
-    const electronAPI = (window as unknown as { electronAPI?: { windowClose?: () => void } }).electronAPI;
-    if (electronAPI?.windowClose) {
-      electronAPI.windowClose();
+    if (window.electronAPI?.windowClose) {
+      window.electronAPI.windowClose();
     } else {
       window.close();
     }

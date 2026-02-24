@@ -7,6 +7,25 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
+// 필수 환경변수 검증 — 서버 시작 전 누락 시 즉시 종료
+const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
+const missingEnv = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missingEnv.length > 0) {
+  console.error(`[startup] 필수 환경변수가 설정되지 않았습니다: ${missingEnv.join(', ')}`);
+  process.exit(1);
+}
+if (process.env.JWT_SECRET === 'change-me-in-production') {
+  console.warn('[startup] 경고: JWT_SECRET이 기본값입니다. 운영 환경에서는 반드시 변경하세요.');
+}
+
+// 처리되지 않은 예외를 로깅하여 서버가 조용히 죽는 것 방지
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[unhandledRejection]', reason, promise);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+});
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
@@ -30,9 +49,11 @@ import { startCleanupJob } from './cleanup.js';
 
 const app = express();
 const httpServer = createServer(app);
+// Socket.io 롱커넥션을 위해 서버 수준 타임아웃은 0 유지
+// 파일 업로드는 /files/upload 라우트에서 개별 타임아웃 관리
 httpServer.timeout = 0;
-httpServer.requestTimeout = 0;
-httpServer.headersTimeout = 0;
+httpServer.requestTimeout = 30000;  // 일반 API: 30초
+httpServer.headersTimeout = 35000;  // requestTimeout보다 약간 크게
 
 app.use(cors({ origin: true }));
 app.use(express.json());

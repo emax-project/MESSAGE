@@ -31,7 +31,7 @@ function fileFilter(_req, file, cb) {
   cb(null, true);
 }
 
-export const MAX_FILE_SIZE = 20 * 1024 * 1024 * 1024; // 20GB
+export const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
 
 export const upload = multer({
   storage,

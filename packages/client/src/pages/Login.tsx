@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { authApi, BASE } from '../api';
+import { authApi, getBaseUrl, setBaseUrl } from '../api';
 import { useAuthStore, useThemeStore } from '../store';
 import TitleBar from '../components/TitleBar';
 
@@ -9,41 +9,38 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [serverUrl, setServerUrl] = useState(() => getBaseUrl() || 'http://203.254.98.92:3001');
   const setAuth = useAuthStore((s) => s.setAuth);
   const isDark = useThemeStore((s) => s.isDark);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { windowResize?: (w: number, h: number) => void } }).electronAPI?.windowResize) {
-      (window as unknown as { electronAPI: { windowResize: (w: number, h: number) => void } }).electronAPI.windowResize(960, 700);
-    }
+    window.electronAPI?.windowResize?.(960, 700);
+  }, []);
+  useEffect(() => {
+    setServerUrl(getBaseUrl() || '');
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
     setLoading(true);
     try {
       const { user, token } = await authApi.login(email, password);
       setAuth(user, token);
-      if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { showNotification?: (a: string, b: string) => void } }).electronAPI?.showNotification) {
-        (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification('로그인', `${user.name}님 로그인되었습니다.`);
-      }
+      window.electronAPI?.showNotification('로그인', `${user.name}님 로그인되었습니다.`);
       navigate('/', { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       const isNetwork = /fetch|network|connection|refused/i.test(msg) || msg === '';
-      setError(
-        isNetwork
-          ? `서버에 연결할 수 없습니다. (접속 주소: ${BASE}) 백엔드 서버가 실행 중인지, 방화벽/네트워크를 확인해 주세요.`
-          : msg || '로그인 실패'
-      );
+      setError(isNetwork ? '서버에 연결할 수 없습니다. 아래에서 서버 주소를 확인·수정 후 다시 시도해 주세요.' : msg || '로그인 실패');
     } finally {
       setLoading(false);
     }
   };
 
-  const isElectron = typeof window !== 'undefined' && !!(window as unknown as { electronAPI?: unknown }).electronAPI;
+  const isElectron = !!window.electronAPI;
   const s = getStyles(isDark);
 
   return (
@@ -81,6 +78,20 @@ export default function Login() {
                 autoComplete="current-password"
               />
             </div>
+            {isElectron && (
+              <div style={s.fieldGroup}>
+                <label style={s.label}>서버 주소</label>
+                <input
+                  type="url"
+                  placeholder="http://203.254.98.92:3001"
+                  value={serverUrl}
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  style={s.input}
+                  onBlur={() => { if (serverUrl.trim()) setBaseUrl(serverUrl.trim()); }}
+                />
+                <p style={s.hint}>예: http://203.254.98.92:3001</p>
+              </div>
+            )}
             {error && <p style={s.error}>{error}</p>}
             <button type="submit" disabled={loading} style={{
               ...s.button,
@@ -183,6 +194,11 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       color: '#ef4444',
       fontSize: 13,
       lineHeight: 1.5,
+    },
+    hint: {
+      margin: '4px 0 0',
+      fontSize: 12,
+      color: isDark ? '#94a3b8' : '#64748b',
     },
     button: {
       padding: '12px 16px',

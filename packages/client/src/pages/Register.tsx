@@ -15,9 +15,7 @@ export default function Register() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { windowResize?: (w: number, h: number) => void } }).electronAPI?.windowResize) {
-      (window as unknown as { electronAPI: { windowResize: (w: number, h: number) => void } }).electronAPI.windowResize(960, 700);
-    }
+    window.electronAPI?.windowResize?.(960, 700);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,7 +33,7 @@ export default function Register() {
     }
   };
 
-  const isElectron = typeof window !== 'undefined' && !!(window as unknown as { electronAPI?: unknown }).electronAPI;
+  const isElectron = !!window.electronAPI;
   const s = getStyles(isDark);
 
   return (

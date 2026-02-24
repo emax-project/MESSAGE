@@ -3,7 +3,7 @@
  * 백엔드 프록시(/ollama/chat) 사용
  */
 
-import { api, BASE } from './api';
+import { api, getBaseUrl } from './api';
 
 const OLLAMA_MODEL = import.meta.env.VITE_OLLAMA_MODEL || 'llama3.1:8b';
 
@@ -16,7 +16,7 @@ export async function ollamaChat(messages: OllamaMessage[]): Promise<string> {
   } catch (e) {
     const err = e as Error;
     if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
-      const url = BASE || 'http://192.168.0.204:3001';
+      const url = getBaseUrl() || 'http://203.254.98.92:3001';
       throw new Error(
         `서버(${url})에 연결할 수 없습니다. ` +
         `브라우저에서 ${url}/health 를 열어 연결 가능한지 확인하세요.`

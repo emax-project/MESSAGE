@@ -1,6 +1,27 @@
 // 빈 문자열이면 같은 origin 사용(배포 시 같은 서버에서 API·웹 서빙), 없으면 로컬 개발용
-export const BASE =
-  import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'http://192.168.0.204:3001');
+const DEFAULT_BASE =
+  import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'http://203.254.98.92:3001');
+
+const API_URL_KEY = 'emax_api_url';
+
+/** 런타임에 설정한 서버 주소가 있으면 사용, 없으면 빌드 시 기본값 */
+export function getBaseUrl(): string {
+  if (typeof window === 'undefined') return DEFAULT_BASE;
+  const saved = localStorage.getItem(API_URL_KEY);
+  const base = saved || DEFAULT_BASE;
+  // Vite dev(5173)에서 로컬 서버(3001) 사용 시: 프록시 경유로 CORS 회피
+  const origin = window.location?.origin || '';
+  if (origin.includes('5173') && (base === 'http://localhost:3001' || base === 'http://127.0.0.1:3001')) {
+    return '';
+  }
+  return base;
+}
+
+/** 서버 주소를 저장 (로그인 실패 시 사용자가 직접 입력) */
+export function setBaseUrl(url: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(API_URL_KEY, url.replace(/\/$/, ''));
+}
 
 function getToken(): string | null {
   return localStorage.getItem('token');
@@ -50,7 +71,7 @@ function handleForcedLogout(path: string, status: number, serverMessage?: string
 
 export const api = {
   async post(path: string, body: object) {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${getBaseUrl()}${path}`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify(body),
@@ -63,7 +84,7 @@ export const api = {
     return data;
   },
   async get(path: string) {
-    const res = await fetch(`${BASE}${path}`, { headers: headers() });
+    const res = await fetch(`${getBaseUrl()}${path}`, { headers: headers() });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       handleForcedLogout(path, res.status, (data as { error?: string }).error);
@@ -72,7 +93,7 @@ export const api = {
     return data;
   },
   async put(path: string, body: object) {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${getBaseUrl()}${path}`, {
       method: 'PUT',
       headers: headers(),
       body: JSON.stringify(body),
@@ -85,7 +106,7 @@ export const api = {
     return data;
   },
   async delete(path: string) {
-    const res = await fetch(`${BASE}${path}`, { method: 'DELETE', headers: headers() });
+    const res = await fetch(`${getBaseUrl()}${path}`, { method: 'DELETE', headers: headers() });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       handleForcedLogout(path, res.status, (data as { error?: string }).error);
@@ -100,7 +121,7 @@ export const api = {
   ): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${BASE}${path}`);
+      xhr.open('POST', `${getBaseUrl()}${path}`);
       const t = getToken();
       if (t) xhr.setRequestHeader('Authorization', `Bearer ${t}`);
       if (onProgress) {
@@ -363,7 +384,7 @@ export const filesApi = {
     return api.upload('/files/upload', formData, onProgress) as Promise<Message>;
   },
   async fetchBlob(messageId: string): Promise<Blob> {
-    const res = await fetch(`${BASE}/files/download/${messageId}`, {
+    const res = await fetch(`${getBaseUrl()}/files/download/${messageId}`, {
       method: 'GET',
       headers: authHeaders(),
     });
@@ -374,7 +395,7 @@ export const filesApi = {
     return res.blob();
   },
   async download(messageId: string, filename?: string | null) {
-    const res = await fetch(`${BASE}/files/download/${messageId}`, {
+    const res = await fetch(`${getBaseUrl()}/files/download/${messageId}`, {
       method: 'GET',
       headers: authHeaders(),
     });
@@ -508,7 +529,7 @@ export const linkPreviewApi = {
     api.get(`/link-preview?url=${encodeURIComponent(url)}`) as Promise<LinkPreviewData>,
   /** 썸네일 이미지를 서버 경유로 가져와서 외부 차단 시에도 표시 */
   async fetchImageBlob(imageUrl: string, pageUrl?: string): Promise<Blob> {
-    let url = `${BASE}/link-preview/image?imageUrl=${encodeURIComponent(imageUrl)}`;
+    let url = `${getBaseUrl()}/link-preview/image?imageUrl=${encodeURIComponent(imageUrl)}`;
     if (pageUrl) url += `&referer=${encodeURIComponent(pageUrl)}`;
     const res = await fetch(url, { headers: authHeaders() });
     if (!res.ok) throw new Error('이미지를 불러올 수 없습니다.');
@@ -533,6 +554,7 @@ export const foldersApi = {
 };
 
 export function getSocketUrl(): string {
-  if (BASE === '') return typeof window !== 'undefined' ? window.location.origin : '';
-  return BASE;
+  const base = getBaseUrl();
+  if (base === '') return typeof window !== 'undefined' ? window.location.origin : '';
+  return base;
 }

@@ -1,20 +1,6 @@
-const { app, BrowserWindow, Menu, ipcMain, Tray, screen } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell } = require('electron');
 const path = require('path');
-const fs = require('fs');
 const { pathToFileURL } = require('url');
-
-// #region agent log
-const DEBUG_LOG_PATH = path.join(__dirname, '..', '..', '..', '.cursor', 'debug.log');
-function debugLog(message, data, hypothesisId) {
-  try {
-    const line = JSON.stringify({ timestamp: Date.now(), location: 'main.js', message, data: data || {}, hypothesisId }) + '\n';
-    fs.appendFileSync(DEBUG_LOG_PATH, line);
-  } catch (e) { /* ignore */ }
-}
-ipcMain.on('debug-log', (_, payload) => {
-  if (payload && typeof payload.message === 'string') debugLog(payload.message, payload.data, payload.hypothesisId);
-});
-// #endregion
 
 const NOTIF_WIDTH = 360;
 const NOTIF_HEIGHT = 88;
@@ -136,7 +122,7 @@ function showCustomNotification(title, body, options) {
 
   const notifHeight = showProgressBar ? NOTIF_HEIGHT_PROGRESS : NOTIF_HEIGHT;
   const primary = screen.getPrimaryDisplay();
-  const { x, y, width: sw, height: sh } = primary.workArea;
+  const { x, y, width: sw } = primary.workArea;
   const px = x + sw - NOTIF_WIDTH - 24;
   const py = y + 20;
 
@@ -204,6 +190,7 @@ const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
 const preloadPath = path.join(__dirname, 'preload.js');
 const iconPath = path.join(__dirname, '../build/icons/icon.png');
 let tray = null;
+let mainWindow = null;
 
 function getLoadURL() {
   if (isDev) return 'http://localhost:5173';
@@ -216,9 +203,6 @@ function getLoadFile() {
 }
 
 function createWindow(options = {}) {
-  // #region agent log
-  debugLog('createWindow called', { platform: process.platform, isMainWindow: !options.secondWindow }, 'A');
-  // #endregion
   const win = new BrowserWindow({
     width: 1250,
     height: 900,
@@ -241,9 +225,6 @@ function createWindow(options = {}) {
 
   const url = getLoadURL();
   const file = getLoadFile();
-  // #region agent log
-  debugLog('loadURL called', { type: url ? 'url' : 'file', value: (url || file || '').toString().slice(0, 120) }, 'C');
-  // #endregion
   if (url) {
     win.loadURL(url);
   } else if (file) {
@@ -255,33 +236,32 @@ function createWindow(options = {}) {
   // Windows 첫 실행 시 React 마운트가 느려도 사용자가 빈 화면을 보지 않음
   // 안전망: ready-to-show가 3초 내 안 오면 강제 표시
   const showFallback = setTimeout(() => {
-    // #region agent log
-    debugLog('show() from fallback (3s)', { visible: !win.isDestroyed() && !win.isVisible() }, 'D');
-    // #endregion
     if (!win.isDestroyed() && !win.isVisible()) win.show();
   }, 3000);
   win.once('ready-to-show', () => {
-    // #region agent log
-    debugLog('ready-to-show fired', { isDestroyed: win.isDestroyed() }, 'B');
-    // #endregion
     clearTimeout(showFallback);
     if (!win.isDestroyed()) win.show();
   });
 
-  win.webContents.once('did-finish-load', () => {
-    // #region agent log
-    debugLog('did-finish-load', {}, 'C');
-    // #endregion
-  });
   if (process.argv.includes('--devtools')) {
     win.webContents.once('did-finish-load', () => win.webContents.openDevTools());
   }
   win.webContents.on('did-fail-load', (_, code, desc, url) => {
-    // #region agent log
-    debugLog('did-fail-load', { code, desc, url: (url || '').slice(0, 80) }, 'C');
-    // #endregion
     console.error('did-fail-load', code, desc, url);
   });
+
+  const isMainWindow = !options.secondWindow;
+  win.isMainWindow = isMainWindow;
+  if (isMainWindow) {
+    mainWindow = win;
+    win.on('close', (e) => {
+      e.preventDefault();
+      win.hide();
+    });
+    win.on('closed', () => {
+      if (mainWindow === win) mainWindow = null;
+    });
+  }
 
   return win;
 }
@@ -366,10 +346,9 @@ function createTray() {
   ]);
   tray.setContextMenu(menu);
   tray.on('click', () => {
-    const win = BrowserWindow.getAllWindows()[0];
-    if (win) {
-      win.show();
-      win.focus();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
     }
   });
 }
@@ -413,30 +392,22 @@ ipcMain.handle('window-resize', (event, width, height) => {
   }
 });
 
-ipcMain.handle('show-notification', (event, { title, body }) => {
+ipcMain.handle('show-notification', (_, { title, body }) => {
   showCustomNotification(title || 'EMAX', body || '');
 });
 
-// #region agent log
-const DEBUG_LOG = (location, message, data, hypothesisId) => {
-  fetch('http://127.0.0.1:7244/ingest/b7631e9b-8e84-4b47-8cc8-d7cb99d830c8', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location, message, data: data || {}, hypothesisId, timestamp: Date.now() }) }).catch(() => {});
-};
-// #endregion
+ipcMain.handle('open-external', (_, url) => {
+  if (url && typeof url === 'string') shell.openExternal(url);
+});
 
 function setupAutoUpdate() {
-  // #region agent log
-  DEBUG_LOG('main.js:setupAutoUpdate', 'setupAutoUpdate entered', { isDev, isPackaged: app.isPackaged, currentVersion: app.getVersion() }, 'H1');
-  // #endregion
   if (isDev || !app.isPackaged) return;
   if (updaterBaseUrl) {
     autoUpdater.setFeedURL({ provider: 'generic', url: updaterBaseUrl });
   }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('update-available', (info) => {
-    // #region agent log
-    DEBUG_LOG('main.js:update-available', 'update-available fired', { version: info?.version, releaseDate: info?.releaseDate }, 'H5');
-    // #endregion
+  autoUpdater.on('update-available', () => {
     showCustomNotification('EMAX 업데이트', '새 버전을 다운로드 중입니다. 완료 후 앱을 재시작하면 적용됩니다.', { persistent: true, progress: 0 });
   });
   autoUpdater.on('download-progress', (progress) => {
@@ -446,29 +417,13 @@ function setupAutoUpdate() {
     showCustomNotification('EMAX 업데이트 준비됨', '앱을 종료하면 새 버전이 적용됩니다.');
   });
   autoUpdater.on('error', (err) => {
-    // #region agent log
-    DEBUG_LOG('main.js:autoUpdater-error', 'autoUpdater error', { message: err?.message, code: err?.code }, 'H2');
-    // #endregion
     console.error('Auto-updater error:', err);
   });
-  // #region agent log
-  DEBUG_LOG('main.js:checkForUpdates', 'calling checkForUpdates', {}, 'H1');
-  // #endregion
   autoUpdater.checkForUpdates()
-    .then((r) => {
-      // #region agent log
-      DEBUG_LOG('main.js:checkForUpdates-then', 'checkForUpdates resolved', {
-        hasUpdateInfo: !!r?.updateInfo,
-        updateVersion: r?.updateInfo?.version,
-        currentVersion: app.getVersion(),
-        noUpdate: r?.updateInfo == null,
-      }, 'H3');
-      // #endregion
+    .then(() => {
+      // 업데이트 확인 완료 (별도 처리 불필요)
     })
     .catch((err) => {
-      // #region agent log
-      DEBUG_LOG('main.js:checkForUpdates-catch', 'checkForUpdates failed', { message: err?.message, code: err?.code }, 'H2');
-      // #endregion
       console.error('Update check failed:', err);
     });
 }
@@ -525,9 +480,15 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // 메인 창은 닫기 시 hide되므로 destroy되지 않음. 앱은 트레이에서 계속 실행.
+  // 사용자가 트레이 메뉴에서 '종료'를 선택할 때만 app.quit() 호출됨.
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+  } else if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
 });

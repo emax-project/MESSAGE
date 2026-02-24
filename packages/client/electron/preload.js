@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openKanbanWindow: (roomId) => ipcRenderer.invoke('open-kanban-window', roomId),
   openGanttWindow: (roomId) => ipcRenderer.invoke('open-gantt-window', roomId),
   showNotification: (title, body) => ipcRenderer.invoke('show-notification', { title, body }),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   windowClose: () => ipcRenderer.invoke('window-close'),
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),
   windowMaximize: () => ipcRenderer.invoke('window-maximize'),

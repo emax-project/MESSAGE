@@ -49,13 +49,18 @@ export default function App() {
     if (!token) return;
     authApi.me()
       .then(({ user }) => setAuth(user, token))
-      .catch(() => {});
+      .catch((err) => {
+        // 401은 api.ts의 handleForcedLogout이 자동 처리
+        // 네트워크 오류 등 일시적 실패는 조용히 무시
+        if (!(err instanceof Error && err.message === 'Unauthorized')) {
+          console.warn('[auth/me] 사용자 정보 갱신 실패:', err.message);
+        }
+      });
   }, [token, setAuth]);
 
   useEffect(() => {
-    const api = (window as unknown as { electronAPI?: { onLogout?: (cb: () => void) => () => void } }).electronAPI;
-    if (!api?.onLogout) return;
-    const unsubscribe = api.onLogout(() => {
+    if (!window.electronAPI?.onLogout) return;
+    const unsubscribe = window.electronAPI.onLogout(() => {
       logout();
     });
     return () => {
@@ -78,20 +83,9 @@ export default function App() {
 
   // Electron: 첫 페인트 후 창 표시 (첫 실행 흰 화면 방지). Windows 첫 실행 시 타이밍 이슈 대비 백업 호출
   useEffect(() => {
-    const api = (window as unknown as { electronAPI?: { notifyAppReady?: () => void; sendDebugLog?: (p: { message: string; data?: object; hypothesisId?: string }) => void } }).electronAPI;
-    // #region agent log
-    const log = (message: string, data?: object, hypothesisId?: string) => {
-      if (api?.sendDebugLog) api.sendDebugLog({ message, data, hypothesisId });
-      else fetch('http://127.0.0.1:7244/ingest/b7631e9b-8e84-4b47-8cc8-d7cb99d830c8', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'App.tsx', message, data: data || {}, hypothesisId, timestamp: Date.now() }) }).catch(() => {});
-    };
-    log('App notifyAppReady useEffect ran', { hasApi: !!api, hasNotifyAppReady: !!api?.notifyAppReady }, 'A');
-    // #endregion
-    if (!api?.notifyAppReady) return;
+    if (!window.electronAPI?.notifyAppReady) return;
     const sendReady = () => {
-      // #region agent log
-      log('notifyAppReady called', {}, 'A');
-      // #endregion
-      api.notifyAppReady!();
+      window.electronAPI!.notifyAppReady();
     };
     requestAnimationFrame(() => {
       requestAnimationFrame(sendReady);

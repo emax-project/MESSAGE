@@ -40,8 +40,12 @@ export function registerSocketHandlers(io) {
     }
 
     socket.on('join_room', async (roomId) => {
-      if (await isRoomMember(roomId, socket.userId)) {
-        socket.join(roomId);
+      try {
+        if (await isRoomMember(roomId, socket.userId)) {
+          socket.join(roomId);
+        }
+      } catch (e) {
+        console.error('[socket] join_room error:', e);
       }
     });
 
@@ -149,6 +153,8 @@ export function registerSocketHandlers(io) {
         if (ok) {
           socket.to(roomId).emit('typing', { userId: socket.userId, isTyping });
         }
+      }).catch((e) => {
+        console.error('[socket] typing error:', e);
       });
     });
 

@@ -30,12 +30,10 @@ function FolderIcon({ size = 16 }: { size?: number }) {
 }
 
 function openChatWindow(roomId: string) {
-  if (typeof window === 'undefined') return;
-  if ((window as unknown as { electronAPI?: { openChatWindow?: (id: string) => void } }).electronAPI?.openChatWindow) {
-    (window as unknown as { electronAPI: { openChatWindow: (id: string) => void } }).electronAPI.openChatWindow(roomId);
+  if (window.electronAPI?.openChatWindow) {
+    window.electronAPI.openChatWindow(roomId);
   } else {
-    const url = `${window.location.origin}/chat/${roomId}`;
-    window.open(url, '_blank', 'width=480,height=680');
+    window.open(`${window.location.origin}/chat/${roomId}`, '_blank', 'width=480,height=680');
   }
 }
 
@@ -79,9 +77,8 @@ export default function Main() {
 
   // Electron: 로그인 후 메인 화면 진입 시 창 넓이 확대 (로그인 화면은 기존 960x700 유지)
   useEffect(() => {
-    const api = (window as unknown as { electronAPI?: { windowResize?: (w: number, h: number) => void } }).electronAPI;
-    if (!api?.windowResize) return;
-    const resize = () => api.windowResize!(MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT);
+    if (!window.electronAPI?.windowResize) return;
+    const resize = () => window.electronAPI!.windowResize(MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT);
     resize();
     const t = setTimeout(resize, 300);
     return () => clearTimeout(t);
@@ -147,9 +144,7 @@ export default function Main() {
   const requestNotificationPermission = async () => { if (typeof Notification !== 'undefined' && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch { /* ignore */ } } };
 
   useEffect(() => {
-    if (token && typeof window !== 'undefined' && (window as unknown as { electronAPI?: { windowResize?: (w: number, h: number) => void } }).electronAPI?.windowResize) {
-      (window as unknown as { electronAPI: { windowResize: (w: number, h: number) => void } }).electronAPI.windowResize(960, 700);
-    }
+    if (token) window.electronAPI?.windowResize?.(960, 700);
   }, [token]);
 
   // --- Queries ---
@@ -245,8 +240,8 @@ export default function Main() {
         const senderName = msg.sender?.name ?? '알 수 없음';
         const title = senderName;
         const body = msg.content;
-        if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { showNotification?: (a: string, b: string) => void } }).electronAPI?.showNotification) {
-          (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification(title, body);
+        if (window.electronAPI?.showNotification) {
+          window.electronAPI.showNotification(title, body);
         } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           if (typeof document !== 'undefined' && document.hidden) new Notification(title, { body });
         }
@@ -268,9 +263,9 @@ export default function Main() {
         const name = payload.userName?.trim() || '누군가';
         const title = 'EMAX';
         const body = `${name}님이 로그인했습니다.`;
-        if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { showNotification?: (a: string, b: string) => void } }).electronAPI?.showNotification) {
-          (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification(title, body);
-        } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && typeof document !== 'undefined' && document.hidden) {
+        if (window.electronAPI?.showNotification) {
+          window.electronAPI.showNotification(title, body);
+        } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
           new Notification(title, { body });
         }
       }
@@ -280,7 +275,7 @@ export default function Main() {
     s.on('user_status_changed', () => { queryClient.invalidateQueries({ queryKey: ['org'] }); });
     s.on('member_left', () => { queryClient.refetchQueries({ queryKey: ['rooms'] }); });
     setSocket(s);
-    return () => { s.disconnect(); socketRef.current = null; setSocket(null); setSocketConnected(false); };
+    return () => { s.removeAllListeners(); s.disconnect(); socketRef.current = null; setSocket(null); setSocketConnected(false); };
   }, [token, queryClient]);
 
   useEffect(() => { if (!socket || !socketConnected || !allRooms.length) return; allRooms.forEach((r) => socket.emit('join_room', r.id)); }, [socket, socketConnected, allRooms]);
@@ -296,8 +291,8 @@ export default function Main() {
       setShowSnoozeEndToast(true);
       try {
         const title = 'EMAX'; const body = '알림 일시 중지가 해제되었습니다';
-        if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { showNotification?: (a: string, b: string) => void } }).electronAPI?.showNotification) {
-          (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification(title, body);
+        if (window.electronAPI?.showNotification) {
+          window.electronAPI.showNotification(title, body);
         } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') { new Notification(title, { body }); }
       } catch { /* ignore */ }
       setTimeout(() => setShowSnoozeEndToast(false), 3000);
@@ -314,7 +309,7 @@ export default function Main() {
   const clearSnooze = () => { setNotificationsSnoozedUntil(0); try { localStorage.removeItem('notificationsSnoozedUntil'); } catch { /* ignore */ } };
   const handleLeaveRoom = async (roomId: string) => { if (!confirm('채팅방을 나가시겠습니까?')) { setRoomContextMenu(null); return; } try { await roomsApi.leave(roomId); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
   const handleSetStatus = async (msg: string) => { try { await usersApi.updateStatus(msg); setStatusInput(msg); queryClient.invalidateQueries({ queryKey: ['org'] }); } catch (err) { console.error(err); } };
-  const hasElectron = typeof window !== 'undefined' && !!(window as unknown as { electronAPI?: unknown }).electronAPI;
+  const hasElectron = !!window.electronAPI;
 
   // --- Room item renderer ---
   const renderRoomItem = (r: Room) => (
@@ -1017,7 +1012,7 @@ export default function Main() {
                       <button type="button" style={st.formBtn} disabled={announcementSaving} onClick={async () => { setAnnouncementSaving(true); try { await announcementApi.put(announcementEdit); queryClient.invalidateQueries({ queryKey: ['announcement'] }); } catch (err) { console.error(err); } finally { setAnnouncementSaving(false); } }}>{announcementSaving ? '저장 중...' : '저장'}</button>
                     </div>
                   )}
-                  {hasElectron && <button type="button" style={st.settingsBtn} onClick={() => (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification('EMAX', '알림 테스트입니다.')}>알림 테스트</button>}
+                  {hasElectron && <button type="button" style={st.settingsBtn} onClick={() => window.electronAPI?.showNotification('EMAX', '알림 테스트입니다.')}>알림 테스트</button>}
                   {!hasElectron && <button type="button" style={st.settingsBtn} onClick={requestNotificationPermission}>알림 권한 요청</button>}
                   <button type="button" style={{ ...st.settingsBtn, color: '#c62828', fontWeight: 600 }} onClick={() => { queryClient.removeQueries({ queryKey: ['rooms'] }); queryClient.removeQueries({ queryKey: ['org'] }); logout(); }}>로그아웃</button>
                 </div>

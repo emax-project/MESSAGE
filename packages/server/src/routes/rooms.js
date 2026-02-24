@@ -64,58 +64,62 @@ roomsRouter.get('/public', async (req, res) => {
 // List rooms I'm in, with last message and unread count
 roomsRouter.get('/', async (req, res) => {
   try {
-    const memberships = await prisma.roomMember.findMany({
-      where: { userId: req.userId, leftAt: null },
-      include: {
-        room: {
-          include: {
-            messages: {
-              take: 1,
-              orderBy: { createdAt: 'desc' },
-              include: { sender: { select: { id: true, name: true } } },
-            },
-            members: {
-              where: { leftAt: null },
-              include: { user: { select: { id: true, name: true, email: true } } },
+    const [memberships, unreadRows] = await Promise.all([
+      prisma.roomMember.findMany({
+        where: { userId: req.userId, leftAt: null },
+        include: {
+          room: {
+            include: {
+              messages: {
+                take: 1,
+                orderBy: { createdAt: 'desc' },
+                include: { sender: { select: { id: true, name: true } } },
+              },
+              members: {
+                where: { leftAt: null },
+                include: { user: { select: { id: true, name: true, email: true } } },
+              },
             },
           },
         },
-      },
+      }),
+      // N+1 방지: 단일 쿼리로 모든 방의 미읽음 수를 한꺼번에 집계
+      prisma.$queryRaw`
+        SELECT m."roomId", COUNT(*)::int AS "unreadCount"
+        FROM "Message" m
+        INNER JOIN "RoomMember" rm
+          ON rm."roomId" = m."roomId" AND rm."userId" = ${req.userId} AND rm."leftAt" IS NULL
+        WHERE m."deletedAt" IS NULL
+          AND m."senderId" != ${req.userId}
+          AND m."createdAt" > COALESCE(rm."lastReadAt", rm."joinedAt")
+        GROUP BY m."roomId"
+      `,
+    ]);
+
+    const unreadMap = new Map(unreadRows.map((row) => [row.roomId, row.unreadCount]));
+
+    const rooms = memberships.map((m) => {
+      const last = m.room.messages[0];
+      const otherMembers = m.room.members.filter((mb) => mb.userId !== req.userId);
+      const displayName = m.room.name || otherMembers.map((mb) => mb.user.name).join(', ') || '채팅방';
+      const lastAt = last ? new Date(last.createdAt) : new Date(m.room.updatedAt);
+      return {
+        id: m.room.id,
+        name: displayName,
+        isGroup: m.room.isGroup,
+        viewMode: m.room.viewMode || 'chat',
+        folderId: m.folderId || null,
+        members: m.room.members.map((mb) => ({ id: mb.user.id, name: mb.user.name, email: mb.user.email })),
+        lastMessage: last
+          ? { id: last.id, content: last.deletedAt ? '[삭제된 메시지]' : last.content, createdAt: last.createdAt, senderName: last.sender.name }
+          : null,
+        updatedAt: m.room.updatedAt,
+        _sortAt: lastAt.getTime(),
+        unreadCount: unreadMap.get(m.room.id) ?? 0,
+        isFavorite: m.isFavorite,
+      };
     });
-    const rooms = await Promise.all(
-      memberships.map(async (m) => {
-        const last = m.room.messages[0];
-        const otherMembers = m.room.members.filter((mb) => mb.userId !== req.userId);
-        const displayName = m.room.name || otherMembers.map((mb) => mb.user.name).join(', ') || '채팅방';
-        const since = m.lastReadAt || m.joinedAt;
-        const myId = String(req.userId || '');
-        const unreadMessages = await prisma.message.findMany({
-          where: {
-            roomId: m.room.id,
-            createdAt: { gt: since },
-            deletedAt: null,
-          },
-          select: { senderId: true },
-        });
-        const unreadCount = unreadMessages.filter((msg) => String(msg.senderId) !== myId).length;
-        const lastAt = last ? new Date(last.createdAt) : new Date(m.room.updatedAt);
-        return {
-          id: m.room.id,
-          name: displayName,
-          isGroup: m.room.isGroup,
-          viewMode: m.room.viewMode || 'chat',
-          folderId: m.folderId || null,
-          members: m.room.members.map((mb) => ({ id: mb.user.id, name: mb.user.name, email: mb.user.email })),
-          lastMessage: last
-            ? { id: last.id, content: last.deletedAt ? '[삭제된 메시지]' : last.content, createdAt: last.createdAt, senderName: last.sender.name }
-            : null,
-          updatedAt: m.room.updatedAt,
-          _sortAt: lastAt.getTime(),
-          unreadCount,
-          isFavorite: m.isFavorite,
-        };
-      })
-    );
+
     rooms.sort((a, b) => {
       if (a.isFavorite && !b.isFavorite) return -1;
       if (!a.isFavorite && b.isFavorite) return 1;

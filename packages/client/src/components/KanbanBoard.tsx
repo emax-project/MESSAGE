@@ -180,7 +180,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
     }
   };
 
-  const hasElectron = typeof window !== 'undefined' && !!(window as unknown as { electronAPI?: unknown }).electronAPI;
+  const hasElectron = !!window.electronAPI;
 
   return (
     <div style={{ width: '100%', height: '100vh', background: bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -188,9 +188,9 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
       {hasElectron && (
         <div style={{ flexShrink: 0, height: 38, minHeight: 38, display: 'flex', alignItems: 'center', paddingLeft: 12, paddingRight: 12, gap: 8, background: isDark ? '#1e293b' : '#fff', borderBottom: `1px solid ${isDark ? '#334155' : '#eee'}`, WebkitAppRegion: 'drag' as const }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, WebkitAppRegion: 'no-drag' as const }}>
-            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => (window as unknown as { electronAPI: { windowClose: () => void } }).electronAPI.windowClose()} aria-label="닫기" />
-            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => (window as unknown as { electronAPI: { windowMinimize: () => void } }).electronAPI.windowMinimize()} aria-label="최소화" />
-            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => (window as unknown as { electronAPI: { windowMaximize: () => void } }).electronAPI.windowMaximize()} aria-label="최대화" />
+            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => window.electronAPI?.windowClose()} aria-label="닫기" />
+            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => window.electronAPI?.windowMinimize()} aria-label="최소화" />
+            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => window.electronAPI?.windowMaximize()} aria-label="최대화" />
           </div>
           <span style={{ flex: 1, textAlign: 'center', fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333', pointerEvents: 'none' }}>프로젝트 보드</span>
         </div>
@@ -220,9 +220,8 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
           <button
             type="button"
             onClick={() => {
-              const eApi = (window as unknown as { electronAPI?: { openGanttWindow?: (id: string) => void } }).electronAPI;
-              if (eApi?.openGanttWindow) {
-                eApi.openGanttWindow(roomId);
+              if (window.electronAPI?.openGanttWindow) {
+                window.electronAPI.openGanttWindow(roomId);
               } else {
                 window.open(`${window.location.origin}/gantt/${roomId}`, '_blank', 'width=1200,height=700');
               }

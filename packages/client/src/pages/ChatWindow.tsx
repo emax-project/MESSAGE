@@ -19,8 +19,11 @@ import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
 import LinkPreview, { extractFirstUrl } from '../components/LinkPreview';
 
-const MAX_DROP_SIZE = 20 * 1024 * 1024 * 1024;
+const MAX_DROP_SIZE = 2 * 1024 * 1024 * 1024;
 const EDIT_LIMIT_MS = 5 * 60 * 1000;
+const SCROLL_BOTTOM_THRESHOLD = 80;
+const RIGHT_SIDEBAR_PANEL_WIDTH = 280;
+const RIGHT_SIDEBAR_ICON_WIDTH = 48;
 
 function isSystemMessage(content: string): boolean {
   return /님이\s.+님을\s초대했습니다$/.test(content) || content === '[파일 만료됨]' || /님이 채팅방을 나갔습니다$/.test(content);
@@ -128,11 +131,49 @@ function RightPanelPins({ roomId, isDark }: { roomId: string; isDark: boolean })
   );
 }
 
+// 프로토콜 있는 URL + 도메인만(naver.com, www.google.com 등) + @멘션
+const LINK_SPLIT_REGEX = /(https?:\/\/[^\s<>"']+|(?:www\.)?[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)*\.[a-zA-Z]{2,}|@\S+)/gi;
+
+function renderLink(key: number, href: string, label: string, linkColor: string): React.ReactNode {
+  const openExternal = window.electronAPI?.openExternal;
+  return (
+    <a
+      key={key}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ color: linkColor, textDecoration: 'underline', wordBreak: 'break-all', cursor: 'pointer' }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (openExternal) {
+          e.preventDefault();
+          openExternal(href);
+        }
+      }}
+    >
+      {label}
+    </a>
+  );
+}
+
 function renderContentWithMentions(content: string, isDark: boolean): React.ReactNode {
-  const parts = content.split(/(@\S+)/g);
+  const parts = content.split(LINK_SPLIT_REGEX);
+  const linkColor = isDark ? '#60a5fa' : '#2563eb';
   return parts.map((part, i) => {
+    if (/^https?:\/\//i.test(part)) {
+      const href = part.replace(/[.,;:!?)]+$/, '');
+      return renderLink(i, href, part, linkColor);
+    }
+    if (
+      /^(?:www\.)?[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)*\.[a-zA-Z]{2,}$/i.test(part) &&
+      !/\.(?:pdf|jpg|jpeg|png|gif|doc|docx|xls|xlsx|zip|txt|pptx|hwp)$/i.test(part)
+    ) {
+      const href = part.replace(/[.,;:!?)]+$/, '');
+      const url = href.startsWith('http') ? href : `https://${href}`;
+      return renderLink(i, url, part, linkColor);
+    }
     if (part.startsWith('@')) {
-      return <span key={i} style={{ color: isDark ? '#60a5fa' : '#2563eb', fontWeight: 600 }}>{part}</span>;
+      return <span key={i} style={{ color: linkColor, fontWeight: 600 }}>{part}</span>;
     }
     return part;
   });
@@ -185,7 +226,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const lastMarkReadRef = useRef<number>(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const SCROLL_BOTTOM_THRESHOLD = 80;
   const checkAtBottom = () => {
     const el = messagesScrollRef.current;
     if (!el) return;
@@ -273,6 +313,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           // ignore
         }
       }
+    });
+    s.on('error', (payload: { code?: string; message?: string }) => {
+      console.error('[Socket error]', payload);
     });
     s.on('connect', () => s.emit('join_room', roomId));
     s.on('message', (msg: Message) => {
@@ -382,15 +425,14 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       queryClient.refetchQueries({ queryKey: ['rooms', roomId, 'messages'] });
     });
     s.on('mention', (payload: { roomId: string; senderName: string; content: string }) => {
-      if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { showNotification?: (a: string, b: string) => void } }).electronAPI?.showNotification) {
-        (window as unknown as { electronAPI: { showNotification: (a: string, b: string) => void } }).electronAPI.showNotification(
-          `${payload.senderName}님이 회원님을 멘션했습니다`,
-          payload.content
-        );
-      }
+      window.electronAPI?.showNotification(
+        `${payload.senderName}님이 회원님을 멘션했습니다`,
+        payload.content
+      );
     });
     setSocket(s);
     return () => {
+      s.removeAllListeners();
       s.disconnect();
       socketRef.current = null;
       setSocket(null);
@@ -402,7 +444,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       roomsApi.markRead(roomId).then(() => {
         queryClient.refetchQueries({ queryKey: ['rooms'] });
         queryClient.refetchQueries({ queryKey: ['rooms', roomId, 'messages'] });
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn('[markRead] 읽음 처리 실패:', err.message);
+      });
     }
   }, [roomId, queryClient]);
 
@@ -516,9 +560,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       return;
     }
 
-    // 텍스트만 전송
-    if (!text || !socket || !roomId) return;
-    socket.emit('message', {
+    // 텍스트만 전송 (socketRef 사용 - stale closure 방지)
+    const s = socketRef.current;
+    if (!text || !roomId || !s) return;
+    s.emit('message', {
       roomId,
       content: text,
       replyToId: replyTo?.id || undefined,
@@ -688,7 +733,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   useEffect(() => {
     bookmarksApi.list().then((list) => {
       setBookmarkedIds(new Set(list.map((b) => b.messageId)));
-    }).catch(() => {});
+    }).catch((err) => {
+      console.warn('[bookmarks] 북마크 목록 로드 실패:', err.message);
+    });
   }, []);
 
   const handleToggleBookmark = async (messageId: string) => {
@@ -784,7 +831,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   }
 
   const displayMessages = [...messages].reverse();
-  const hasElectron = typeof window !== 'undefined' && !!(window as unknown as { electronAPI?: unknown }).electronAPI;
+  const hasElectron = !!window.electronAPI;
   const members = (room as Room).members ?? [];
 
   const wrapperStyle: React.CSSProperties = embedded
@@ -845,9 +892,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               </svg>
             </button>
             <button type="button" style={s.headerIconBtn(isDark)} onClick={() => {
-              const eApi = (window as unknown as { electronAPI?: { openKanbanWindow?: (id: string) => void } }).electronAPI;
-              if (eApi?.openKanbanWindow) {
-                eApi.openKanbanWindow(roomId!);
+              if (window.electronAPI?.openKanbanWindow) {
+                window.electronAPI.openKanbanWindow(roomId!);
               } else {
                 window.open(`${window.location.origin}/kanban/${roomId}`, '_blank', 'width=1100,height=750');
               }
@@ -905,11 +951,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             onClose={() => setInviteOpen(false)}
             onInvited={(newRoomId: string) => {
               queryClient.refetchQueries({ queryKey: ['rooms'] });
-              if (typeof window !== 'undefined' && (window as unknown as { electronAPI?: { openChatWindow?: (id: string) => void } }).electronAPI?.openChatWindow) {
-                (window as unknown as { electronAPI: { openChatWindow: (id: string) => void } }).electronAPI.openChatWindow(newRoomId);
+              if (window.electronAPI?.openChatWindow) {
+                window.electronAPI.openChatWindow(newRoomId);
               } else {
-                const url = `${window.location.origin}/chat/${newRoomId}`;
-                window.open(url, '_blank', 'width=480,height=680');
+                window.open(`${window.location.origin}/chat/${newRoomId}`, '_blank', 'width=480,height=680');
               }
             }}
           />
@@ -1097,8 +1142,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                         if ((e.nativeEvent as KeyboardEvent).isComposing) return;
                         e.preventDefault();
                         const text = (boardCommentInputs[m.id] || '').trim();
-                        if (text && socket && roomId) {
-                          socket.emit('message', { roomId, content: text, replyToId: m.id });
+                        if (text && socketRef.current && roomId) {
+                          socketRef.current.emit('message', { roomId, content: text, replyToId: m.id });
                           setBoardCommentInputs((prev) => ({ ...prev, [m.id]: '' }));
                         }
                       }
@@ -1109,8 +1154,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                     style={s.boardCommentSendBtn(isDark)}
                     onClick={() => {
                       const text = (boardCommentInputs[m.id] || '').trim();
-                      if (text && socket && roomId) {
-                        socket.emit('message', { roomId, content: text, replyToId: m.id });
+                      if (text && socketRef.current && roomId) {
+                        socketRef.current.emit('message', { roomId, content: text, replyToId: m.id });
                         setBoardCommentInputs((prev) => ({ ...prev, [m.id]: '' }));
                       }
                     }}
@@ -1410,9 +1455,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                     <button type="button" onClick={() => setTaskFromMessage(null)} style={{ padding: '8px 16px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, background: 'none', color: isDark ? '#94a3b8' : '#666', fontSize: 13, cursor: 'pointer' }}>닫기</button>
                     <button type="button" onClick={() => {
                       setTaskFromMessage(null);
-                      const eApi = (window as unknown as { electronAPI?: { openKanbanWindow?: (id: string) => void } }).electronAPI;
-                      if (eApi?.openKanbanWindow) {
-                        eApi.openKanbanWindow(roomId!);
+                      if (window.electronAPI?.openKanbanWindow) {
+                        window.electronAPI.openKanbanWindow(roomId!);
                       } else {
                         window.open(`${window.location.origin}/kanban/${roomId}`, '_blank', 'width=1100,height=750');
                       }
@@ -1456,8 +1500,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                       role="button"
                       tabIndex={0}
                       onClick={() => {
-                        if (!socket || !roomId) return;
-                        socket.emit('message', { roomId, content: '', sharedEvent: { title: ev.title, startAt: ev.startAt, endAt: ev.endAt, description: ev.description ?? '' } });
+                        if (!socketRef.current || !roomId) return;
+                        socketRef.current.emit('message', { roomId, content: '', sharedEvent: { title: ev.title, startAt: ev.startAt, endAt: ev.endAt, description: ev.description ?? '' } });
                         queryClient.invalidateQueries({ queryKey: ['rooms'] });
                         setShareEventOpen(false);
                       }}
@@ -1638,7 +1682,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           style={{
             display: 'flex',
             flexShrink: 0,
-            width: rightPanel ? 48 + 280 : 48,
+            width: rightPanel ? RIGHT_SIDEBAR_ICON_WIDTH + RIGHT_SIDEBAR_PANEL_WIDTH : RIGHT_SIDEBAR_ICON_WIDTH,
             borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
             background: isDark ? '#1e293b' : '#fff',
             transition: 'width 0.2s ease',
