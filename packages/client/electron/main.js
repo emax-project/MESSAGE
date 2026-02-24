@@ -1,6 +1,5 @@
 const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell } = require('electron');
 const path = require('path');
-const { pathToFileURL } = require('url');
 
 // Windows: GPU 프로세스 관련 안정성 스위치 (whenReady 전에 호출 필수)
 if (process.platform === 'win32') {
@@ -273,8 +272,9 @@ function createWindow(options = {}) {
   if (url) {
     win.loadURL(url);
   } else if (file) {
-    // Windows 등에서 file:// URL을 명시적으로 사용 (pathToFileURL로 정규화)
-    win.loadURL(pathToFileURL(file).href);
+    // loadFile()은 Electron이 ASAR 가상 경로, Windows 경로 구분자, file:// 변환을 직접 처리
+    // pathToFileURL() 사용 시 ASAR 패키지 내 경로를 잘못 해석해 로드 실패 가능
+    win.loadFile(file);
   }
 
   // 창 표시 로직:
@@ -313,7 +313,7 @@ function createWindow(options = {}) {
       const url2 = getLoadURL();
       const file2 = getLoadFile();
       if (url2) win.loadURL(url2);
-      else if (file2) win.loadURL(pathToFileURL(file2).href);
+      else if (file2) win.loadFile(file2);
     }
   });
 
@@ -348,56 +348,31 @@ function openSecondWindow() {
   });
 }
 
-function getBaseURL() {
+function loadRoute(win, routePath) {
   const url = getLoadURL();
   const file = getLoadFile();
-  if (url) return url;
-  if (file) return pathToFileURL(file).href;
-  return 'http://localhost:5173';
-}
-
-function getRouteURL(routePath) {
-  const base = getBaseURL();
-  if (base.startsWith('file:')) {
-    return base.split('#')[0] + '#' + routePath;
+  if (url) {
+    const base = url.endsWith('/') ? url : url + '/';
+    win.loadURL(base + routePath.replace(/^\//, ''));
+  } else if (file) {
+    // loadFile의 두 번째 인자 hash로 HashRouter 경로 전달
+    win.loadFile(file, { hash: routePath });
   }
-  return (base.endsWith('/') ? base : base + '/') + routePath.replace(/^\//, '');
 }
 
 function openChatWindow(roomId) {
-  const chatUrl = getRouteURL('/chat/' + encodeURIComponent(roomId));
-  const win = createWindow({
-    width: 480,
-    height: 680,
-    minWidth: 400,
-    minHeight: 500,
-    secondWindow: true,
-  });
-  win.loadURL(chatUrl);
+  const win = createWindow({ width: 480, height: 680, minWidth: 400, minHeight: 500, secondWindow: true });
+  loadRoute(win, '/chat/' + encodeURIComponent(roomId));
 }
 
 function openKanbanWindow(roomId) {
-  const kanbanUrl = getRouteURL('/kanban/' + encodeURIComponent(roomId));
-  const win = createWindow({
-    width: 1100,
-    height: 750,
-    minWidth: 800,
-    minHeight: 600,
-    secondWindow: true,
-  });
-  win.loadURL(kanbanUrl);
+  const win = createWindow({ width: 1100, height: 750, minWidth: 800, minHeight: 600, secondWindow: true });
+  loadRoute(win, '/kanban/' + encodeURIComponent(roomId));
 }
 
 function openGanttWindow(roomId) {
-  const ganttUrl = getRouteURL('/gantt/' + encodeURIComponent(roomId));
-  const win = createWindow({
-    width: 1200,
-    height: 700,
-    minWidth: 900,
-    minHeight: 550,
-    secondWindow: true,
-  });
-  win.loadURL(ganttUrl);
+  const win = createWindow({ width: 1200, height: 700, minWidth: 900, minHeight: 550, secondWindow: true });
+  loadRoute(win, '/gantt/' + encodeURIComponent(roomId));
 }
 
 function broadcastLogout() {
