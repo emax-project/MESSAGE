@@ -62,8 +62,9 @@ authRouter.post('/login', async (req, res) => {
       token,
     });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Login failed' });
+    console.error('[auth/login]', err);
+    const msg = err?.code === 'P1001' ? '데이터베이스에 연결할 수 없습니다. DB가 실행 중인지 확인해 주세요.' : '로그인 실패';
+    return res.status(500).json({ error: msg });
   }
 });
 
@@ -71,14 +72,16 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, name: true, createdAt: true },
+      select: { id: true, email: true, name: true, createdAt: true, avatarUrl: true, updatedAt: true },
     });
     if (!user) return res.status(401).json({ error: 'User not found' });
     const adminEmails = (process.env.ADMIN_EMAIL || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
     const userEmail = (user.email || '').trim().toLowerCase();
+    const avatarVer = user.updatedAt ? `?v=${new Date(user.updatedAt).getTime()}` : '';
     return res.json({
       user: {
         ...user,
+        avatarUrl: user.avatarUrl ? `/users/${user.id}/avatar${avatarVer}` : null,
         isAdmin: adminEmails.length > 0 && adminEmails.includes(userEmail),
       },
     });

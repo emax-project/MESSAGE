@@ -43,6 +43,279 @@ function canEditOrDelete(msg: Message, myId?: string): boolean {
   return Date.now() - new Date(msg.createdAt).getTime() < EDIT_LIMIT_MS;
 }
 
+// Style functions for dark mode support (must be before components that use them)
+const chatWindowStyles = {
+  appWrap: (dark: boolean): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: dark ? '#0f172a' : '#fff' }),
+  layout: (dark: boolean): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: dark ? '#0f172a' : '#fafafa', position: 'relative' }),
+  loading: (dark: boolean): React.CSSProperties => ({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: dark ? '#94a3b8' : '#5a6b7a', fontSize: 16 }),
+  chatHeader: (dark: boolean): React.CSSProperties => ({ padding: '0 20px', height: 56, minHeight: 56, borderBottom: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, background: dark ? '#1e293b' : '#fff', boxShadow: dark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }),
+  chatHeaderName: (dark: boolean): React.CSSProperties => ({ fontSize: 16, fontWeight: 700, color: dark ? '#f1f5f9' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }),
+  headerIconBtn: (dark: boolean): React.CSSProperties => ({ width: 34, height: 34, borderRadius: 8, border: 'none', background: dark ? '#334155' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }),
+  messages: (dark: boolean): React.CSSProperties => ({ flex: 1, overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, background: dark ? '#0f172a' : '#fafafa' }),
+  scrollToBottomBtn: (dark: boolean): React.CSSProperties => ({
+    position: 'absolute',
+    bottom: 16,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: '50%',
+    border: 'none',
+    background: dark ? '#334155' : '#fff',
+    color: dark ? '#e2e8f0' : '#475569',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  }),
+  dateSeparator: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }),
+  dateSeparatorText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12 }),
+  unreadDivider: (dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '10px 16px',
+    margin: '8px 16px',
+    borderLeft: '4px solid #6366f1',
+    background: dark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
+    borderRadius: 8,
+    animation: 'unread-divider-pulse 2s ease-in-out 3',
+  }),
+  unreadDividerText: (dark: boolean): React.CSSProperties => ({
+    fontSize: 12,
+    fontWeight: 600,
+    color: dark ? '#818cf8' : '#6366f1',
+  }),
+  systemMessageRow: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 0' }),
+  systemMessageText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12, textAlign: 'center' }),
+  messageRow: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }),
+  messageRowMine: (): React.CSSProperties => ({ alignItems: 'flex-end' }),
+  messageRowInner: (): React.CSSProperties => ({ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%' }),
+  avatarWrap: (): React.CSSProperties => ({ width: 34, height: 34, flexShrink: 0 }),
+  avatarSpacer: (): React.CSSProperties => ({ width: 34, height: 34, flexShrink: 0 }),
+  avatarCircle: (dark: boolean): React.CSSProperties => ({ width: 34, height: 34, borderRadius: '50%', background: dark ? '#334155' : '#e2e8f0', color: dark ? '#94a3b8' : '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }),
+  messageBubble: (dark: boolean): React.CSSProperties => ({ minWidth: 80, padding: '10px 14px', borderRadius: 16, borderTopLeftRadius: 4, background: dark ? '#334155' : '#fff', color: dark ? '#e2e8f0' : '#1e293b', boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)', wordBreak: 'break-word', overflowWrap: 'break-word' }),
+  messageBubbleMine: (dark: boolean): React.CSSProperties => ({ borderTopLeftRadius: 16, borderTopRightRadius: 4, background: dark ? '#475569' : '#475569', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }),
+  senderLabel: (dark: boolean): React.CSSProperties => ({ fontSize: 12, color: dark ? '#94a3b8' : '#475569', marginBottom: 4, marginLeft: 42 }),
+  metaCol: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, fontSize: 11, color: '#64748b', flexShrink: 0, minWidth: 36 }),
+  metaColMine: (): React.CSSProperties => ({ alignItems: 'flex-end' }),
+  metaTime: (dark: boolean): React.CSSProperties => ({ fontSize: 11, color: dark ? '#64748b' : '#64748b' }),
+  messageContent: (): React.CSSProperties => ({ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 15, lineHeight: 1.4 }),
+  readStatusMine: (dark: boolean): React.CSSProperties => ({ fontSize: 12, fontWeight: 600, color: dark ? '#94a3b8' : '#334155' }),
+  replyPreview: (dark: boolean, isMine: boolean): React.CSSProperties => ({
+    marginLeft: isMine ? 0 : 42,
+    marginBottom: 6,
+    padding: '8px 12px',
+    borderRadius: 10,
+    background: dark ? 'rgba(51, 65, 85, 0.6)' : 'rgba(241, 245, 249, 0.9)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 3,
+    maxWidth: '85%',
+    overflow: 'hidden',
+    boxShadow: dark ? '0 1px 2px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.06)',
+    cursor: 'pointer',
+  }),
+  replyPreviewLabel: (dark: boolean): React.CSSProperties => ({
+    fontSize: 11,
+    fontWeight: 600,
+    color: dark ? '#94a3b8' : '#64748b',
+    letterSpacing: '0.02em',
+  }),
+  replyPreviewContent: (dark: boolean): React.CSSProperties => ({
+    fontSize: 13,
+    color: dark ? '#94a3b8' : '#475569',
+    lineHeight: 1.35,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  }),
+  reactionsRow: (isMine: boolean): React.CSSProperties => ({ display: 'flex', gap: 4, flexWrap: 'wrap', marginLeft: isMine ? 0 : 42, marginTop: 4 }),
+  reactionBadge: (dark: boolean, voted: boolean): React.CSSProperties => ({ border: `1px solid ${voted ? (dark ? '#60a5fa' : '#2563eb') : (dark ? '#475569' : '#e5e7eb')}`, borderRadius: 12, padding: '2px 8px', fontSize: 13, background: voted ? (dark ? 'rgba(96,165,250,0.15)' : 'rgba(37,99,235,0.08)') : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }),
+  hoverActionBtn: (dark: boolean): React.CSSProperties => ({ width: 28, height: 28, borderRadius: '50%', border: 'none', background: dark ? '#475569' : '#f0f0f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: dark ? '#94a3b8' : '#555', padding: 0 }),
+  ctxMenu: (dark: boolean): React.CSSProperties => ({ position: 'fixed', zIndex: 10000, minWidth: 120, padding: 4, background: dark ? '#334155' : '#fff', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', border: `1px solid ${dark ? '#475569' : '#eee'}` }),
+  ctxMenuItem: (dark: boolean): React.CSSProperties => ({ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: 'none', borderRadius: 6, fontSize: 13, color: dark ? '#e2e8f0' : '#333', textAlign: 'left', cursor: 'pointer' }),
+  searchBar: (dark: boolean): React.CSSProperties => ({ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#fff' }),
+  searchInput: (dark: boolean): React.CSSProperties => ({ flex: 1, padding: '8px 12px', border: `1px solid ${dark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, fontSize: 13, background: dark ? '#334155' : '#f5f5f5', color: dark ? '#e2e8f0' : '#333', outline: 'none' }),
+  searchBtn: (_dark: boolean): React.CSSProperties => ({ padding: '8px 14px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 13, cursor: 'pointer' }),
+  searchCloseBtn: (dark: boolean): React.CSSProperties => ({ padding: '8px 10px', border: 'none', borderRadius: 8, background: dark ? '#334155' : '#f0f0f0', color: dark ? '#94a3b8' : '#666', cursor: 'pointer', fontSize: 14 }),
+  searchResults: (dark: boolean): React.CSSProperties => ({ maxHeight: 200, overflow: 'auto', borderBottom: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#fff' }),
+  searchResultItem: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderBottom: `1px solid ${dark ? '#334155' : '#f0f0f0'}`, fontSize: 13 }),
+  replyIndicator: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderTop: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#f8fafc' }),
+  inputRow: (dark: boolean): React.CSSProperties => ({ padding: '10px 16px 14px', display: 'flex', gap: 8, alignItems: 'center', background: dark ? '#1e293b' : '#fff', borderTop: `1px solid ${dark ? '#334155' : '#e2e8f0'}` }),
+  plusWrap: (): React.CSSProperties => ({ position: 'relative', flexShrink: 0 }),
+  plusBtn: (dark: boolean): React.CSSProperties => ({ width: 36, height: 36, borderRadius: 10, border: 'none', background: dark ? '#334155' : '#f1f5f9', color: dark ? '#94a3b8' : '#475569', fontSize: 20, lineHeight: '36px', textAlign: 'center', cursor: 'pointer', transition: 'background 0.15s' }),
+  plusMenu: (dark: boolean): React.CSSProperties => ({ position: 'absolute', bottom: 48, left: 0, background: dark ? '#334155' : '#fff', border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`, borderRadius: 12, boxShadow: dark ? '0 6px 24px rgba(0,0,0,0.3)' : '0 6px 24px rgba(0,0,0,0.1)', padding: 6, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 150, zIndex: 50 }),
+  plusMenuItem: (dark: boolean): React.CSSProperties => ({ border: 'none', background: 'transparent', borderRadius: 8, padding: '9px 12px', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: dark ? '#e2e8f0' : '#334155', transition: 'background 0.1s' }),
+  input: (dark: boolean): React.CSSProperties => ({
+    flex: 1,
+    padding: '10px 18px',
+    border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`,
+    borderRadius: 20,
+    fontSize: 14,
+    lineHeight: 1.4,
+    minHeight: 42,
+    maxHeight: 160,
+    resize: 'none',
+    background: dark ? '#0f172a' : '#f8fafc',
+    color: dark ? '#e2e8f0' : '#1e293b',
+    outline: 'none',
+    transition: 'border-color 0.15s',
+    fontFamily: 'inherit',
+  }),
+  sendBtn: (_dark: boolean): React.CSSProperties => ({ padding: '10px 20px', background: '#475569', color: '#fff', border: 'none', borderRadius: 20, fontWeight: 700, cursor: 'pointer', fontSize: 14, transition: 'background 0.15s' }),
+  dropOverlay: (): React.CSSProperties => ({ position: 'absolute', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }),
+  dropContent: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }),
+  dropText: (): React.CSSProperties => ({ color: '#fff', fontSize: 16, fontWeight: 600 }),
+  shareEventOverlay: (): React.CSSProperties => ({ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }),
+  shareEventModal: (dark: boolean): React.CSSProperties => ({ background: dark ? '#1e293b' : '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', minWidth: 320, maxWidth: '90%', maxHeight: '70vh', overflow: 'auto', padding: 20 }),
+  boardCard: (dark: boolean): React.CSSProperties => ({
+    width: '100%',
+    maxWidth: '100%',
+    padding: 16,
+    borderRadius: 12,
+    background: dark ? '#1e293b' : '#fff',
+    border: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
+    boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.08)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  }),
+  boardCardHeader: (_dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  }),
+  boardCardHeaderLeft: (_dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 0,
+  }),
+  boardCardAvatar: (dark: boolean): React.CSSProperties => ({
+    width: 40,
+    height: 40,
+    borderRadius: '50%',
+    background: dark ? '#334155' : '#e5e7eb',
+    color: dark ? '#94a3b8' : '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 15,
+    fontWeight: 700,
+    flexShrink: 0,
+  }),
+  boardCardAuthor: (_dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    minWidth: 0,
+  }),
+  boardCardAuthorName: (dark: boolean): React.CSSProperties => ({ fontSize: 14, fontWeight: 600, color: dark ? '#e2e8f0' : '#111827' }),
+  boardCardTime: (dark: boolean): React.CSSProperties => ({ fontSize: 12, color: dark ? '#94a3b8' : '#6b7280', flexShrink: 0 }),
+  boardCardBody: (dark: boolean): React.CSSProperties => ({
+    fontSize: 14,
+    color: dark ? '#e2e8f0' : '#374151',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    lineHeight: 1.6,
+    paddingLeft: 0,
+  }),
+  boardCardFooter: (dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+    paddingTop: 8,
+    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
+    fontSize: 12,
+    color: dark ? '#94a3b8' : '#6b7280',
+  }),
+  boardCardFooterBtn: (dark: boolean): React.CSSProperties => ({
+    padding: '4px 10px',
+    border: `1px solid ${dark ? '#475569' : '#e5e7eb'}`,
+    borderRadius: 8,
+    background: dark ? '#334155' : '#f9fafb',
+    color: dark ? '#94a3b8' : '#6b7280',
+    fontSize: 12,
+    cursor: 'pointer',
+  }),
+  boardMenuBtn: (dark: boolean): React.CSSProperties => ({
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    padding: 6,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.15s',
+    flexShrink: 0,
+    ...(dark ? {} : {}),
+  }),
+  boardCommentSection: (dark: boolean): React.CSSProperties => ({
+    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
+    paddingTop: 12,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  }),
+  boardCommentRow: (dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: '4px 0',
+    borderBottom: `1px solid ${dark ? 'rgba(51,65,85,0.4)' : 'rgba(229,231,235,0.6)'}`,
+    paddingBottom: 10,
+  }),
+  boardCommentAvatar: (dark: boolean): React.CSSProperties => ({
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    background: dark ? '#334155' : '#e5e7eb',
+    color: dark ? '#94a3b8' : '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 11,
+    fontWeight: 700,
+    flexShrink: 0,
+  }),
+  boardCommentInputRow: (dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
+    paddingTop: 10,
+  }),
+  boardCommentInput: (dark: boolean): React.CSSProperties => ({
+    flex: 1,
+    padding: '8px 12px',
+    border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`,
+    borderRadius: 20,
+    fontSize: 13,
+    background: dark ? '#0f172a' : '#f8fafc',
+    color: dark ? '#e2e8f0' : '#1e293b',
+    outline: 'none',
+  }),
+  boardCommentSendBtn: (dark: boolean): React.CSSProperties => ({
+    padding: '6px 14px',
+    border: 'none',
+    borderRadius: 16,
+    background: dark ? '#475569' : '#3b82f6',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    flexShrink: 0,
+  }),
+};
+
+const s = chatWindowStyles;
+
 function RightPanelMembers({ members, isDark, onInvite }: { members: User[]; isDark: boolean; onInvite: () => void }) {
   return (
     <>
@@ -291,7 +564,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     enabled: !!token && !!shareEventOpen,
   });
   const messages = useMemo(
-    () => (messagesInfinite?.pages ?? []).flatMap((p) => p.messages),
+    () => (messagesInfinite?.pages ?? []).flatMap((p) => (p?.messages ?? []).filter(Boolean)),
     [messagesInfinite]
   );
 
@@ -304,7 +577,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
   const viewModeFromListNow = roomId ? roomsList.find((r) => r.id === roomId)?.viewMode : undefined;
   useEffect(() => {
-    if (roomId && room && viewModeFromListNow === 'board' && (room as Room).viewMode !== 'board') {
+    if (roomId && room && viewModeFromListNow === 'board' && room?.viewMode !== 'board') {
       queryClient.setQueryData(['rooms', roomId], { ...room, viewMode: 'board' as const });
     }
   }, [roomId, room, viewModeFromListNow, queryClient]);
@@ -514,6 +787,13 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
   useEffect(() => {
     if (!roomId) return;
+    try {
+      const existing = localStorage.getItem('activeChatFocused');
+      if (existing != null && existing !== '0' && existing !== '1') {
+        localStorage.removeItem('activeChatFocused');
+        localStorage.removeItem('activeChatRoomId');
+      }
+    } catch { /* ignore */ }
     const setActive = (focused: boolean) => {
       try {
         localStorage.setItem('activeChatRoomId', roomId);
@@ -559,6 +839,16 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   useEffect(() => {
     initialScrollDoneRef.current = false;
   }, [roomId]);
+
+  // 첫 번째 안 읽은 메시지 ID (useEffect보다 먼저 선언 필요)
+  const displayMessagesForScroll = useMemo(() => [...messages].reverse(), [messages]);
+  const firstUnreadMessageId = useMemo(() => {
+    if (!room) return null;
+    const lastReadAt = room?.lastReadAt ? new Date(room.lastReadAt).getTime() : 0;
+    const unreadCount = room?.unreadCount ?? 0;
+    if (unreadCount <= 0 || lastReadAt <= 0) return null;
+    return displayMessagesForScroll.find((m) => m.senderId !== myId && new Date(m.createdAt).getTime() > lastReadAt)?.id ?? null;
+  }, [room, myId, displayMessagesForScroll]);
 
   // 채팅 열릴 때: 다읽음→맨끝, 안읽음→첫 안읽은 메시지로 스크롤
   useEffect(() => {
@@ -889,7 +1179,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   }, [readersPopup]);
 
   const viewModeFromState = (location.state as { viewMode?: 'chat' | 'board' })?.viewMode;
-  const isBoardView = (room as Room)?.viewMode === 'board' || viewModeFromListNow === 'board' || viewModeFromState === 'board';
+  const isBoardView = room?.viewMode === 'board' || viewModeFromListNow === 'board' || viewModeFromState === 'board';
 
   // 보드뷰: 루트 포스트와 댓글(reply) 분리 - 훅은 early return 전에 호출
   const { rootPosts, repliesMap } = useMemo(() => {
@@ -922,16 +1212,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     );
   }
 
-  const displayMessages = [...messages].reverse();
+  const displayMessages = displayMessagesForScroll;
   const hasElectron = !!window.electronAPI;
-  const members = (room as Room).members ?? [];
-
-  // 첫 번째 안 읽은 메시지 (lastReadAt 이후, 내가 보낸 것 제외)
-  const lastReadAt = (room as Room).lastReadAt ? new Date((room as Room).lastReadAt!).getTime() : 0;
-  const unreadCount = (room as Room).unreadCount ?? 0;
-  const firstUnreadMessageId = unreadCount > 0 && lastReadAt > 0
-    ? displayMessages.find((m) => m.senderId !== myId && new Date(m.createdAt).getTime() > lastReadAt)?.id
-    : null;
+  const members = room?.members ?? [];
 
   const wrapperStyle: React.CSSProperties = embedded
     ? { flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: isDark ? '#0f172a' : '#fafafa' }
@@ -1883,8 +2166,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             </button>
           </div>
           {rightPanel && (
-            <div style={{ width: 280, display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, overflow: 'hidden' }}>
-              <div style={{ padding: '12px 16px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div style={{ width: 280, display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' }}>
                   {rightPanel === 'file' && '파일함'}
                   {rightPanel === 'members' && '멤버'}
@@ -1930,275 +2213,3 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     </div>
   );
 }
-
-// Style functions for dark mode support
-const s = {
-  appWrap: (dark: boolean): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: dark ? '#0f172a' : '#fff' }),
-  layout: (dark: boolean): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: dark ? '#0f172a' : '#fafafa', position: 'relative' }),
-  loading: (dark: boolean): React.CSSProperties => ({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: dark ? '#94a3b8' : '#5a6b7a', fontSize: 16 }),
-  chatHeader: (dark: boolean): React.CSSProperties => ({ padding: '0 20px', height: 56, minHeight: 56, borderBottom: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, background: dark ? '#1e293b' : '#fff', boxShadow: dark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }),
-  chatHeaderName: (dark: boolean): React.CSSProperties => ({ fontSize: 16, fontWeight: 700, color: dark ? '#f1f5f9' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }),
-  headerIconBtn: (dark: boolean): React.CSSProperties => ({ width: 34, height: 34, borderRadius: 8, border: 'none', background: dark ? '#334155' : '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }),
-  messages: (dark: boolean): React.CSSProperties => ({ flex: 1, overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, background: dark ? '#0f172a' : '#fafafa' }),
-  scrollToBottomBtn: (dark: boolean): React.CSSProperties => ({
-    position: 'absolute',
-    bottom: 16,
-    right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: '50%',
-    border: 'none',
-    background: dark ? '#334155' : '#fff',
-    color: dark ? '#e2e8f0' : '#475569',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  }),
-  dateSeparator: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }),
-  dateSeparatorText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12 }),
-  unreadDivider: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '10px 16px',
-    margin: '8px 16px',
-    borderLeft: '4px solid #6366f1',
-    background: dark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
-    borderRadius: 8,
-    animation: 'unread-divider-pulse 2s ease-in-out 3',
-  }),
-  unreadDividerText: (dark: boolean): React.CSSProperties => ({
-    fontSize: 12,
-    fontWeight: 600,
-    color: dark ? '#818cf8' : '#6366f1',
-  }),
-  systemMessageRow: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 0' }),
-  systemMessageText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12, textAlign: 'center' }),
-  messageRow: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }),
-  messageRowMine: (): React.CSSProperties => ({ alignItems: 'flex-end' }),
-  messageRowInner: (): React.CSSProperties => ({ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%' }),
-  avatarWrap: (): React.CSSProperties => ({ width: 34, height: 34, flexShrink: 0 }),
-  avatarSpacer: (): React.CSSProperties => ({ width: 34, height: 34, flexShrink: 0 }),
-  avatarCircle: (dark: boolean): React.CSSProperties => ({ width: 34, height: 34, borderRadius: '50%', background: dark ? '#334155' : '#e2e8f0', color: dark ? '#94a3b8' : '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }),
-  messageBubble: (dark: boolean): React.CSSProperties => ({ minWidth: 80, padding: '10px 14px', borderRadius: 16, borderTopLeftRadius: 4, background: dark ? '#334155' : '#fff', color: dark ? '#e2e8f0' : '#1e293b', boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)', wordBreak: 'break-word', overflowWrap: 'break-word' }),
-  messageBubbleMine: (dark: boolean): React.CSSProperties => ({ borderTopLeftRadius: 16, borderTopRightRadius: 4, background: dark ? '#475569' : '#475569', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }),
-  senderLabel: (dark: boolean): React.CSSProperties => ({ fontSize: 12, color: dark ? '#94a3b8' : '#475569', marginBottom: 4, marginLeft: 42 }),
-  metaCol: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, fontSize: 11, color: '#64748b', flexShrink: 0, minWidth: 36 }),
-  metaColMine: (): React.CSSProperties => ({ alignItems: 'flex-end' }),
-  metaTime: (dark: boolean): React.CSSProperties => ({ fontSize: 11, color: dark ? '#64748b' : '#64748b' }),
-  messageContent: (): React.CSSProperties => ({ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 15, lineHeight: 1.4 }),
-  readStatusMine: (dark: boolean): React.CSSProperties => ({ fontSize: 12, fontWeight: 600, color: dark ? '#94a3b8' : '#334155' }),
-  replyPreview: (dark: boolean, isMine: boolean): React.CSSProperties => ({
-    marginLeft: isMine ? 0 : 42,
-    marginBottom: 6,
-    padding: '8px 12px',
-    borderRadius: 10,
-    background: dark ? 'rgba(51, 65, 85, 0.6)' : 'rgba(241, 245, 249, 0.9)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 3,
-    maxWidth: '85%',
-    overflow: 'hidden',
-    boxShadow: dark ? '0 1px 2px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.06)',
-    cursor: 'pointer',
-  }),
-  replyPreviewLabel: (dark: boolean): React.CSSProperties => ({
-    fontSize: 11,
-    fontWeight: 600,
-    color: dark ? '#94a3b8' : '#64748b',
-    letterSpacing: '0.02em',
-  }),
-  replyPreviewContent: (dark: boolean): React.CSSProperties => ({
-    fontSize: 13,
-    color: dark ? '#94a3b8' : '#475569',
-    lineHeight: 1.35,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  }),
-  reactionsRow: (isMine: boolean): React.CSSProperties => ({ display: 'flex', gap: 4, flexWrap: 'wrap', marginLeft: isMine ? 0 : 42, marginTop: 4 }),
-  reactionBadge: (dark: boolean, voted: boolean): React.CSSProperties => ({ border: `1px solid ${voted ? (dark ? '#60a5fa' : '#2563eb') : (dark ? '#475569' : '#e5e7eb')}`, borderRadius: 12, padding: '2px 8px', fontSize: 13, background: voted ? (dark ? 'rgba(96,165,250,0.15)' : 'rgba(37,99,235,0.08)') : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }),
-  hoverActionBtn: (dark: boolean): React.CSSProperties => ({ width: 28, height: 28, borderRadius: '50%', border: 'none', background: dark ? '#475569' : '#f0f0f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: dark ? '#94a3b8' : '#555', padding: 0 }),
-  ctxMenu: (dark: boolean): React.CSSProperties => ({ position: 'fixed', zIndex: 10000, minWidth: 120, padding: 4, background: dark ? '#334155' : '#fff', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', border: `1px solid ${dark ? '#475569' : '#eee'}` }),
-  ctxMenuItem: (dark: boolean): React.CSSProperties => ({ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: 'none', borderRadius: 6, fontSize: 13, color: dark ? '#e2e8f0' : '#333', textAlign: 'left', cursor: 'pointer' }),
-  searchBar: (dark: boolean): React.CSSProperties => ({ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#fff' }),
-  searchInput: (dark: boolean): React.CSSProperties => ({ flex: 1, padding: '8px 12px', border: `1px solid ${dark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, fontSize: 13, background: dark ? '#334155' : '#f5f5f5', color: dark ? '#e2e8f0' : '#333', outline: 'none' }),
-  searchBtn: (_dark: boolean): React.CSSProperties => ({ padding: '8px 14px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 13, cursor: 'pointer' }),
-  searchCloseBtn: (dark: boolean): React.CSSProperties => ({ padding: '8px 10px', border: 'none', borderRadius: 8, background: dark ? '#334155' : '#f0f0f0', color: dark ? '#94a3b8' : '#666', cursor: 'pointer', fontSize: 14 }),
-  searchResults: (dark: boolean): React.CSSProperties => ({ maxHeight: 200, overflow: 'auto', borderBottom: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#fff' }),
-  searchResultItem: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderBottom: `1px solid ${dark ? '#334155' : '#f0f0f0'}`, fontSize: 13 }),
-  replyIndicator: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderTop: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#f8fafc' }),
-  inputRow: (dark: boolean): React.CSSProperties => ({ padding: '10px 16px 14px', display: 'flex', gap: 8, alignItems: 'center', background: dark ? '#1e293b' : '#fff', borderTop: `1px solid ${dark ? '#334155' : '#e2e8f0'}` }),
-  plusWrap: (): React.CSSProperties => ({ position: 'relative', flexShrink: 0 }),
-  plusBtn: (dark: boolean): React.CSSProperties => ({ width: 36, height: 36, borderRadius: 10, border: 'none', background: dark ? '#334155' : '#f1f5f9', color: dark ? '#94a3b8' : '#475569', fontSize: 20, lineHeight: '36px', textAlign: 'center', cursor: 'pointer', transition: 'background 0.15s' }),
-  plusMenu: (dark: boolean): React.CSSProperties => ({ position: 'absolute', bottom: 48, left: 0, background: dark ? '#334155' : '#fff', border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`, borderRadius: 12, boxShadow: dark ? '0 6px 24px rgba(0,0,0,0.3)' : '0 6px 24px rgba(0,0,0,0.1)', padding: 6, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 150, zIndex: 50 }),
-  plusMenuItem: (dark: boolean): React.CSSProperties => ({ border: 'none', background: 'transparent', borderRadius: 8, padding: '9px 12px', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: dark ? '#e2e8f0' : '#334155', transition: 'background 0.1s' }),
-  input: (dark: boolean): React.CSSProperties => ({
-    flex: 1,
-    padding: '10px 18px',
-    border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`,
-    borderRadius: 20,
-    fontSize: 14,
-    lineHeight: 1.4,
-    minHeight: 42,
-    maxHeight: 160,
-    resize: 'none',
-    background: dark ? '#0f172a' : '#f8fafc',
-    color: dark ? '#e2e8f0' : '#1e293b',
-    outline: 'none',
-    transition: 'border-color 0.15s',
-    fontFamily: 'inherit',
-  }),
-  sendBtn: (_dark: boolean): React.CSSProperties => ({ padding: '10px 20px', background: '#475569', color: '#fff', border: 'none', borderRadius: 20, fontWeight: 700, cursor: 'pointer', fontSize: 14, transition: 'background 0.15s' }),
-  dropOverlay: (): React.CSSProperties => ({ position: 'absolute', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }),
-  dropContent: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }),
-  dropText: (): React.CSSProperties => ({ color: '#fff', fontSize: 16, fontWeight: 600 }),
-  shareEventOverlay: (): React.CSSProperties => ({ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }),
-  shareEventModal: (dark: boolean): React.CSSProperties => ({ background: dark ? '#1e293b' : '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', minWidth: 320, maxWidth: '90%', maxHeight: '70vh', overflow: 'auto', padding: 20 }),
-  /* 보드뷰: 게시글형 카드 (피드 스타일) */
-  boardCard: (dark: boolean): React.CSSProperties => ({
-    width: '100%',
-    maxWidth: '100%',
-    padding: 16,
-    borderRadius: 12,
-    background: dark ? '#1e293b' : '#fff',
-    border: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
-    boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.08)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-  }),
-  boardCardHeader: (_dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    flexWrap: 'wrap',
-  }),
-  boardCardHeaderLeft: (_dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    minWidth: 0,
-  }),
-  boardCardAvatar: (dark: boolean): React.CSSProperties => ({
-    width: 40,
-    height: 40,
-    borderRadius: '50%',
-    background: dark ? '#334155' : '#e5e7eb',
-    color: dark ? '#94a3b8' : '#6b7280',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 15,
-    fontWeight: 700,
-    flexShrink: 0,
-  }),
-  boardCardAuthor: (_dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-    minWidth: 0,
-  }),
-  boardCardAuthorName: (dark: boolean): React.CSSProperties => ({ fontSize: 14, fontWeight: 600, color: dark ? '#e2e8f0' : '#111827' }),
-  boardCardTime: (dark: boolean): React.CSSProperties => ({ fontSize: 12, color: dark ? '#94a3b8' : '#6b7280', flexShrink: 0 }),
-  boardCardBody: (dark: boolean): React.CSSProperties => ({
-    fontSize: 14,
-    color: dark ? '#e2e8f0' : '#374151',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    lineHeight: 1.6,
-    paddingLeft: 0,
-  }),
-  boardCardFooter: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
-    paddingTop: 8,
-    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
-    fontSize: 12,
-    color: dark ? '#94a3b8' : '#6b7280',
-  }),
-  boardCardFooterBtn: (dark: boolean): React.CSSProperties => ({
-    padding: '4px 10px',
-    border: `1px solid ${dark ? '#475569' : '#e5e7eb'}`,
-    borderRadius: 8,
-    background: dark ? '#334155' : '#f9fafb',
-    color: dark ? '#94a3b8' : '#6b7280',
-    fontSize: 12,
-    cursor: 'pointer',
-  }),
-  boardMenuBtn: (dark: boolean): React.CSSProperties => ({
-    border: 'none',
-    background: 'transparent',
-    cursor: 'pointer',
-    padding: 6,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'background 0.15s',
-    flexShrink: 0,
-    ...(dark ? {} : {}),
-  }),
-  boardCommentSection: (dark: boolean): React.CSSProperties => ({
-    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
-    paddingTop: 12,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-  }),
-  boardCommentRow: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 8,
-    padding: '4px 0',
-    borderBottom: `1px solid ${dark ? 'rgba(51,65,85,0.4)' : 'rgba(229,231,235,0.6)'}`,
-    paddingBottom: 10,
-  }),
-  boardCommentAvatar: (dark: boolean): React.CSSProperties => ({
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    background: dark ? '#334155' : '#e5e7eb',
-    color: dark ? '#94a3b8' : '#6b7280',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 11,
-    fontWeight: 700,
-    flexShrink: 0,
-  }),
-  boardCommentInputRow: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
-    paddingTop: 10,
-  }),
-  boardCommentInput: (dark: boolean): React.CSSProperties => ({
-    flex: 1,
-    padding: '8px 12px',
-    border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`,
-    borderRadius: 20,
-    fontSize: 13,
-    background: dark ? '#0f172a' : '#f8fafc',
-    color: dark ? '#e2e8f0' : '#1e293b',
-    outline: 'none',
-  }),
-  boardCommentSendBtn: (dark: boolean): React.CSSProperties => ({
-    padding: '6px 14px',
-    border: 'none',
-    borderRadius: 16,
-    background: dark ? '#475569' : '#3b82f6',
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    flexShrink: 0,
-  }),
-};

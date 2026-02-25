@@ -1,6 +1,8 @@
+import path from 'path';
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
+import { avatarUpload, UPLOAD_DIR } from '../upload.js';
 
 export const usersRouter = Router();
 
@@ -24,13 +26,63 @@ usersRouter.get('/:id', async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.params.id },
-      select: { id: true, email: true, name: true, statusMessage: true },
+      select: { id: true, email: true, name: true, statusMessage: true, avatarUrl: true, updatedAt: true },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
-    return res.json(user);
+    const avatarVer = user.updatedAt ? `?v=${new Date(user.updatedAt).getTime()}` : '';
+    return res.json({ ...user, avatarUrl: user.avatarUrl ? `/users/${user.id}/avatar${avatarVer}` : null });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+// Delete my avatar
+usersRouter.delete('/me/avatar', async (req, res) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { avatarUrl: null },
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to delete avatar' });
+  }
+});
+
+// Upload my avatar - must be before /:id to avoid conflict
+usersRouter.post('/me/avatar', avatarUpload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: '이미지 파일을 선택해주세요' });
+    const updated = await prisma.user.update({
+      where: { id: req.userId },
+      data: { avatarUrl: req.file.filename },
+      select: { updatedAt: true },
+    });
+    const ver = updated.updatedAt ? `?v=${new Date(updated.updatedAt).getTime()}` : '';
+    return res.json({ avatarUrl: `/users/${req.userId}/avatar${ver}` });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to upload avatar' });
+  }
+});
+
+// Get user avatar image
+usersRouter.get('/:id/avatar', async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { avatarUrl: true },
+    });
+    if (!user?.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
+    const filePath = path.resolve(UPLOAD_DIR, user.avatarUrl);
+    return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch avatar' });
   }
 });
 

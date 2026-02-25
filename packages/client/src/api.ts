@@ -46,7 +46,7 @@ function mapUploadError(status: number, serverMessage?: string) {
   if (status === 0) return '네트워크 오류가 발생했습니다';
   if (status === 401) return '로그인이 필요합니다';
   if (status === 403) return '권한이 없습니다';
-  if (status === 404) return '업로드 경로를 찾을 수 없습니다';
+  if (status === 404) return '업로드 경로를 찾을 수 없습니다. 서버를 최신 버전으로 업데이트했는지 확인해 주세요.';
   if (status === 413) return '파일이 너무 큽니다';
   if (status === 415) return '지원하지 않는 파일 형식입니다';
   if (status >= 500) return '서버 오류가 발생했습니다';
@@ -92,8 +92,10 @@ export const api = {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      handleForcedLogout(path, res.status, (data as { error?: string }).error);
-      throw new Error((data as { error?: string }).error || res.statusText);
+      const serverMsg = (data as { error?: string })?.error;
+      handleForcedLogout(path, res.status, serverMsg);
+      const fallback = res.status === 500 ? '서버 오류가 발생했습니다' : res.statusText;
+      throw new Error(serverMsg || fallback);
     }
     return data;
   },
@@ -147,11 +149,15 @@ export const api = {
       }
       xhr.addEventListener('load', () => {
         try {
-          const data = JSON.parse(xhr.responseText);
+          const data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
           if (xhr.status >= 200 && xhr.status < 300) resolve(data);
-          else reject(new Error(mapUploadError(xhr.status, data.error)));
+          else {
+            const serverMsg = (data as { error?: string })?.error;
+            reject(new Error(serverMsg || mapUploadError(xhr.status)));
+          }
         } catch {
-          reject(new Error(mapUploadError(xhr.status)));
+          const serverMsg = (() => { try { const d = JSON.parse(xhr.responseText || '{}'); return (d as { error?: string })?.error; } catch { return undefined; } })();
+          reject(new Error(serverMsg || mapUploadError(xhr.status)));
         }
       });
       xhr.addEventListener('error', () => reject(new Error(mapUploadError(0))));
@@ -161,7 +167,7 @@ export const api = {
   },
 };
 
-export type User = { id: string; email: string; name: string; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null };
+export type User = { id: string; email: string; name: string; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; avatarUrl?: string };
 
 export type OrgUser = { id: string; name: string; email: string; avatarUrl?: string; statusMessage?: string | null };
 export type OrgDepartment = { id: string; name: string; users: OrgUser[] };
@@ -188,6 +194,8 @@ export type Room = {
   id: string;
   name: string;
   isGroup: boolean;
+  /** true=아젠다, false=그룹채팅(채팅 섹션) */
+  isTopic?: boolean;
   /** 'chat' = 챗뷰(메시지 기반), 'board' = 보드뷰(게시글 기반) */
   viewMode?: 'chat' | 'board';
   /** 폴더 ID (사용자별로 RoomMember.folderId) */
@@ -198,6 +206,7 @@ export type Room = {
   unreadCount?: number;
   lastReadAt?: string | null;
   avatarUrl?: string;
+  initials?: string | null;  // 프로필 이니셜 (최대 2글자)
   isFavorite?: boolean;
 };
 
@@ -320,6 +329,29 @@ export const usersApi = {
   list: () => api.get('/users') as Promise<User[]>,
   updateStatus: (statusMessage: string) =>
     api.put('/users/status', { statusMessage }) as Promise<{ ok: boolean }>,
+  uploadAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return api.upload('/users/me/avatar', formData) as Promise<{ avatarUrl: string }>;
+  },
+  deleteAvatar: () => api.delete('/users/me/avatar') as Promise<{ ok: boolean }>,
+  fetchUserAvatarBlob(userId: string): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const base = getBaseUrl();
+      const url = base ? `${base.replace(/\/$/, '')}/users/${userId}/avatar` : `/users/${userId}/avatar`;
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url);
+      const t = getToken();
+      if (t) xhr.setRequestHeader('Authorization', `Bearer ${t}`);
+      xhr.responseType = 'blob';
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response as Blob);
+        else reject(new Error('Avatar not found'));
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send();
+    });
+  },
 };
 
 export const orgApi = {
@@ -344,7 +376,7 @@ export const eventsApi = {
 export const roomsApi = {
   list: () => api.get('/rooms') as Promise<Room[]>,
   create: (otherUserId: string) => api.post('/rooms', { otherUserId }) as Promise<Room & { members: { user: User }[] }>,
-  createTopic: (data: { name: string; description?: string; isPublic?: boolean; viewMode?: string; memberIds: string[]; folderId?: string }) =>
+  createTopic: (data: { name: string; description?: string; isPublic?: boolean; viewMode?: string; memberIds: string[]; folderId?: string; initials?: string }) =>
     api.post('/rooms/topic', data) as Promise<Room>,
   get: (id: string) => api.get(`/rooms/${id}`) as Promise<Room>,
   updateViewMode: (roomId: string, viewMode: 'chat' | 'board') =>
@@ -388,6 +420,28 @@ export const roomsApi = {
     api.get('/rooms/public') as Promise<PublicRoom[]>,
   join: (roomId: string) =>
     api.post(`/rooms/${roomId}/join`, {}) as Promise<Room>,
+  uploadAvatar: (roomId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return api.upload(`/rooms/${roomId}/avatar`, formData) as Promise<{ avatarUrl: string }>;
+  },
+  fetchRoomAvatarBlob(roomId: string): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const base = getBaseUrl();
+      const url = base ? `${base.replace(/\/$/, '')}/rooms/${roomId}/avatar` : `/rooms/${roomId}/avatar`;
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url);
+      const t = getToken();
+      if (t) xhr.setRequestHeader('Authorization', `Bearer ${t}`);
+      xhr.responseType = 'blob';
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response as Blob);
+        else reject(new Error('Avatar not found'));
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send();
+    });
+  },
 };
 
 export const filesApi = {

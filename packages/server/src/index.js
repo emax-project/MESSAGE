@@ -42,9 +42,9 @@ import { linkPreviewRouter } from './routes/linkPreview.js';
 import { foldersRouter } from './routes/folders.js';
 import { ollamaRouter } from './routes/ollama.js';
 import { prisma } from './db.js';
-import { verifySessionToken } from './auth.js';
+import { authMiddleware, verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
-import { UPLOAD_DIR } from './upload.js';
+import { UPLOAD_DIR, avatarUpload } from './upload.js';
 import { startCleanupJob } from './cleanup.js';
 
 const app = express();
@@ -57,6 +57,32 @@ httpServer.headersTimeout = 35000;  // requestTimeout보다 약간 크게
 
 app.use(cors({ origin: true }));
 app.use(express.json());
+
+// 아바타 업로드: /rooms/:id 경로보다 먼저 등록 (404 방지)
+// /api/rooms/:id/avatar 도 지원 (일부 배포에서 /api 프리픽스 사용 시)
+const avatarUploadHandler = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: '이미지 파일을 선택해주세요' });
+    const member = await prisma.roomMember.findFirst({
+      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
+      include: { room: { select: { isGroup: true } } },
+    });
+    if (!member) return res.status(404).json({ error: '방을 찾을 수 없습니다' });
+    if (!member.room.isGroup) return res.status(400).json({ error: '아젠다/그룹 방만 프로필 사진을 설정할 수 있습니다' });
+    await prisma.room.update({
+      where: { id: req.params.id },
+      data: { avatarUrl: req.file.filename },
+    });
+    console.log('[avatar] Room', req.params.id, '아바타 저장됨:', req.file.filename);
+    return res.json({ avatarUrl: `/rooms/${req.params.id}/avatar` });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to upload avatar' });
+  }
+};
+
+app.post('/rooms/:id/avatar', authMiddleware, avatarUpload.single('avatar'), avatarUploadHandler);
+app.post('/api/rooms/:id/avatar', authMiddleware, avatarUpload.single('avatar'), avatarUploadHandler);
 
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
@@ -77,6 +103,15 @@ app.use('/ollama', ollamaRouter);
 
 // Health check
 app.get('/health', (_, res) => res.json({ ok: true }));
+app.get('/health/avatar', (_, res) => res.json({ ok: true, avatarUpload: true }));
+app.get('/health/db', async (_, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return res.json({ ok: true, db: 'connected' });
+  } catch (e) {
+    return res.status(503).json({ ok: false, db: 'disconnected', error: e?.message });
+  }
+});
 
 // Ollama 연결 테스트 (인증 없음, curl로 확인용)
 app.get('/ollama-health', async (_, res) => {
@@ -113,6 +148,15 @@ app.get('/debug-client', (_, res) => {
   res.json({ ok: true, clientServed: hasIndex, hasAssets });
 });
 
+// API 404: 매칭되지 않은 API 경로는 JSON으로 응답 (클라이언트가 에러 메시지 파싱 가능)
+const API_PREFIXES = ['/auth', '/users', '/rooms', '/org', '/files', '/announcement', '/events', '/polls', '/projects', '/bookmarks', '/mentions', '/link-preview', '/folders', '/ollama', '/api'];
+app.use((req, res, next) => {
+  if (API_PREFIXES.some((p) => req.path.startsWith(p))) {
+    return res.status(404).json({ error: '요청한 API 경로를 찾을 수 없습니다. 서버를 최신 버전으로 업데이트해 주세요.' });
+  }
+  next();
+});
+
 // 웹 클라이언트(SPA) 서빙: client-dist에 index.html이 있으면 정적 파일 + SPA 폴백
 const clientDist = process.env.CLIENT_DIST || path.join(__dirname, '..', 'client-dist');
 const clientIndexPath = path.join(clientDist, 'index.html');
@@ -144,9 +188,9 @@ const PORT = process.env.PORT || 3001;
 // API 요청은 항상 JSON 에러 응답 (HTML "Internal Server Error" 방지)
 app.use((err, req, res, _next) => {
   console.error('Express error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || '서버 오류가 발생했습니다.',
-  });
+  const status = err.code === 'LIMIT_FILE_SIZE' ? 400 : (err.status || 500);
+  const message = err.code === 'LIMIT_FILE_SIZE' ? '파일이 너무 큽니다 (최대 10MB)' : (err.message || '서버 오류가 발생했습니다.');
+  res.status(status).json({ error: message });
 });
 
 // Socket.io with CORS for Electron
@@ -168,8 +212,36 @@ io.use(async (socket, next) => {
 registerSocketHandlers(io);
 app.set('io', io);
 
+async function runMigrations() {
+  // isTopic 컬럼이 추가되기 전에 생성된 아젠다 방들을 보정:
+  // 1) viewMode='board' 인 방 (아젠다 전용 뷰)
+  // 2) "아젠다를 만들었습니다" 시스템 메시지가 있는 방
+  try {
+    const result = await prisma.$executeRaw`
+      UPDATE "Room"
+      SET "isTopic" = true
+      WHERE "isGroup" = true
+        AND "isTopic" = false
+        AND (
+          "viewMode" = 'board'
+          OR id IN (
+            SELECT DISTINCT "roomId"
+            FROM "Message"
+            WHERE content LIKE '%아젠다를 만들었습니다%'
+          )
+        )
+    `;
+    if (result > 0) {
+      console.log(`[migration] isTopic 보정: ${result}개 방을 아젠다로 복구했습니다.`);
+    }
+  } catch (e) {
+    console.warn('[migration] isTopic 보정 실패 (무시):', e?.message);
+  }
+}
+
 async function main() {
   await prisma.$connect();
+  await runMigrations();
   startCleanupJob();
   httpServer.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);

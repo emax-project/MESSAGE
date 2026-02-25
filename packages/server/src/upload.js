@@ -38,3 +38,18 @@ export const upload = multer({
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter,
 });
+
+const AVATAR_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+function avatarFileFilter(_req, file, cb) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!AVATAR_EXTENSIONS.includes(ext)) {
+    return cb(new Error('이미지 파일만 업로드할 수 있습니다 (jpg, png, gif, webp)'), false);
+  }
+  cb(null, true);
+}
+
+export const avatarUpload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: avatarFileFilter,
+});

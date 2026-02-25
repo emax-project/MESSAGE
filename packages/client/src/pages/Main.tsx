@@ -3,14 +3,78 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, getSocketUrl, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, getSocketUrl, authApi, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
 import { ollamaChat, getOllamaConfig, type OllamaMessage } from '../ollama';
 import CreateGroupModal from '../components/CreateGroupModal';
 import FolderManageModal from '../components/FolderManageModal';
+import AvatarEditModal from '../components/AvatarEditModal';
+import RoomAvatar from '../components/RoomAvatar';
+import UserAvatar from '../components/UserAvatar';
+import GroupAvatar from '../components/GroupAvatar';
 import TitleBar from '../components/TitleBar';
 import ChatWindow from './ChatWindow';
 
-const STATUS_PRESETS = ['근무 중', '자리비움', '회의 중', '외근', '휴가'];
+const STATUS_OPTIONS = [
+  { id: '', label: '설정 안 함' },
+  { id: '자리 비움', label: '자리 비움' },
+  { id: '회의 중', label: '회의 중' },
+  { id: '외근', label: '외근' },
+  { id: '휴가', label: '휴가' },
+];
+
+function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
+  // 자리 비움: 주황 시계
+  if (status === '자리 비움') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
+        <circle cx="8" cy="8" r="7" fill="#f97316" />
+        <circle cx="8" cy="8" r="3.5" fill="none" stroke="white" strokeWidth="1.3" />
+        <line x1="8" y1="8" x2="8" y2="5.3" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+        <line x1="8" y1="8" x2="10" y2="8" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  // 회의 중: 파란 말풍선
+  if (status === '회의 중') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
+        <circle cx="8" cy="8" r="7" fill="#3b82f6" />
+        <rect x="4.5" y="5.5" width="7" height="4.5" rx="1.2" fill="white" opacity="0.95" />
+        <polygon points="6,10 5,12 7.5,10" fill="white" opacity="0.95" />
+      </svg>
+    );
+  }
+  // 외근: 갈색/빨간 자동차
+  if (status === '외근') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
+        <circle cx="8" cy="8" r="7" fill="#ef4444" />
+        <rect x="3.5" y="7.5" width="9" height="3" rx="0.8" fill="white" />
+        <path d="M5 7.5 L6.5 5.5 H9.5 L11 7.5Z" fill="white" />
+        <circle cx="5.5" cy="10.5" r="1" fill="#ef4444" />
+        <circle cx="10.5" cy="10.5" r="1" fill="#ef4444" />
+      </svg>
+    );
+  }
+  // 휴가: 초록 야자수 / 태양
+  if (status === '휴가') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
+        <circle cx="8" cy="8" r="7" fill="#22c55e" />
+        <circle cx="8" cy="7" r="2.3" fill="white" opacity="0.95" />
+        <line x1="8" y1="4.2" x2="8" y2="3" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="8" y1="9.8" x2="8" y2="11" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="5.2" y1="7" x2="4" y2="7" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="10.8" y1="7" x2="12" y2="7" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="6.1" y1="5.1" x2="5.3" y2="4.3" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="9.9" y1="8.9" x2="10.7" y2="9.7" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="9.9" y1="5.1" x2="10.7" y2="4.3" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="6.1" y1="8.9" x2="5.3" y2="9.7" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return null;
+}
 
 function SearchIcon() {
   return (
@@ -98,6 +162,7 @@ export default function Main() {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [createGroupFor, setCreateGroupFor] = useState<'topic' | 'chat'>('topic');
+  const recentTopicRoomRef = useRef<{ id: string; at: number } | null>(null);
   const [announcementEdit, setAnnouncementEdit] = useState('');
   const [announcementSaving, setAnnouncementSaving] = useState(false);
   const [eventForm, setEventForm] = useState({ title: '', startAt: '', endAt: '', description: '' });
@@ -117,6 +182,7 @@ export default function Main() {
   const [roomContextMenu, setRoomContextMenu] = useState<{ x: number; y: number; room: Room } | null>(null);
   const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
   const [showFolderManageModal, setShowFolderManageModal] = useState(false);
+  const [avatarEditFile, setAvatarEditFile] = useState<File | null>(null);
   const [statusInput, setStatusInput] = useState('');
   const [aiMessages, setAiMessages] = useState<OllamaMessage[]>([]);
   const [aiInput, setAiInput] = useState('');
@@ -129,6 +195,10 @@ export default function Main() {
     try { const raw = localStorage.getItem('notificationsSnoozedUntil'); return raw ? Number(raw) : 0; } catch { return 0; }
   });
   const [showSnoozeEndToast, setShowSnoozeEndToast] = useState(false);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'latest'>('idle');
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const myIdRef = useRef<string | undefined>(myId);
   const mutedRoomIdsRef = useRef<Set<string>>(mutedRoomIds);
@@ -143,6 +213,51 @@ export default function Main() {
   const notificationStatus = typeof Notification === 'undefined' ? '지원되지 않음' : Notification.permission === 'granted' ? '허용됨' : Notification.permission === 'denied' ? '차단됨' : '미정';
   const requestNotificationPermission = async () => { if (typeof Notification !== 'undefined' && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch { /* ignore */ } } };
 
+  const hasElectron = !!window.electronAPI;
+
+  // 앱 버전 조회 (Electron 패키징된 앱)
+  useEffect(() => {
+    if (hasElectron && activePanel === 'settings') {
+      window.electronAPI?.getAppVersion?.().then((v) => setAppVersion(v)).catch(() => {});
+    }
+  }, [hasElectron, activePanel]);
+
+  // 업데이트 다운로드 완료 시 "지금 재시작" 버튼 표시
+  useEffect(() => {
+    if (!hasElectron || !window.electronAPI?.onUpdateDownloaded) return;
+    const unsub = window.electronAPI.onUpdateDownloaded(() => setUpdateStatus('ready'));
+    return unsub;
+  }, [hasElectron]);
+
+  const handleCheckForUpdates = async () => {
+    if (!hasElectron || !window.electronAPI?.checkForUpdates) return;
+    setUpdateStatus('checking');
+    setUpdateError(null);
+    try {
+      const r = await window.electronAPI.checkForUpdates();
+      if (!r.success) {
+        setUpdateStatus('error');
+        setUpdateError(r.error || '업데이트 확인에 실패했습니다.');
+        return;
+      }
+      if (r.hasUpdate && r.version) {
+        setUpdateStatus('downloading');
+        setUpdateVersion(r.version);
+        setAppVersion(r.currentVersion ?? appVersion);
+      } else {
+        setUpdateStatus('latest');
+        setAppVersion(r.currentVersion ?? appVersion);
+      }
+    } catch (err) {
+      setUpdateStatus('error');
+      setUpdateError((err as Error)?.message || '업데이트 확인에 실패했습니다.');
+    }
+  };
+
+  const handleQuitAndInstall = () => {
+    window.electronAPI?.quitAndInstall?.();
+  };
+
   useEffect(() => {
     if (token) window.electronAPI?.windowResize?.(960, 700);
   }, [token]);
@@ -153,8 +268,8 @@ export default function Main() {
   const allRooms = (roomsRaw as Room[]) ?? [];
   const q = searchQuery.trim().toLowerCase();
   const filteredRooms = q ? allRooms.filter((r) => r.name?.toLowerCase().includes(q)) : allRooms;
-  const topicRooms = filteredRooms.filter((r) => r.isGroup);
-  const chatRooms = filteredRooms.filter((r) => !r.isGroup);
+  const topicRooms = filteredRooms.filter((r) => r.isGroup && r.isTopic);
+  const chatRooms = filteredRooms.filter((r) => !r.isGroup || !r.isTopic);
 
   const toggleFolder = (folderId: string) => setFolderOpen((prev) => ({ ...prev, [folderId]: !prev[folderId] }));
   const folderIds = useMemo(() => new Set((folders as Folder[]).map((f) => f.id)), [folders]);
@@ -170,21 +285,24 @@ export default function Main() {
     return byFolder;
   }, [topicRooms, folders, folderIds]);
 
+  const topicUnreadCount = useMemo(() => topicRooms.reduce((sum, r) => sum + (r.unreadCount ?? 0), 0), [topicRooms]);
+  const chatUnreadCount = useMemo(() => chatRooms.reduce((sum, r) => sum + (r.unreadCount ?? 0), 0), [chatRooms]);
+
   const { data: orgTreeRaw = [], isLoading: orgLoading, isError: orgError, refetch: refetchOrg } = useQuery({ queryKey: ['org', 'tree'], queryFn: orgApi.tree });
   const orgTree = useMemo(() => {
-    const tree = orgTreeRaw as OrgCompany[];
+    const tree = (orgTreeRaw as OrgCompany[]) ?? [];
     if (activePanel !== 'friends') return tree;
     return tree.map((company) => ({
       ...company,
-      departments: company.departments.map((dept) => ({
+      departments: (company.departments ?? []).map((dept) => ({
         ...dept,
-        users: dept.users.filter((u) => {
+        users: (dept.users ?? []).filter((u) => {
           const nameMatch = !q || u.name?.toLowerCase().includes(q);
           const onlineMatch = !showOnlineOnly || onlineUserIds.has(String(u.id));
           return nameMatch && onlineMatch;
         }),
-      })).filter((dept) => dept.users.length > 0),
-    })).filter((company) => company.departments.length > 0);
+      })).filter((dept) => (dept.users?.length ?? 0) > 0),
+    })).filter((company) => (company.departments?.length ?? 0) > 0);
   }, [orgTreeRaw, activePanel, q, showOnlineOnly, onlineUserIds]);
 
   const { data: onlineData } = useQuery({ queryKey: ['org', 'online'], queryFn: orgApi.online, enabled: !!token });
@@ -232,11 +350,29 @@ export default function Main() {
         if (old.messages.some((m) => m.id === msg.id)) return old;
         return { ...old, messages: [withReadCount, ...old.messages] };
       });
-      queryClient.refetchQueries({ queryKey: ['rooms'] });
+      (async () => {
+        const myId = myIdRef.current;
+        if (!myId) return;
+        const rooms = await queryClient.fetchQuery<Room[]>({ queryKey: ['rooms', myId], queryFn: roomsApi.list });
+        const recent = recentTopicRoomRef.current;
+        const fixed =
+          recent && recent.id === msg.roomId && Date.now() - recent.at < 5000
+            ? rooms.map((r) => (r.id === recent.id ? { ...r, isTopic: true, isGroup: true } : r))
+            : rooms;
+        queryClient.setQueryData(['rooms', myId], fixed);
+        if (recent?.id === msg.roomId) recentTopicRoomRef.current = null;
+      })();
       if (msg.senderId !== myIdRef.current) {
         if (notificationsSnoozedUntilRef.current > Date.now()) return;
         if (mutedRoomIdsRef.current.has(String(msg.roomId))) return;
-        try { const activeRoomId = localStorage.getItem('activeChatRoomId'); const activeFocused = localStorage.getItem('activeChatFocused') === '1'; if (activeRoomId === msg.roomId && activeFocused) return; } catch { /* ignore */ }
+        try {
+          const activeRoomId = localStorage.getItem('activeChatRoomId');
+          const activeFocused = localStorage.getItem('activeChatFocused');
+          if (activeFocused != null && activeFocused !== '0' && activeFocused !== '1') {
+            localStorage.removeItem('activeChatFocused');
+            localStorage.removeItem('activeChatRoomId');
+          } else if (activeRoomId === msg.roomId && activeFocused === '1') return;
+        } catch { /* ignore */ }
         const senderName = msg.sender?.name ?? '알 수 없음';
         const title = senderName;
         const body = msg.content;
@@ -319,7 +455,6 @@ export default function Main() {
   const clearSnooze = () => { setNotificationsSnoozedUntil(0); try { localStorage.removeItem('notificationsSnoozedUntil'); } catch { /* ignore */ } };
   const handleLeaveRoom = async (roomId: string) => { if (!confirm('채팅방을 나가시겠습니까?')) { setRoomContextMenu(null); return; } try { await roomsApi.leave(roomId); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
   const handleSetStatus = async (msg: string) => { try { await usersApi.updateStatus(msg); setStatusInput(msg); queryClient.invalidateQueries({ queryKey: ['org'] }); } catch (err) { console.error(err); } };
-  const hasElectron = !!window.electronAPI;
 
   // --- Room item renderer ---
   const renderRoomItem = (r: Room) => (
@@ -340,14 +475,59 @@ export default function Main() {
         </span>
       )}
       <div style={st.roomAvatar} aria-hidden>
-        {r.avatarUrl ? <img src={r.avatarUrl} alt="" style={st.roomAvatarImg} /> : (
-          <span style={st.roomAvatarInitial}>{r.name && r.name.trim().length > 0 ? r.name.trim()[0].toUpperCase() : '?'}</span>
+        {r.isGroup && !r.isTopic && Array.isArray(r.members) && r.members.length > 0 ? (
+          <GroupAvatar
+            members={r.members.map((m) => ({
+              id: m.id ?? (m as { user?: { id: string } }).user?.id ?? '',
+              name: m.name ?? (m as { user?: { name: string } }).user?.name,
+              avatarUrl: (m as { avatarUrl?: string }).avatarUrl,
+            }))}
+            myId={myId}
+            size={32}
+          />
+        ) : !r.isGroup && Array.isArray(r.members) && r.members.length > 0 ? (
+          (() => {
+            const members = r.members as { id?: string; userId?: string; user?: { id: string; name: string; email: string }; name?: string; avatarUrl?: string }[];
+            const other = members.find((m) => (m.id ?? m.user?.id) !== myId) ?? members[0];
+            const otherId = other?.id ?? (other as { user?: { id: string } })?.user?.id;
+            const otherName = other?.name ?? (other as { user?: { name: string } })?.user?.name;
+            const hasUserAvatar = !!((other as { avatarUrl?: string })?.avatarUrl);
+            return hasUserAvatar ? (
+              <UserAvatar
+                userId={otherId || ''}
+                name={otherName || r.name || ''}
+                avatarUrlPath={(other as { avatarUrl?: string }).avatarUrl}
+                imgStyle={st.roomAvatarImg}
+                initialStyle={st.roomAvatarInitial}
+              />
+            ) : (
+              <RoomAvatar
+                roomId={r.id}
+                name={r.name || otherName || ''}
+                initials={null}
+                hasAvatar={false}
+                avatarUrlPath={null}
+                imgStyle={st.roomAvatarImg}
+                initialStyle={st.roomAvatarInitial}
+              />
+            );
+          })()
+        ) : (
+          <RoomAvatar
+            roomId={r.id}
+            name={r.name || ''}
+            initials={r.initials}
+            hasAvatar={!!r.avatarUrl}
+            avatarUrlPath={r.avatarUrl}
+            imgStyle={st.roomAvatarImg}
+            initialStyle={st.roomAvatarInitial}
+          />
         )}
       </div>
       <div style={st.roomInfo}>
         <div style={st.roomName}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 0', minWidth: 0 }}>{r.name}</span>
-          {r.isGroup && r.viewMode && (
+          {r.isGroup && r.isTopic && r.viewMode && (
             <span style={st.roomViewModeBadge} title={r.viewMode === 'board' ? '보드뷰: 게시글 기반' : '챗뷰: 메시지 기반'}>
               {r.viewMode === 'board' ? '보드뷰' : '챗뷰'}
             </span>
@@ -377,8 +557,8 @@ export default function Main() {
                   src={`${import.meta.env.BASE_URL}emax-logo.png?v=5`}
                   alt="EMAX"
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: 32,
+                    height: 32,
                     objectFit: 'contain',
                     display: 'block',
                     background: 'transparent',
@@ -391,12 +571,23 @@ export default function Main() {
 
           {/* Profile */}
           <div style={st.profileSection}>
-            <div style={st.profileAvatar}>
-              <span style={st.profileInitial}>{user?.name?.trim()[0]?.toUpperCase() || '?'}</span>
+            <div style={{ position: 'relative' as const, flexShrink: 0 }}>
+              <div style={st.profileAvatar}>
+                {user?.avatarUrl ? (
+                  <UserAvatar userId={user.id} name={user.name || ''} avatarUrlPath={user.avatarUrl} imgStyle={st.profileAvatarImg} initialStyle={st.profileInitial} />
+                ) : (
+                  <span style={st.profileInitial}>{user?.name?.trim()[0]?.toUpperCase() || '?'}</span>
+                )}
+              </div>
+              {statusInput && STATUS_OPTIONS.find(o => o.id === statusInput) && (
+                <span style={{ position: 'absolute' as const, top: -2, right: -2, display: 'block', borderRadius: '50%', border: `1.5px solid ${isDark ? '#1e293b' : '#f1f5f9'}`, lineHeight: 0 }}>
+                  <StatusIcon status={statusInput} size={13} />
+                </span>
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={st.profileName}>{user?.name || '사용자'}</div>
-              {statusInput && <div style={st.profileStatus}>{statusInput}</div>}
+              {statusInput && <div style={st.profileStatus}>{STATUS_OPTIONS.find(o => o.id === statusInput)?.label || statusInput}</div>}
             </div>
           </div>
 
@@ -421,6 +612,7 @@ export default function Main() {
                   <span style={st.sectionChevron}>{sectionOpen.topic ? '▼' : '▶'}</span>
                   <span style={st.sectionTitle}>아젠다</span>
                   <span style={st.sectionCount}>{topicRooms.length}개</span>
+                  {topicUnreadCount > 0 && <span style={st.sectionUnreadBadge}>새 메시지 {topicUnreadCount > 99 ? '99+' : topicUnreadCount}개</span>}
                 </span>
                 <span style={{ display: 'flex', gap: 4 }}>
                   <span
@@ -445,13 +637,14 @@ export default function Main() {
                 <>
                   {roomsError ? (
                     <div style={{ padding: '8px 16px', fontSize: 12, color: '#c62828' }}>목록을 불러올 수 없습니다</div>
-                  ) : topicRooms.length === 0 && (folders as Folder[]).length === 0 ? (
+                  ) : topicRooms.length === 0 && ((folders as Folder[])?.length ?? 0) === 0 ? (
                     <div style={{ padding: '8px 16px', fontSize: 12, color: isDark ? '#64748b' : '#9ca3af' }}>아젠다가 없습니다</div>
                   ) : (
                     <div style={{ paddingLeft: 4 }}>
-                      {(folders as Folder[]).map((f) => {
+                      {((folders as Folder[]) ?? []).map((f) => {
                         const rooms = roomsByFolder.get(f.id) ?? [];
                         const isOpen = folderOpen[f.id] !== false;
+                        const folderUnread = rooms.reduce((s, r) => s + (r.unreadCount ?? 0), 0);
                         return (
                           <div key={f.id}>
                             <button
@@ -463,6 +656,7 @@ export default function Main() {
                               <FolderIcon size={14} />
                               <span>{f.name}</span>
                               <span style={{ fontSize: 11, opacity: 0.8 }}>({rooms.length})</span>
+                              {folderUnread > 0 && <span style={st.sectionUnreadBadge}>새 {folderUnread}개</span>}
                             </button>
                             {isOpen && <ul style={st.roomList}>{rooms.map(renderRoomItem)}</ul>}
                           </div>
@@ -497,12 +691,13 @@ export default function Main() {
             </div>
 
             {/* CHAT Section */}
-            <div>
+            <div style={{ borderTop: `2px solid ${isDark ? '#334155' : '#e2e8f0'}`, marginTop: 4 }}>
               <button type="button" style={st.sectionHeader} onClick={() => toggleSection('chat')}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={st.sectionChevron}>{sectionOpen.chat ? '▼' : '▶'}</span>
                   <span style={st.sectionTitle}>채팅</span>
                   <span style={st.sectionCount}>{chatRooms.length}개</span>
+                  {chatUnreadCount > 0 && <span style={st.sectionUnreadBadge}>새 메시지 {chatUnreadCount > 99 ? '99+' : chatUnreadCount}개</span>}
                 </span>
                 <span
                   style={st.sectionAddBtn}
@@ -751,14 +946,22 @@ export default function Main() {
                                               onClick={async () => { try { const room = await roomsApi.create(u.id); queryClient.invalidateQueries({ queryKey: ['rooms'] }); setActivePanel('none'); navigate(`/room/${room.id}`); } catch (err) { console.error(err); } }}
                                               onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, user: u }); }}
                                             >
-                                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: isDark ? '#475569' : '#f3f4f6', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#6b7280', overflow: 'hidden' }}>
-                                                {u.avatarUrl ? <img src={u.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : u.name.trim()[0]?.toUpperCase() || '?'}
+                                              <div style={{ position: 'relative' as const, width: 28, height: 28, flexShrink: 0 }}>
+                                                <div style={{ width: 28, height: 28, borderRadius: 8, background: isDark ? '#475569' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#6b7280', overflow: 'hidden' }}>
+                                                  <UserAvatar userId={u.id} name={u.name} avatarUrlPath={u.avatarUrl} imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} initialStyle={{ fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#6b7280' }} />
+                                                </div>
+                                                {u.statusMessage && STATUS_OPTIONS.find(o => o.id === u.statusMessage) ? (
+                                                  <span style={{ position: 'absolute' as const, top: -2, right: -2, display: 'block', borderRadius: '50%', border: `1.5px solid ${isDark ? '#1e293b' : '#fff'}`, lineHeight: 0 }}>
+                                                    <StatusIcon status={u.statusMessage} size={11} />
+                                                  </span>
+                                                ) : isOnline ? (
+                                                  <span style={{ position: 'absolute' as const, top: -1, right: -1, width: 8, height: 8, borderRadius: '50%', background: '#22c55e', border: `1.5px solid ${isDark ? '#1e293b' : '#fff'}`, display: 'block' }} title="온라인" />
+                                                ) : null}
                                               </div>
                                               <div style={{ flex: 1, minWidth: 0 }}>
                                                 <span style={{ color: isDark ? '#cbd5e1' : '#374151', fontWeight: 500, fontSize: 13 }}>{u.name}</span>
                                                 {u.statusMessage && <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.statusMessage}</div>}
                                               </div>
-                                              {isOnline && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#22c55e', flexShrink: 0 }} title="온라인" />}
                                               {(String(u.id) === String(myId) || u.email === myEmail) && <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>(나)</span>}
                                             </button>
                                           </li>
@@ -980,6 +1183,27 @@ export default function Main() {
               <div style={st.panelWrap}>
                 <div style={st.panelHeader}><h3 style={st.panelTitle}>설정</h3></div>
                 <div style={{ ...st.panelBody, padding: 24, display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+                  {/* 프로필 영역 - 상단 배치, 크게 표시 */}
+                  <div style={{ padding: '20px 16px', borderRadius: 12, background: isDark ? '#334155' : '#f0f4ff', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 16 }}>
+                    <div style={{ width: 96, height: 96, borderRadius: 16, background: isDark ? '#475569' : '#e2e8f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {user?.avatarUrl ? <UserAvatar userId={user.id} name={user.name || ''} avatarUrlPath={user.avatarUrl} imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16 }} initialStyle={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }} /> : <span style={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}>{user?.name?.trim()[0]?.toUpperCase() || '?'}</span>}
+                    </div>
+                    <div style={{ textAlign: 'center' as const }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b', marginBottom: 4 }}>{user?.name || '사용자'}</div>
+                      <div style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>{user?.email}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
+                      <label style={{ padding: '10px 18px', borderRadius: 10, background: isDark ? '#475569' : '#6366f1', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                        사진 변경
+                        <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) setAvatarEditFile(f); e.target.value = ''; }} />
+                      </label>
+                      {user?.avatarUrl && (
+                        <button type="button" onClick={async () => { try { await usersApi.deleteAvatar(); const { user: u } = await authApi.me(); if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token); queryClient.invalidateQueries({ queryKey: ['rooms'] }); queryClient.invalidateQueries({ queryKey: ['org'] }); } catch (err) { console.error(err); alert('프로필 사진 삭제에 실패했습니다.'); } }} style={{ padding: '10px 18px', borderRadius: 10, border: `1px solid ${isDark ? '#64748b' : '#e2e8f0'}`, background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 13, cursor: 'pointer' }}>
+                          사진 삭제
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   {notificationsSnoozedUntil > Date.now() && <div style={{ padding: '6px 10px', borderRadius: 999, background: isDark ? '#6366f1' : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' }}>알림 일시 중지 중</div>}
                   <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>알림 일시 중지</div>
@@ -1001,18 +1225,60 @@ export default function Main() {
                       <span style={{ position: 'absolute' as const, top: 3, left: isDark ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
                     </button>
                   </div>
+                  <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>업데이트</h4>
+                    {hasElectron ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
+                        <span style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#666' }}>
+                          {appVersion ? `현재 버전 v${appVersion}` : '버전 확인 중...'}
+                          {updateStatus === 'downloading' && updateVersion && ` · 새 버전 v${updateVersion} 다운로드 중`}
+                          {updateStatus === 'latest' && ' · 최신 버전입니다'}
+                          {updateStatus === 'error' && updateError && ` · ${updateError}`}
+                        </span>
+                        {updateStatus !== 'ready' ? (
+                          <button type="button" style={st.formBtn} disabled={updateStatus === 'checking'} onClick={handleCheckForUpdates}>
+                            {updateStatus === 'checking' ? '확인 중...' : '업데이트 확인'}
+                          </button>
+                        ) : (
+                          <button type="button" style={{ ...st.formBtn, background: '#16a34a', color: '#fff', fontWeight: 600 }} onClick={handleQuitAndInstall}>
+                            지금 재시작하여 업데이트
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <p style={{ margin: 0, fontSize: 13, color: isDark ? '#94a3b8' : '#666' }}>업데이트 확인은 데스크톱 앱(.dmg / .exe)에서만 가능합니다.</p>
+                    )}
+                  </div>
                   <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
-                    <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>상태 메시지</h4>
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 10 }}>
-                      {STATUS_PRESETS.map((p) => (
-                        <button key={p} type="button" style={{ padding: '6px 12px', borderRadius: 16, fontSize: 12, cursor: 'pointer', border: 'none', background: statusInput === p ? '#475569' : (isDark ? '#475569' : '#e5e7eb'), color: statusInput === p ? '#fff' : (isDark ? '#94a3b8' : '#666'), fontWeight: statusInput === p ? 600 : 400 }} onClick={() => handleSetStatus(p)}>{p}</button>
-                      ))}
+                    <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>상태</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
+                      {STATUS_OPTIONS.map((opt) => {
+                        const isSelected = statusInput === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => handleSetStatus(opt.id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '8px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                              background: isSelected ? (isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.08)') : 'transparent',
+                              width: '100%', textAlign: 'left' as const,
+                            }}
+                          >
+                            <span style={{
+                              width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                              border: `2px solid ${isSelected ? '#6366f1' : (isDark ? '#64748b' : '#d1d5db')}`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              {isSelected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', display: 'block' }} />}
+                            </span>
+                            {opt.id ? <StatusIcon status={opt.id} size={18} /> : <span style={{ width: 18, height: 18, display: 'block' }} />}
+                            <span style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#374151', fontWeight: isSelected ? 600 : 400 }}>{opt.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <input type="text" placeholder="직접 입력..." value={statusInput} onChange={(e) => setStatusInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSetStatus(statusInput)} style={{ flex: 1, padding: '8px 12px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, fontSize: 13, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#333', outline: 'none' }} />
-                      <button type="button" style={st.formBtn} onClick={() => handleSetStatus(statusInput)}>설정</button>
-                    </div>
-                    {statusInput && <button type="button" style={{ marginTop: 8, padding: '6px 12px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, background: 'none', color: isDark ? '#94a3b8' : '#888', fontSize: 12, cursor: 'pointer', width: '100%' }} onClick={() => { handleSetStatus(''); setStatusInput(''); }}>상태 초기화</button>}
                   </div>
                   <div style={{ padding: '10px 12px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', color: isDark ? '#94a3b8' : '#334155', fontSize: 13 }}>알림 상태: {notificationStatus}</div>
                   {user?.isAdmin && (
@@ -1045,7 +1311,21 @@ export default function Main() {
         </div>
       )}
 
-      {showCreateGroupModal && <CreateGroupModal mode={createGroupFor} onClose={() => setShowCreateGroupModal(false)} onCreated={(roomId, viewMode) => { queryClient.invalidateQueries({ queryKey: ['rooms'] }); setActivePanel('none'); navigate(`/room/${roomId}`, viewMode != null ? { state: { viewMode } } : undefined); }} />}
+      {showCreateGroupModal && <CreateGroupModal mode={createGroupFor} onClose={() => setShowCreateGroupModal(false)} onTopicCreated={(id) => { recentTopicRoomRef.current = { id, at: Date.now() }; }} onCreated={(roomId, viewMode, opts) => { if (!opts?.skipRoomsInvalidate) queryClient.invalidateQueries({ queryKey: ['rooms'] }); setActivePanel('none'); navigate(`/room/${roomId}`, viewMode != null ? { state: { viewMode } } : undefined); }} />}
+
+      {avatarEditFile && (
+        <AvatarEditModal
+          file={avatarEditFile}
+          onClose={() => setAvatarEditFile(null)}
+          onConfirm={async (croppedFile) => {
+            await usersApi.uploadAvatar(croppedFile);
+            const { user: u } = await authApi.me();
+            if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
+            queryClient.invalidateQueries({ queryKey: ['rooms'] });
+            queryClient.invalidateQueries({ queryKey: ['org'] });
+          }}
+        />
+      )}
 
       {showFolderManageModal && <FolderManageModal topicRooms={topicRooms} onClose={() => setShowFolderManageModal(false)} />}
 
@@ -1103,12 +1383,13 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
 
     /* Sidebar */
     sidebar: { width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', background: sidebarBg, borderRight: `1px solid ${border}` },
-    sidebarHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${border}`, background: isDark ? undefined : '#fff' },
-    logoBox: { width: 48, height: 48, borderRadius: 10, background: isDark ? sidebarBg : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
+    sidebarHeader: { flexShrink: 0, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: `1px solid ${border}`, background: sidebarBg },
+    logoBox: { width: 36, height: 36, borderRadius: 8, background: isDark ? sidebarBg : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
     logoText: { fontSize: 14, fontWeight: 800, color: '#fff' },
     brandName: { fontSize: 15, fontWeight: 700, color: textStrong },
     profileSection: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: `1px solid ${border}` },
-    profileAvatar: { width: 34, height: 34, borderRadius: '50%', background: isDark ? '#475569' : '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    profileAvatar: { width: 34, height: 34, borderRadius: 10, background: isDark ? '#475569' : '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    profileAvatarImg: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 },
     profileInitial: { fontSize: 13, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' },
     profileName: { fontSize: 13, fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     profileStatus: { fontSize: 11, color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
@@ -1118,10 +1399,11 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     sidebarContent: { flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' },
 
     /* Sections */
-    sectionHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' as const },
+    sectionHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '7px 12px', border: 'none', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', cursor: 'pointer', textAlign: 'left' as const },
     sectionChevron: { fontSize: 9, color: muted },
     sectionTitle: { fontSize: 13, fontWeight: 700, color: textStrong },
     sectionCount: { fontSize: 11, color: muted },
+    sectionUnreadBadge: { fontSize: 10, color: '#e53935', fontWeight: 600 },
     sectionAddBtn: { width: 22, height: 22, borderRadius: 6, background: isDark ? '#475569' : '#e5e7eb', color: isDark ? '#e2e8f0' : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: '22px', cursor: 'pointer' },
     folderHeader: { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 12px', border: 'none', background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 12, cursor: 'pointer', textAlign: 'left' as const },
 
@@ -1133,8 +1415,8 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     roomList: { listStyle: 'none', margin: 0, padding: 0 },
     roomItem: { padding: '8px 14px', borderBottom: `1px solid ${isDark ? '#334155' : '#f0f0f0'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 },
     roomFavoriteIcon: { width: 20, height: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDark ? '#fbbf24' : '#f59e0b' },
-    roomAvatar: { width: 32, height: 32, borderRadius: '50%', background: isDark ? '#475569' : '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-    roomAvatarImg: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' },
+    roomAvatar: { width: 32, height: 32, borderRadius: 10, background: isDark ? '#475569' : '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    roomAvatarImg: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 },
     roomAvatarInitial: { fontSize: 12, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' },
     roomInfo: { flex: 1, minWidth: 0 },
     roomName: { fontWeight: 600, fontSize: 12, color: text, marginBottom: 1, display: 'flex', alignItems: 'center', gap: 6 },
@@ -1162,7 +1444,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     emptyHint: { fontSize: 13, color: sub, margin: 0 },
 
     /* Panels */
-    panelWrap: { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 },
+    panelWrap: { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, maxWidth: 420 },
     panelHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: `1px solid ${border}`, flexWrap: 'wrap' as const, gap: 8 },
     panelTitle: { margin: 0, fontSize: 16, fontWeight: 700, color: textStrong },
     panelBody: { flex: 1, minHeight: 0, overflow: 'auto' },
@@ -1184,8 +1466,8 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     treeUserBtn: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', border: 'none', borderRadius: 6, background: 'transparent', color: isDark ? '#cbd5e1' : '#374151', cursor: 'pointer', width: '100%', textAlign: 'left' as const, fontSize: 13 },
 
     /* Context menu */
-    ctxMenu: { position: 'fixed', zIndex: 10000, minWidth: 140, padding: 4, background: isDark ? '#334155' : '#fff', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.25)', border: `1px solid ${border}` },
-    ctxMenuItem: { display: 'block', width: '100%', padding: '10px 14px', border: 'none', background: 'none', borderRadius: 6, fontSize: 14, color: text, textAlign: 'left' as const, cursor: 'pointer' },
+    ctxMenu: { position: 'fixed', zIndex: 10000, minWidth: 120, maxWidth: 200, padding: 4, background: isDark ? '#334155' : '#fff', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.25)', border: `1px solid ${border}`, whiteSpace: 'nowrap' as const },
+    ctxMenuItem: { display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: 'none', borderRadius: 6, fontSize: 13, color: text, textAlign: 'left' as const, cursor: 'pointer' },
 
     /* Overlay / Modal */
     overlay: { position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' },

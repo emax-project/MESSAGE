@@ -24,4 +24,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('navigate-to-room', listener);
     return () => ipcRenderer.removeListener('navigate-to-room', listener);
   },
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
+  onUpdateDownloaded: (handler) => {
+    const listener = () => handler();
+    ipcRenderer.on('update-downloaded', listener);
+    return () => ipcRenderer.removeListener('update-downloaded', listener);
+  },
+  fetchRoomAvatar: (roomId, baseUrl, token) => ipcRenderer.invoke('fetch-room-avatar', { roomId, baseUrl, token }),
+  fetchUserAvatar: (userId, baseUrl, token) => ipcRenderer.invoke('fetch-user-avatar', { userId, baseUrl, token }),
 });

@@ -28,20 +28,24 @@ orgRouter.get('/tree', async (req, res) => {
           include: {
             users: {
               orderBy: { name: 'asc' },
-              select: { id: true, name: true, email: true, statusMessage: true },
+              select: { id: true, name: true, email: true, statusMessage: true, avatarUrl: true, updatedAt: true },
             },
           },
         },
       },
     });
     const myId = String(req.userId || '');
+    const toUserWithAvatarPath = (u) => {
+      const ver = u.updatedAt ? `?v=${new Date(u.updatedAt).getTime()}` : '';
+      return { ...u, avatarUrl: u.avatarUrl ? `/users/${u.id}/avatar${ver}` : null };
+    };
     let tree = companies.map((c) => ({
       id: c.id,
       name: c.name,
       departments: c.departments.map((d) => ({
         id: d.id,
         name: d.name,
-        users: d.users,
+        users: d.users.map(toUserWithAvatarPath),
       })),
     }));
 
@@ -50,11 +54,11 @@ orgRouter.get('/tree', async (req, res) => {
     if (!allUserIds.has(myId)) {
       const me = await prisma.user.findUnique({
         where: { id: myId },
-        select: { id: true, name: true, email: true, statusMessage: true },
+        select: { id: true, name: true, email: true, statusMessage: true, avatarUrl: true, updatedAt: true },
       });
       if (me && tree.length > 0 && tree[0].departments.length > 0) {
         const firstDept = tree[0].departments[0];
-        firstDept.users = [...firstDept.users, me].sort((a, b) => a.name.localeCompare(b.name));
+        firstDept.users = [...firstDept.users, toUserWithAvatarPath(me)].sort((a, b) => a.name.localeCompare(b.name));
       }
     }
 

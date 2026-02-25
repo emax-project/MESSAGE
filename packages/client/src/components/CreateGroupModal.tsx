@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersApi, roomsApi, foldersApi, type User, type Folder, type Room } from '../api';
 import { useAuthStore, useThemeStore } from '../store';
+import UserAvatar from './UserAvatar';
 
 type Props = {
   mode: 'topic' | 'chat';
   onClose: () => void;
-  onCreated: (roomId: string, viewMode?: 'chat' | 'board') => void;
+  onCreated: (roomId: string, viewMode?: 'chat' | 'board', options?: { skipRoomsInvalidate?: boolean }) => void;
+  onTopicCreated?: (roomId: string) => void;
 };
 
-export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
+export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCreated }: Props) {
   const [step, setStep] = useState<'form' | 'members'>(mode === 'topic' ? 'form' : 'members');
   const [topicName, setTopicName] = useState('');
   const [topicDesc, setTopicDesc] = useState('');
@@ -22,6 +24,18 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formSnapshot, setFormSnapshot] = useState<{ folderId: string; viewMode: 'chat' | 'board' } | null>(null);
+  const [roomAvatarFile, setRoomAvatarFile] = useState<File | null>(null);
+  const [roomAvatarPreview, setRoomAvatarPreview] = useState<string | null>(null);
+  const [roomInitials, setRoomInitials] = useState('');
+  const [editingAvatarUserId, setEditingAvatarUserId] = useState<string | null>(null);
+  const [customInitials, setCustomInitials] = useState<Record<string, string>>(() => {
+    try {
+      const raw = localStorage.getItem('emax_user_initials');
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    } catch { return {}; }
+  });
   const isDark = useThemeStore((s) => s.isDark);
   const myId = useAuthStore((s) => s.user?.id);
   const queryClient = useQueryClient();
@@ -44,6 +58,18 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
       else next.add(userId);
       return next;
     });
+  };
+
+  const saveCustomInitials = (userId: string, value: string) => {
+    const trimmed = value.trim().slice(0, 2).toUpperCase();
+    setCustomInitials((prev) => {
+      const next = { ...prev };
+      if (trimmed) next[userId] = trimmed;
+      else delete next[userId];
+      try { localStorage.setItem('emax_user_initials', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    setEditingAvatarUserId(null);
   };
 
   const handleCreateFolder = async () => {
@@ -71,23 +97,44 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
           return;
         }
         const snap = formSnapshot ?? { folderId, viewMode };
-        const payload: { name: string; description?: string; isPublic: boolean; viewMode: string; memberIds: string[]; folderId?: string } = {
+        const payload: { name: string; description?: string; isPublic: boolean; viewMode: string; memberIds: string[]; folderId?: string; initials?: string } = {
           name: topicName.trim(),
           description: topicDesc.trim() || undefined,
           isPublic,
           viewMode: snap.viewMode || 'chat',
           memberIds: Array.from(selected),
         };
+        const trimmedInitials = (roomInitials.trim() || topicName.trim()).slice(0, 2).toUpperCase();
+        if (trimmedInitials) payload.initials = trimmedInitials;
         const trimmedFolderId = snap.folderId ? String(snap.folderId).trim() : '';
         if (trimmedFolderId) payload.folderId = trimmedFolderId;
         if (import.meta.env.DEV) console.log('[CreateGroupModal] sending:', payload);
         const room = await roomsApi.createTopic(payload);
+        let avatarUrl: string | null = (room as { avatarUrl?: string })?.avatarUrl ?? null;
+        if (roomAvatarFile) {
+          if (import.meta.env.DEV) console.log('[CreateGroupModal] 아바타 업로드 시도 roomId=', room.id, 'file=', roomAvatarFile.name, roomAvatarFile.size, 'bytes');
+          try {
+            const { avatarUrl: uploaded } = await roomsApi.uploadAvatar(room.id, roomAvatarFile);
+            avatarUrl = uploaded;
+            if (import.meta.env.DEV) console.log('[CreateGroupModal] 아바타 업로드 성공:', uploaded);
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.warn('[CreateGroupModal] 아바타 업로드 실패:', msg);
+            setError(`프로필 사진 업로드 실패: ${msg}`);
+            setLoading(false);
+            return;
+          }
+        }
         const viewModeToUse = (room as { viewMode?: string })?.viewMode ?? snap.viewMode ?? viewMode;
         const folderIdFromServer = (room as { folderId?: string | null })?.folderId ?? (trimmedFolderId || null);
+        const initialsFromServer = (room as { initials?: string | null })?.initials ?? (trimmedInitials || null);
         const newRoomData = {
           id: room.id,
           name: room.name,
+          avatarUrl,
+          initials: initialsFromServer,
           isGroup: room.isGroup,
+          isTopic: (room as { isTopic?: boolean })?.isTopic ?? (mode === 'topic'),
           viewMode: viewModeToUse,
           members: room.members ?? [],
           updatedAt: room.updatedAt,
@@ -97,15 +144,19 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
           unreadCount: 0,
         };
         queryClient.setQueryData(['rooms', room.id], newRoomData);
-        // rooms 목록에 새 방 추가 (viewMode, folderId 즉시 반영)
+        // 아젠다: invalidate 없이 setQueryData만 사용 (refetch가 isTopic을 덮어쓰는 문제 방지)
         if (myId) {
+          const roomToAdd = { ...newRoomData, lastMessage: null, unreadCount: 0, isTopic: true, isGroup: true } as Room;
           queryClient.setQueryData<Room[]>(['rooms', myId], (prev) => {
-            if (!prev) return prev;
-            if (prev.some((r) => r.id === room.id)) return prev.map((r) => (r.id === room.id ? { ...r, viewMode: viewModeToUse, folderId: folderIdFromServer } : r));
-            return [{ ...newRoomData, lastMessage: null, unreadCount: 0 } as Room, ...prev];
+            if (!prev) return [roomToAdd];
+            if (prev.some((r) => r.id === room.id)) {
+              return prev.map((r) => (r.id === room.id ? { ...r, ...roomToAdd, isTopic: true, isGroup: true } : r));
+            }
+            return [roomToAdd, ...prev];
           });
         }
-        onCreated(room.id, viewModeToUse);
+        onTopicCreated?.(room.id);
+        onCreated(room.id, viewModeToUse, { skipRoomsInvalidate: true });
       } else {
         const ids = Array.from(selected);
         if (ids.length === 0) { setLoading(false); return; }
@@ -115,12 +166,17 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
         } else {
           const firstRoom = await roomsApi.create(ids[0]);
           const groupRoom = await roomsApi.addMembers(firstRoom.id, ids.slice(1));
+          if (groupRoom?.id && Array.isArray(groupRoom.members)) {
+            queryClient.setQueryData(['rooms', groupRoom.id], groupRoom);
+          }
           onCreated(groupRoom.id);
         }
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '만들기 실패');
+      const msg = err instanceof Error ? err.message : String(err);
+      if (import.meta.env.DEV) console.error('[CreateGroupModal] create error:', err);
+      setError(msg || '만들기 실패');
     } finally {
       setLoading(false);
     }
@@ -163,6 +219,90 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
                 style={st.input}
                 autoFocus
               />
+            </div>
+
+            {/* Room Profile Photo */}
+            <div style={st.fieldGroup}>
+              <label style={st.label}>방 프로필 사진</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: '50%',
+                    background: isDark ? '#334155' : '#e2e8f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                  }}
+                >
+                  {roomAvatarPreview ? (
+                    <img src={roomAvatarPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569' }}>
+                      {(roomInitials || topicName.trim()).slice(0, 2).toUpperCase() || '?'}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {!roomAvatarFile && (
+                    <input
+                      type="text"
+                      placeholder="이니셜 (최대 2글자)"
+                      value={roomInitials}
+                      onChange={(e) => setRoomInitials(e.target.value.slice(0, 2))}
+                      maxLength={2}
+                      style={{
+                        ...st.input,
+                        width: 100,
+                        padding: '6px 10px',
+                        fontSize: 13,
+                        marginBottom: 0,
+                      }}
+                    />
+                  )}
+                  <label style={{ ...st.avatarUploadBtn, cursor: 'pointer' }}>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          setRoomAvatarFile(f);
+                          const url = URL.createObjectURL(f);
+                          setRoomAvatarPreview((prev) => {
+                            if (prev) URL.revokeObjectURL(prev);
+                            return url;
+                          });
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                    {roomAvatarFile ? '사진 변경' : '사진 선택'}
+                  </label>
+                  {roomAvatarFile && (
+                    <button
+                      type="button"
+                      style={{ ...st.avatarRemoveBtn, color: '#ef4444' }}
+                      onClick={() => {
+                        setRoomAvatarFile(null);
+                        setRoomAvatarPreview((prev) => {
+                          if (prev) URL.revokeObjectURL(prev);
+                          return null;
+                        });
+                      }}
+                    >
+                      제거
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p style={st.fieldHint}>
+                {roomAvatarFile ? 'jpg, png, gif, webp (최대 10MB)' : '이니셜은 사진 없을 때 표시됩니다'}
+              </p>
             </div>
 
             {/* Description */}
@@ -310,27 +450,63 @@ export default function CreateGroupModal({ mode, onClose, onCreated }: Props) {
             <div style={st.memberBody}>
               {usersLoading ? (
                 <p style={st.loadingText}>사용자 목록 로딩 중...</p>
-              ) : users.length === 0 ? (
+              ) : !Array.isArray(users) || users.length === 0 ? (
                 <p style={st.loadingText}>초대할 수 있는 사용자가 없습니다.</p>
               ) : (
                 <ul style={st.userList}>
-                  {users.map((u: User) => (
-                    <li key={u.id} data-user-item data-user-name={u.name}>
-                      <label style={st.userRow}>
-                        <input
-                          type="checkbox"
-                          checked={selected.has(u.id)}
-                          onChange={() => toggleUser(u.id)}
-                          style={st.checkbox}
-                        />
-                        <span style={st.userAvatar}>{u.name.trim()[0]?.toUpperCase() || '?'}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={st.userName}>{u.name}</span>
-                          <span style={st.userEmail}>{u.email}</span>
-                        </div>
-                      </label>
-                    </li>
-                  ))}
+                  {(Array.isArray(users) ? users : []).map((u: User) => {
+                    const displayText = customInitials[u.id] ?? (u.name?.trim().slice(0, 2) || '?').toUpperCase();
+                    const isEditing = editingAvatarUserId === u.id;
+                    return (
+                      <li key={u.id} data-user-item data-user-name={u.name}>
+                        <label style={st.userRow}>
+                          <input
+                            type="checkbox"
+                            checked={selected.has(u.id)}
+                            onChange={() => toggleUser(u.id)}
+                            style={st.checkbox}
+                          />
+                          <div
+                            style={{ ...st.userAvatar, overflow: 'hidden', position: 'relative' as const }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingAvatarUserId(u.id); }}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditingAvatarUserId(u.id); } }}
+                            title="더블클릭하여 이니셜 수정 (최대 2글자)"
+                            aria-label={`${u.name} 아바타`}
+                          >
+                            {(u as User & { avatarUrl?: string }).avatarUrl && !isEditing ? (
+                              <UserAvatar userId={u.id} name={u.name} avatarUrlPath={(u as User & { avatarUrl?: string }).avatarUrl} imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} initialStyle={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', fontSize: 12, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569' }} />
+                            ) : isEditing ? (
+                              <input
+                                type="text"
+                                defaultValue={customInitials[u.id] ?? (u.name?.trim().slice(0, 2) || '').toUpperCase()}
+                                onBlur={(e) => saveCustomInitials(u.id, e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveCustomInitials(u.id, (e.target as HTMLInputElement).value);
+                                  if (e.key === 'Escape') { setEditingAvatarUserId(null); }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                autoFocus
+                                maxLength={2}
+                                style={{
+                                  width: '100%', height: '100%', border: 'none', background: 'transparent', textAlign: 'center', fontSize: 12, fontWeight: 700,
+                                  color: isDark ? '#94a3b8' : '#475569', outline: 'none', padding: 0,
+                                }}
+                              />
+                            ) : (
+                              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>{displayText}</span>
+                            )}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={st.userName}>{u.name}</span>
+                            <span style={st.userEmail}>{u.email}</span>
+                          </div>
+                        </label>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -536,6 +712,21 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       color: muted,
       fontStyle: 'italic' as const,
     },
+    avatarUploadBtn: {
+      padding: '6px 12px',
+      border: `1px solid ${border}`,
+      borderRadius: 8,
+      background: inputBg,
+      color: text,
+      fontSize: 12,
+    },
+    avatarRemoveBtn: {
+      padding: '4px 12px',
+      border: 'none',
+      background: 'none',
+      fontSize: 11,
+      cursor: 'pointer',
+    },
     fieldHintInline: {
       fontSize: 11,
       color: '#ef4444',
@@ -684,14 +875,14 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     },
     checkbox: { width: 16, height: 16, cursor: 'pointer', flexShrink: 0 },
     userAvatar: {
-      width: 30,
-      height: 30,
+      width: 32,
+      height: 32,
       borderRadius: '50%',
       background: isDark ? '#334155' : '#e2e8f0',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: 700,
       color: isDark ? '#94a3b8' : '#475569',
       flexShrink: 0,

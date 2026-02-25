@@ -1,6 +1,8 @@
+import path from 'path';
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
+import { avatarUpload, UPLOAD_DIR } from '../upload.js';
 
 export const roomsRouter = Router();
 
@@ -77,7 +79,7 @@ roomsRouter.get('/', async (req, res) => {
               },
               members: {
                 where: { leftAt: null },
-                include: { user: { select: { id: true, name: true, email: true } } },
+                include: { user: { select: { id: true, name: true, email: true, avatarUrl: true, updatedAt: true } } },
               },
             },
           },
@@ -106,10 +108,13 @@ roomsRouter.get('/', async (req, res) => {
       return {
         id: m.room.id,
         name: displayName,
+        avatarUrl: m.room.avatarUrl ? `/rooms/${m.room.id}/avatar` : null,
+        initials: m.room.initials || null,
         isGroup: m.room.isGroup,
+        isTopic: m.room.isTopic ?? !!(m.room.description || m.room.initials),
         viewMode: m.room.viewMode || 'chat',
         folderId: m.folderId || null,
-        members: m.room.members.map((mb) => ({ id: mb.user.id, name: mb.user.name, email: mb.user.email })),
+        members: m.room.members.map((mb) => { const ver = mb.user.updatedAt ? `?v=${new Date(mb.user.updatedAt).getTime()}` : ''; return { id: mb.user.id, name: mb.user.name, email: mb.user.email, avatarUrl: mb.user.avatarUrl ? `/users/${mb.user.id}/avatar${ver}` : null }; }),
         lastMessage: last
           ? { id: last.id, content: last.deletedAt ? '[삭제된 메시지]' : last.content, createdAt: last.createdAt, senderName: last.sender.name }
           : null,
@@ -136,7 +141,7 @@ roomsRouter.get('/', async (req, res) => {
 // Create a topic (named group room) directly
 roomsRouter.post('/topic', async (req, res) => {
   try {
-    const { name, description, isPublic, viewMode: viewModeRaw, memberIds, folderId: folderIdRaw } = req.body;
+    const { name, description, isPublic, viewMode: viewModeRaw, memberIds, folderId: folderIdRaw, initials: initialsRaw } = req.body;
     if (process.env.NODE_ENV !== 'production') {
       console.log('[createTopic] received:', JSON.stringify({ viewMode: viewModeRaw, folderId: folderIdRaw }));
     }
@@ -152,6 +157,9 @@ roomsRouter.post('/topic', async (req, res) => {
     }
     const validViewModes = ['chat', 'board'];
     const roomViewMode = (typeof viewModeRaw === 'string' && validViewModes.includes(viewModeRaw)) ? viewModeRaw : 'chat';
+    const roomInitials = (typeof initialsRaw === 'string' && initialsRaw.trim().length > 0)
+      ? initialsRaw.trim().slice(0, 2).toUpperCase()
+      : null;
 
     const allMemberIds = new Set([req.userId]);
     if (Array.isArray(memberIds)) {
@@ -175,10 +183,12 @@ roomsRouter.post('/topic', async (req, res) => {
       const room = await tx.room.create({
         data: {
           isGroup: true,
+          isTopic: true,
           name: name.trim(),
           description: description?.trim() || null,
           viewMode: roomViewMode,
           isPublic: !!isPublic,
+          initials: roomInitials,
           members: {
             create: [...allMemberIds].map((uid) => ({ userId: uid })),
           },
@@ -223,9 +233,12 @@ roomsRouter.post('/topic', async (req, res) => {
     return res.status(201).json({
       id: newRoom.id,
       name: newRoom.name,
+      avatarUrl: newRoom.avatarUrl ? `/rooms/${newRoom.id}/avatar` : null,
+      initials: newRoom.initials || null,
       description: newRoom.description,
       viewMode: newRoom.viewMode,
       isGroup: true,
+      isTopic: true,
       isPublic: newRoom.isPublic,
       members: newRoom.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
       updatedAt: newRoom.updatedAt,
@@ -250,7 +263,7 @@ roomsRouter.post('/', async (req, res) => {
     const myRooms = await prisma.room.findMany({
       where: { isGroup: false, members: { some: { userId: req.userId } } },
       include: {
-        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        members: { where: { leftAt: null }, include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } } },
       },
     });
     const existing = myRooms.find((r) => {
@@ -269,7 +282,19 @@ roomsRouter.post('/', async (req, res) => {
           data: { leftAt: null },
         });
       }
-      return res.json(existing);
+      const toRoomResponse = (r) => ({
+        id: r.id,
+        name: r.name || r.members.map((m) => m.user.name).filter(Boolean).join(', ') || '채팅방',
+        avatarUrl: r.avatarUrl ? `/rooms/${r.id}/avatar` : null,
+        initials: r.initials || null,
+        isGroup: r.isGroup,
+        isTopic: r.isTopic ?? false,
+        viewMode: r.viewMode || 'chat',
+        members: r.members.map((m) => { const ver = m.user.updatedAt ? `?v=${new Date(m.user.updatedAt).getTime()}` : ''; return { id: m.user.id, name: m.user.name, email: m.user.email, avatarUrl: m.user.avatarUrl ? `/users/${m.user.id}/avatar${ver}` : null }; }),
+        lastMessage: null,
+        updatedAt: r.updatedAt,
+      });
+      return res.json(toRoomResponse(existing));
     }
 
     const room = await prisma.room.create({
@@ -280,10 +305,22 @@ roomsRouter.post('/', async (req, res) => {
         },
       },
       include: {
-        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        members: { where: { leftAt: null }, include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } } },
       },
     });
-    return res.status(201).json(room);
+    const toRoomResponse = (r) => ({
+      id: r.id,
+      name: r.name || r.members.map((m) => m.user.name).filter(Boolean).join(', ') || '채팅방',
+      avatarUrl: r.avatarUrl ? `/rooms/${r.id}/avatar` : null,
+      initials: r.initials || null,
+      isGroup: r.isGroup,
+      isTopic: r.isTopic ?? false,
+      viewMode: r.viewMode || 'chat',
+      members: r.members.map((m) => { const ver = m.user.updatedAt ? `?v=${new Date(m.user.updatedAt).getTime()}` : ''; return { id: m.user.id, name: m.user.name, email: m.user.email, avatarUrl: m.user.avatarUrl ? `/users/${m.user.id}/avatar${ver}` : null }; }),
+      lastMessage: null,
+      updatedAt: r.updatedAt,
+    });
+    return res.status(201).json(toRoomResponse(room));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to create room' });
@@ -309,7 +346,7 @@ roomsRouter.get('/:id', async (req, res) => {
     if (!member) return res.status(404).json({ error: 'Room not found' });
     const room = member.room;
     const otherMembers = room.members.filter((m) => m.userId !== req.userId);
-    const displayName = room.name || otherMembers.map((m) => m.user.name).join(', ') || '채팅방';
+    const displayName = room.name || otherMembers.map((m) => m.user?.name ?? '').filter(Boolean).join(', ') || '채팅방';
 
     const readSince = member.lastReadAt ?? member.joinedAt;
     const [unreadRow] = await prisma.$queryRaw`
@@ -324,7 +361,10 @@ roomsRouter.get('/:id', async (req, res) => {
     return res.json({
       id: room.id,
       name: displayName,
+      avatarUrl: room.avatarUrl ? `/rooms/${room.id}/avatar` : null,
+      initials: room.initials || null,
       isGroup: room.isGroup,
+      isTopic: room.isTopic ?? !!(room.description || room.initials),
       viewMode: room.viewMode || 'chat',
       members: room.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
       updatedAt: room.updatedAt,
@@ -334,6 +374,59 @@ roomsRouter.get('/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch room' });
+  }
+});
+
+// Get room avatar image
+roomsRouter.get('/:id/avatar', async (req, res) => {
+  try {
+    const member = await prisma.roomMember.findFirst({
+      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
+      include: { room: { select: { avatarUrl: true } } },
+    });
+    if (!member || !member.room.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
+    const filePath = path.resolve(UPLOAD_DIR, member.room.avatarUrl);
+    return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch avatar' });
+  }
+});
+
+// Upload room avatar (topic/agenda only)
+roomsRouter.post('/:id/avatar', (req, res, next) => {
+  avatarUpload.single('avatar')(req, res, (err) => {
+    if (err) {
+      console.warn('[avatar] multer 에러:', err?.message);
+      const msg = err?.code === 'LIMIT_FILE_SIZE' ? '파일이 너무 큽니다 (최대 10MB)' : (err?.message || '파일 업로드 실패');
+      return res.status(400).json({ error: msg });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: '이미지 파일을 선택해주세요' });
+    const member = await prisma.roomMember.findFirst({
+      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
+      include: { room: { select: { isGroup: true, avatarUrl: true } } },
+    });
+    if (!member) {
+      if (process.env.NODE_ENV !== 'production') console.warn('[avatar] Room not found:', req.params.id);
+      return res.status(404).json({ error: '방을 찾을 수 없습니다. 방에 참가한 상태인지 확인해 주세요.' });
+    }
+    if (!member.room.isGroup) return res.status(400).json({ error: '아젠다/그룹 방만 프로필 사진을 설정할 수 있습니다' });
+
+    await prisma.room.update({
+      where: { id: req.params.id },
+      data: { avatarUrl: req.file.filename },
+    });
+    console.log(`[avatar] Room ${req.params.id} 아바타 저장됨: ${req.file.filename}`);
+    return res.json({ avatarUrl: `/rooms/${req.params.id}/avatar` });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to upload avatar' });
   }
 });
 
@@ -436,16 +529,17 @@ roomsRouter.post('/:id/members', async (req, res) => {
 
     const allMemberIds = [...existingIds, ...newUsers.map((u) => u.id)];
     const allMemberNames = [
-      ...existingMembers.map((m) => m.user.name),
-      ...newUsers.map((u) => u.name),
-    ];
-    const groupName = allMemberNames.join(', ');
+      ...existingMembers.map((m) => m.user?.name ?? ''),
+      ...newUsers.map((u) => u.name ?? ''),
+    ].filter(Boolean);
+    const groupName = allMemberNames.length > 0 ? allMemberNames.join(', ') : '그룹 채팅';
     const invitedNames = newUsers.map((u) => u.name).join(', ');
 
     const newRoom = await prisma.$transaction(async (tx) => {
       const room = await tx.room.create({
         data: {
           isGroup: true,
+          isTopic: false,
           name: groupName,
           isPublic: !!isPublic,
           members: {
@@ -453,7 +547,7 @@ roomsRouter.post('/:id/members', async (req, res) => {
           },
         },
         include: {
-          members: { include: { user: { select: { id: true, name: true, email: true } } } },
+          members: { include: { user: { select: { id: true, name: true, email: true, avatarUrl: true, updatedAt: true } } } },
         },
       });
 
@@ -471,7 +565,7 @@ roomsRouter.post('/:id/members', async (req, res) => {
     const roomWithMsg = await prisma.room.findUnique({
       where: { id: newRoom.id },
       include: {
-        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        members: { include: { user: { select: { id: true, name: true, email: true, avatarUrl: true, updatedAt: true } } } },
         messages: {
           take: 1,
           orderBy: { createdAt: 'desc' },
@@ -500,12 +594,29 @@ roomsRouter.post('/:id/members', async (req, res) => {
       });
     }
 
+    const members = (newRoom.members ?? []).map((m) => {
+      const ver = m.user?.updatedAt ? `?v=${new Date(m.user.updatedAt).getTime()}` : '';
+      return {
+        id: m.user?.id ?? m.userId,
+        name: m.user?.name ?? '',
+        email: m.user?.email ?? '',
+        avatarUrl: m.user?.avatarUrl ? `/users/${m.user.id}/avatar${ver}` : null,
+      };
+    });
     return res.json({
       id: newRoom.id,
       name: groupName,
+      avatarUrl: null,
+      initials: null,
       isGroup: true,
-      members: newRoom.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
+      isTopic: false,
+      viewMode: 'chat',
+      folderId: null,
+      members,
+      lastMessage: null,
       updatedAt: newRoom.updatedAt,
+      unreadCount: 0,
+      isFavorite: false,
     });
   } catch (err) {
     console.error(err);

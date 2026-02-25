@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell, nativeImage } = require('electron');
 const path = require('path');
 
 // Windows: GPU 렌더링 문제로 검은 화면 발생 시 소프트웨어 렌더링 강제
@@ -230,6 +230,7 @@ const preloadPath = path.join(__dirname, 'preload.js');
 const iconPath = path.join(__dirname, '../build/icons/icon.png');
 let tray = null;
 let mainWindow = null;
+let isQuitting = false;
 
 // 창별 show 핸들러 (Map으로 관리, win 객체에 프로퍼티 직접 부착보다 안전)
 const windowReadyHandlers = new Map();
@@ -296,9 +297,10 @@ function createWindow(options = {}) {
   win.once('ready-to-show', showWindow);
 
   // windowReadyHandlers에 등록 (app-ready IPC 핸들러에서 사용)
-  windowReadyHandlers.set(win.webContents.id, showWindow);
+  const webContentsId = win.webContents.id;
+  windowReadyHandlers.set(webContentsId, showWindow);
   win.on('closed', () => {
-    windowReadyHandlers.delete(win.webContents.id);
+    windowReadyHandlers.delete(webContentsId);
   });
 
   // 렌더러 크래시 복구: 한 번만 자동 재로드
@@ -347,8 +349,10 @@ function createWindow(options = {}) {
   if (isMainWindow) {
     mainWindow = win;
     win.on('close', (e) => {
-      e.preventDefault();
-      win.hide();
+      if (!isQuitting) {
+        e.preventDefault();
+        win.hide();
+      }
     });
     win.on('closed', () => {
       if (mainWindow === win) mainWindow = null;
@@ -394,14 +398,26 @@ function openGanttWindow(roomId) {
 }
 
 function broadcastLogout() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
   BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('tray-logout');
+    if (!win.webContents.isDestroyed()) win.webContents.send('tray-logout');
   });
+}
+
+function doQuit() {
+  isQuitting = true;
+  app.quit();
 }
 
 function createTray() {
   if (tray) return;
-  tray = new Tray(iconPath);
+  const img = nativeImage.createFromPath(iconPath);
+  const size = process.platform === 'darwin' ? 22 : 16;
+  const trayIcon = img.isEmpty() ? null : img.resize({ width: size, height: size });
+  tray = new Tray(trayIcon && !trayIcon.isEmpty() ? trayIcon : iconPath);
   tray.setToolTip('EMAX');
   const menu = Menu.buildFromTemplate([
     {
@@ -409,7 +425,7 @@ function createTray() {
       click: () => broadcastLogout(),
     },
     { type: 'separator' },
-    { label: '종료', click: () => app.quit() },
+    { label: '종료', click: () => doQuit() },
   ]);
   tray.setContextMenu(menu);
   tray.on('click', () => {
@@ -488,6 +504,63 @@ ipcMain.handle('open-external', (_, url) => {
   if (url && typeof url === 'string') shell.openExternal(url);
 });
 
+// 설정 화면에서 업데이트 확인/설치용 IPC
+ipcMain.handle('check-for-updates', async () => {
+  if (isDev || !app.isPackaged) {
+    return { success: false, error: '개발 모드에서는 업데이트를 확인할 수 없습니다.' };
+  }
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    const v = result?.updateInfo?.version;
+    const current = app.getVersion();
+    const hasUpdate = v && v !== current;
+    return { success: true, hasUpdate: !!hasUpdate, version: v || null, currentVersion: current };
+  } catch (err) {
+    const msg = err?.message || String(err);
+    return { success: false, error: msg || '업데이트 확인에 실패했습니다.' };
+  }
+});
+
+ipcMain.handle('quit-and-install', () => {
+  if (isDev || !app.isPackaged) return;
+  autoUpdater.quitAndInstall(false, true);
+});
+
+ipcMain.handle('get-app-version', () => app.getVersion());
+
+// CORS 우회: 메인 프로세스에서 아바타 fetch (Electron file:// 환경)
+ipcMain.handle('fetch-room-avatar', async (_, { roomId, baseUrl, token }) => {
+  if (!roomId || !baseUrl || !token) return null;
+  try {
+    const url = `${String(baseUrl).replace(/\/$/, '')}/rooms/${roomId}/avatar`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    const base64 = Buffer.from(buf).toString('base64');
+    const contentType = res.headers.get('content-type') || 'image/png';
+    return `data:${contentType};base64,${base64}`;
+  } catch (e) {
+    console.warn('[fetch-room-avatar]', e?.message);
+    return null;
+  }
+});
+
+ipcMain.handle('fetch-user-avatar', async (_, { userId, baseUrl, token }) => {
+  if (!userId || !baseUrl || !token) return null;
+  try {
+    const url = `${String(baseUrl).replace(/\/$/, '')}/users/${userId}/avatar`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    const base64 = Buffer.from(buf).toString('base64');
+    const contentType = res.headers.get('content-type') || 'image/png';
+    return `data:${contentType};base64,${base64}`;
+  } catch (e) {
+    console.warn('[fetch-user-avatar]', e?.message);
+    return null;
+  }
+});
+
 function setupAutoUpdate() {
   if (isDev || !app.isPackaged) return;
   if (updaterBaseUrl) {
@@ -503,6 +576,10 @@ function setupAutoUpdate() {
   });
   autoUpdater.on('update-downloaded', () => {
     showCustomNotification('EMAX 업데이트 준비됨', '앱을 종료하면 새 버전이 적용됩니다.');
+    // 설정 화면에 "지금 재시작" 버튼 표시를 위해 렌더러에 알림
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+      mainWindow.webContents.send('update-downloaded');
+    }
   });
   autoUpdater.on('error', (err) => {
     console.error('Auto-updater error:', err);
@@ -530,6 +607,11 @@ app.whenReady().then(() => {
   }
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(iconPath);
+    app.dock.setMenu(Menu.buildFromTemplate([
+      { label: '로그아웃', click: () => broadcastLogout() },
+      { type: 'separator' },
+      { label: '종료', click: () => doQuit() },
+    ]));
   }
   createWindow();
   createTray();
@@ -575,9 +657,13 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(menu);
 });
 
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
 app.on('window-all-closed', () => {
   // 메인 창은 닫기 시 hide되므로 destroy되지 않음. 앱은 트레이에서 계속 실행.
-  // 사용자가 트레이 메뉴에서 '종료'를 선택할 때만 app.quit() 호출됨.
+  // 사용자가 트레이/도크 메뉴에서 '종료'를 선택할 때만 app.quit() 호출됨.
 });
 
 app.on('activate', () => {
