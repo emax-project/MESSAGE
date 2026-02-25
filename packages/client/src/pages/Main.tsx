@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, getSocketUrl, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, getSocketUrl, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
 import { ollamaChat, getOllamaConfig, type OllamaMessage } from '../ollama';
 import CreateGroupModal from '../components/CreateGroupModal';
 import FolderManageModal from '../components/FolderManageModal';
@@ -220,7 +220,7 @@ export default function Main() {
     socketRef.current = s;
     s.on('connect_error', (err: { message?: string }) => {
       if (err?.message?.includes('invalid token')) {
-        try { localStorage.setItem('forcedLogoutMessage', '다른 기기에서 로그인되어 로그아웃되었습니다.'); localStorage.removeItem('token'); if (typeof window !== 'undefined') window.location.href = '/login'; } catch { /* ignore */ }
+        try { localStorage.setItem('forcedLogoutMessage', '다른 기기에서 로그인되어 로그아웃되었습니다.'); localStorage.removeItem('token'); if (typeof window !== 'undefined') navigateToLogin(); } catch { /* ignore */ }
       }
     });
     s.on('connect', () => { setSocketConnected(true); if (myIdRef.current) setOnlineUserIds((prev) => new Set([...prev, String(myIdRef.current)])); });

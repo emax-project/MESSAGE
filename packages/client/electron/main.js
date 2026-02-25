@@ -323,7 +323,7 @@ function createWindow(options = {}) {
   });
 
   if (process.argv.includes('--devtools')) {
-    win.webContents.once('did-finish-load', () => win.webContents.openDevTools());
+    win.webContents.once('dom-ready', () => win.webContents.openDevTools());
   }
 
   // 파일 로드 실패 시 화면에 오류 표시

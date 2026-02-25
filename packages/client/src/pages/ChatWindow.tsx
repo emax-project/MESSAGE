@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore } from '../store';
-import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, type Room, type Message, type ReactionGroup, type ReaderInfo, type FileInfo, type User, type PinnedMessageItem } from '../api';
+import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, navigateToLogin, type Room, type Message, type ReactionGroup, type ReaderInfo, type FileInfo, type User, type PinnedMessageItem } from '../api';
 import { ollamaSummarize } from '../ollama';
 import FileMessage from '../components/FileMessage';
 import FileUploadButton from '../components/FileUploadButton';
@@ -223,6 +223,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const myIdRef = useRef<string | undefined>(myId);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
+  const firstUnreadRef = useRef<HTMLDivElement>(null);
+  const initialScrollDoneRef = useRef(false);
+  const prevScrollHeightRef = useRef(0);
+  const prevPageCountRef = useRef(0);
+  const prevMsgCountRef = useRef(0);
   const lastMarkReadRef = useRef<number>(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -265,9 +271,18 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     refetchOnMount: 'always',
   });
 
-  const { data: messagesData } = useQuery({
+  type MessagesPage = { messages: Message[]; nextCursor: string | null; hasMore: boolean };
+
+  const {
+    data: messagesInfinite,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ['rooms', roomId, 'messages'],
-    queryFn: () => (roomId ? roomsApi.messages(roomId) : Promise.resolve({ messages: [], nextCursor: null, hasMore: false })),
+    queryFn: ({ pageParam }) => (roomId ? roomsApi.messages(roomId, pageParam as string | undefined) : Promise.resolve({ messages: [], nextCursor: null, hasMore: false })),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage: MessagesPage) => lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,
     enabled: !!roomId,
   });
   const { data: myEvents = [] } = useQuery({
@@ -275,7 +290,17 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     queryFn: eventsApi.list,
     enabled: !!token && !!shareEventOpen,
   });
-  const messages = messagesData?.messages ?? [];
+  const messages = useMemo(
+    () => (messagesInfinite?.pages ?? []).flatMap((p) => p.messages),
+    [messagesInfinite]
+  );
+
+  const handleLoadMore = () => {
+    if (messagesScrollRef.current) {
+      prevScrollHeightRef.current = messagesScrollRef.current.scrollHeight;
+    }
+    fetchNextPage();
+  };
 
   const viewModeFromListNow = roomId ? roomsList.find((r) => r.id === roomId)?.viewMode : undefined;
   useEffect(() => {
@@ -288,6 +313,35 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     const t = setTimeout(checkAtBottom, 100);
     return () => clearTimeout(t);
   }, [messages.length, roomId]);
+
+  // 스크롤 상단 sentinel - 이전 메시지 로드
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          handleLoadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage]);
+
+  // 이전 페이지 로드 완료 시 스크롤 위치 보정
+  useEffect(() => {
+    const pageCount = messagesInfinite?.pages.length ?? 0;
+    if (pageCount > prevPageCountRef.current && prevPageCountRef.current > 0) {
+      const el = messagesScrollRef.current;
+      if (el) {
+        const diff = el.scrollHeight - prevScrollHeightRef.current;
+        el.scrollTop += diff;
+      }
+    }
+    prevPageCountRef.current = pageCount;
+  }, [messagesInfinite?.pages.length]);
 
   // 채팅창이 열리면 입력 칸에 포커스
   useEffect(() => {
@@ -308,7 +362,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         try {
           localStorage.setItem('forcedLogoutMessage', '다른 기기에서 로그인되어 로그아웃되었습니다.');
           localStorage.removeItem('token');
-          if (typeof window !== 'undefined') window.location.href = '/login';
+          if (typeof window !== 'undefined') navigateToLogin();
         } catch {
           // ignore
         }
@@ -321,12 +375,14 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     s.on('message', (msg: Message) => {
       if (msg.roomId !== roomId) return;
       const withDefaults = { ...msg, readCount: msg.readCount ?? 0, reactions: msg.reactions ?? [], poll: msg.poll ?? null };
-      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>(
+      queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
-          if (!old) return { messages: [withDefaults], nextCursor: null, hasMore: false };
-          if (old.messages.some((m) => m.id === msg.id)) return old;
-          return { ...old, messages: [withDefaults, ...old.messages] };
+          if (!old) return { pages: [{ messages: [withDefaults], nextCursor: null, hasMore: false }], pageParams: [undefined] };
+          const firstPage = old.pages[0];
+          if (firstPage.messages.some((m) => m.id === msg.id)) return old;
+          const updatedFirst = { ...firstPage, messages: [withDefaults, ...firstPage.messages] };
+          return { ...old, pages: [updatedFirst, ...old.pages.slice(1, 5)] };
         }
       );
       queryClient.refetchQueries({ queryKey: ['rooms'] });
@@ -340,46 +396,49 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     });
     s.on('message_updated', (payload: { id: string; roomId: string; content: string; editedAt: string }) => {
       if (payload.roomId !== roomId) return;
-      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>(
+      queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
           if (!old) return old;
-          return { ...old, messages: old.messages.map((m) => m.id === payload.id ? { ...m, content: payload.content, editedAt: payload.editedAt } : m) };
+          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: page.messages.map((m) => m.id === payload.id ? { ...m, content: payload.content, editedAt: payload.editedAt } : m) })) };
         }
       );
     });
     s.on('message_deleted', (payload: { id: string; roomId: string }) => {
       if (payload.roomId !== roomId) return;
-      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>(
+      queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
           if (!old) return old;
-          return { ...old, messages: old.messages.map((m) => m.id === payload.id ? { ...m, content: '[삭제된 메시지]', deletedAt: new Date().toISOString() } : m) };
+          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: page.messages.map((m) => m.id === payload.id ? { ...m, content: '[삭제된 메시지]', deletedAt: new Date().toISOString() } : m) })) };
         }
       );
     });
     s.on('reaction_updated', (payload: { messageId: string; reactions: ReactionGroup[] }) => {
-      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>(
+      queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
           if (!old) return old;
-          return { ...old, messages: old.messages.map((m) => m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m) };
+          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: page.messages.map((m) => m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m) })) };
         }
       );
     });
     s.on('poll_voted', (payload: { messageId?: string; id: string; question: string; isMultiple: boolean; options: Array<{ id: string; text: string; voteCount: number; voterIds: string[] }> }) => {
-      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>(
+      queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
           if (!old) return old;
           return {
             ...old,
-            messages: old.messages.map((m) => {
-              if (m.poll && m.poll.id === payload.id) {
-                return { ...m, poll: { ...m.poll, options: payload.options } };
-              }
-              return m;
-            }),
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((m) => {
+                if (m.poll && m.poll.id === payload.id) {
+                  return { ...m, poll: { ...m.poll, options: payload.options } };
+                }
+                return m;
+              }),
+            })),
           };
         }
       );
@@ -410,15 +469,18 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     s.on('task_deleted', handleProjectEvent);
     s.on('room_read', (payload: { roomId: string; userId: string }) => {
       if (payload.roomId !== roomId || payload.userId === myIdRef.current) return;
-      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>(
+      queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
           if (!old) return old;
           return {
             ...old,
-            messages: old.messages.map((m) =>
-              m.senderId === myIdRef.current ? { ...m, readCount: Math.max(m.readCount ?? 0, 1) } : m
-            ),
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((m) =>
+                m.senderId === myIdRef.current ? { ...m, readCount: Math.max(m.readCount ?? 0, 1) } : m
+              ),
+            })),
           };
         }
       );
@@ -493,17 +555,47 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     };
   }, [roomId]);
 
-  // 채팅 열릴 때/메시지 바뀔 때 맨 끝으로 (스크롤 컨테이너 직접 사용 + 레이아웃/이미지 반영 후 재스크롤)
+  // roomId 변경 시 초기 스크롤 플래그 리셋
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+  }, [roomId]);
+
+  // 채팅 열릴 때: 다읽음→맨끝, 안읽음→첫 안읽은 메시지로 스크롤
   useEffect(() => {
     const el = messagesScrollRef.current;
-    if (!el) return;
-    const run = () => {
-      el.scrollTop = el.scrollHeight;
-    };
-    requestAnimationFrame(run);
-    const t = setTimeout(run, 150);
-    return () => clearTimeout(t);
-  }, [messages]);
+    if (!el || !room) return;
+    const curCount = messages.length;
+    const prevCount = prevMsgCountRef.current;
+    prevMsgCountRef.current = curCount;
+
+    // 이전 메시지 로드(페이지 추가)일 때는 스크롤 금지 - 위 useEffect에서 보정함
+    const pageCount = messagesInfinite?.pages.length ?? 0;
+    if (pageCount > 1 && curCount > prevCount && curCount - prevCount >= 10) return;
+
+    // 초기 로드 시에만 진입 스크롤 (room + messages 준비 후)
+    if (curCount > 0 && !initialScrollDoneRef.current) {
+      initialScrollDoneRef.current = true;
+      const run = () => {
+        if (firstUnreadMessageId && firstUnreadRef.current) {
+          firstUnreadRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+        } else {
+          el.scrollTop = el.scrollHeight;
+        }
+      };
+      requestAnimationFrame(run);
+      const t = setTimeout(run, 250);
+      return () => clearTimeout(t);
+    }
+
+    // 새 메시지 추가 시 맨 아래 있을 때만 자동 스크롤
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_BOTTOM_THRESHOLD;
+    if (atBottom && prevCount > 0) {
+      const run = () => { el.scrollTop = el.scrollHeight; };
+      requestAnimationFrame(run);
+      const t = setTimeout(run, 150);
+      return () => clearTimeout(t);
+    }
+  }, [messages.length, room, firstUnreadMessageId]);
 
   // 요약 표시 시 맨 아래로 스크롤
   useEffect(() => {
@@ -834,6 +926,13 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const hasElectron = !!window.electronAPI;
   const members = (room as Room).members ?? [];
 
+  // 첫 번째 안 읽은 메시지 (lastReadAt 이후, 내가 보낸 것 제외)
+  const lastReadAt = (room as Room).lastReadAt ? new Date((room as Room).lastReadAt!).getTime() : 0;
+  const unreadCount = (room as Room).unreadCount ?? 0;
+  const firstUnreadMessageId = unreadCount > 0 && lastReadAt > 0
+    ? displayMessages.find((m) => m.senderId !== myId && new Date(m.createdAt).getTime() > lastReadAt)?.id
+    : null;
+
   const wrapperStyle: React.CSSProperties = embedded
     ? { flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: isDark ? '#0f172a' : '#fafafa' }
     : s.appWrap(isDark);
@@ -849,6 +948,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           outline: 2px solid rgba(59, 130, 246, 0.8);
           outline-offset: 2px;
           animation: message-bubble-highlight-blink 0.5s ease-in-out 3;
+        }
+        @keyframes unread-divider-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
         }
       `}</style>
       {!embedded && hasElectron && <TitleBar title={room.name} isDark={isDark} />}
@@ -968,6 +1071,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             onScroll={checkAtBottom}
             style={s.messages(isDark)}
           >
+          <div ref={topSentinelRef} style={{ height: 1 }} />
+          {isFetchingNextPage && (
+            <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 13, color: isDark ? '#64748b' : '#94a3b8' }}>
+              이전 메시지 불러오는 중...
+            </div>
+          )}
           {/* ===== 보드뷰: 루트 포스트 + 인라인 댓글 ===== */}
           {isBoardView ? rootPosts.map((m, idx) => {
             const elements: React.ReactNode[] = [];
@@ -1178,6 +1287,18 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               elements.push(
                 <div key={`date-${curDateKey}-${m.id}`} style={s.dateSeparator()}>
                   <span style={s.dateSeparatorText()}>{formatDateLabel(new Date(m.createdAt))}</span>
+                </div>
+              );
+            }
+            // 첫 안 읽은 메시지 위에 "새 메시지" 구분선
+            if (m.id === firstUnreadMessageId) {
+              elements.push(
+                <div
+                  key={`unread-${m.id}`}
+                  ref={firstUnreadRef}
+                  style={s.unreadDivider(isDark)}
+                >
+                  <span style={s.unreadDividerText(isDark)}>새 메시지</span>
                 </div>
               );
             }
@@ -1838,6 +1959,22 @@ const s = {
   }),
   dateSeparator: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }),
   dateSeparatorText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12 }),
+  unreadDivider: (dark: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '10px 16px',
+    margin: '8px 16px',
+    borderLeft: '4px solid #6366f1',
+    background: dark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
+    borderRadius: 8,
+    animation: 'unread-divider-pulse 2s ease-in-out 3',
+  }),
+  unreadDividerText: (dark: boolean): React.CSSProperties => ({
+    fontSize: 12,
+    fontWeight: 600,
+    color: dark ? '#818cf8' : '#6366f1',
+  }),
   systemMessageRow: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 0' }),
   systemMessageText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12, textAlign: 'center' }),
   messageRow: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }),

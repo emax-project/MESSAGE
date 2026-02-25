@@ -69,6 +69,13 @@ export default function App() {
     };
   }, [logout]);
 
+  // Electron: API 401 시 handleForcedLogout이 emax-force-logout 이벤트 발송 → logout() 호출
+  useEffect(() => {
+    const handler = () => logout();
+    window.addEventListener('emax-force-logout', handler);
+    return () => window.removeEventListener('emax-force-logout', handler);
+  }, [logout]);
+
   useEffect(() => {
     try {
       const msg = localStorage.getItem('forcedLogoutMessage');

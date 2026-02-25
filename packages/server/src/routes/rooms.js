@@ -310,6 +310,17 @@ roomsRouter.get('/:id', async (req, res) => {
     const room = member.room;
     const otherMembers = room.members.filter((m) => m.userId !== req.userId);
     const displayName = room.name || otherMembers.map((m) => m.user.name).join(', ') || '채팅방';
+
+    const readSince = member.lastReadAt ?? member.joinedAt;
+    const [unreadRow] = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS "unreadCount"
+      FROM "Message" m
+      WHERE m."roomId" = ${req.params.id} AND m."deletedAt" IS NULL
+        AND m."senderId" != ${req.userId}
+        AND m."createdAt" > ${readSince}
+    `;
+    const unreadCount = unreadRow?.unreadCount ?? 0;
+
     return res.json({
       id: room.id,
       name: displayName,
@@ -317,6 +328,8 @@ roomsRouter.get('/:id', async (req, res) => {
       viewMode: room.viewMode || 'chat',
       members: room.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
       updatedAt: room.updatedAt,
+      lastReadAt: member.lastReadAt ? member.lastReadAt.toISOString() : null,
+      unreadCount,
     });
   } catch (err) {
     console.error(err);

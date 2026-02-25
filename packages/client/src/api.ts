@@ -53,16 +53,30 @@ function mapUploadError(status: number, serverMessage?: string) {
   return '업로드 실패';
 }
 
+const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron');
+
+/** Electron에서는 location.href 대신 이벤트로 처리 (file://C:/login 방지) */
+export function navigateToLogin(): void {
+  if (typeof window === 'undefined') return;
+  if (isElectron) {
+    window.dispatchEvent(new CustomEvent('emax-force-logout'));
+  } else {
+    window.location.href = '/login';
+  }
+}
+
 function handleForcedLogout(path: string, status: number, serverMessage?: string) {
   if (status !== 401) return;
-  if (path.startsWith('/auth/login') || path.startsWith('/auth/register')) return;
+  if (path.startsWith('/auth/login') || path.startsWith('/auth/register') || path.startsWith('/auth/logout')) return;
+  // /auth/me 401: 로그인 직후 서버 타이밍 이슈로 즉시 리다이렉트 방지
+  if (path.startsWith('/auth/me')) return;
   const msg = serverMessage || '다른 기기에서 로그인되어 로그아웃되었습니다.';
   try {
     localStorage.setItem('forcedLogoutMessage', msg);
     localStorage.removeItem('token');
     if (typeof window !== 'undefined') {
       const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/register';
-      if (!isLoginPage) window.location.href = '/login';
+      if (!isLoginPage) navigateToLogin();
     }
   } catch {
     // ignore
@@ -182,6 +196,7 @@ export type Room = {
   lastMessage: { id: string; content: string; createdAt: string; senderName: string } | null;
   updatedAt: string;
   unreadCount?: number;
+  lastReadAt?: string | null;
   avatarUrl?: string;
   isFavorite?: boolean;
 };
