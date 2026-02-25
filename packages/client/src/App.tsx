@@ -1,6 +1,6 @@
 import { useEffect, useState, Component, type ReactNode } from 'react';
 import { useThemeStore } from './store';
-import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { authApi } from './api';
 import Login from './pages/Login';
@@ -10,10 +10,9 @@ import ChatWindow from './pages/ChatWindow';
 import KanbanPage from './pages/KanbanPage';
 import GanttPage from './pages/GanttPage';
 
-// Electron 환경 감지: userAgent에 'Electron' 포함 여부로 판단 (가장 확실한 방법)
-// BrowserRouter는 file:// 환경에서 /login → file://C:/login 로 해석해 ERR_FILE_NOT_FOUND 발생
+// Electron: MemoryRouter 사용 (URL을 전혀 건드리지 않음 → file://C:/login ERR_FILE_NOT_FOUND 근본 차단)
+// HashRouter/BrowserRouter는 file:// 에서 History API 제한으로 전체 페이지 이동 발생
 const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron');
-const Router = isElectron ? HashRouter : BrowserRouter;
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -93,10 +92,16 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
+  const initialPath = typeof window !== 'undefined' && window.location.hash
+    ? window.location.hash.slice(1) || '/'
+    : '/';
+  const routerProps = isElectron ? { initialEntries: [initialPath], initialIndex: 0 } : {};
+  const RouterWrapper = isElectron ? MemoryRouter : BrowserRouter;
+
   return (
     <ErrorBoundary>
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', width: '100%' }}>
-        <Router>
+        <RouterWrapper {...routerProps}>
           <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -148,7 +153,7 @@ export default function App() {
           <span>{forcedLogoutMsg}</span>
         </div>
       )}
-        </Router>
+        </RouterWrapper>
       </div>
     </ErrorBoundary>
   );
