@@ -81,6 +81,27 @@ const avatarUploadHandler = async (req, res) => {
   }
 };
 
+// 방 아바타 조회 (GET) - /api 프리픽스 배포 시에도 동작
+const roomAvatarGetHandler = async (req, res) => {
+  try {
+    const member = await prisma.roomMember.findFirst({
+      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
+      include: { room: { select: { avatarUrl: true } } },
+    });
+    if (!member || !member.room.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
+    const filePath = path.resolve(UPLOAD_DIR, member.room.avatarUrl);
+    return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch avatar' });
+  }
+};
+
+app.get('/rooms/:id/avatar', authMiddleware, roomAvatarGetHandler);
+app.get('/api/rooms/:id/avatar', authMiddleware, roomAvatarGetHandler);
+
 app.post('/rooms/:id/avatar', authMiddleware, avatarUpload.single('avatar'), avatarUploadHandler);
 app.post('/api/rooms/:id/avatar', authMiddleware, avatarUpload.single('avatar'), avatarUploadHandler);
 

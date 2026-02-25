@@ -19,9 +19,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Docker Compose build (no cache)
+        run: docker compose build --no-cache
+
       - name: Docker Compose up
-        run: |
-          docker compose up -d --build
+        run: docker compose up -d
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
