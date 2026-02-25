@@ -10,8 +10,11 @@ import ChatWindow from './pages/ChatWindow';
 import KanbanPage from './pages/KanbanPage';
 import GanttPage from './pages/GanttPage';
 
+// Electron 앱이거나 file:// 프로토콜이면 HashRouter 사용
+// (BrowserRouter는 file:// 에서 /login → file://C:/login 로 해석해 ERR_FILE_NOT_FOUND 발생)
+const isElectron = typeof window !== 'undefined' && !!window.electronAPI;
 const isFileProtocol = typeof window !== 'undefined' && window.location?.protocol === 'file:';
-const Router = isFileProtocol ? HashRouter : BrowserRouter;
+const Router = (isElectron || isFileProtocol) ? HashRouter : BrowserRouter;
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
