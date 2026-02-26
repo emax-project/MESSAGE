@@ -56,7 +56,7 @@ orgRouter.get('/tree', async (req, res) => {
         where: { id: myId },
         select: { id: true, name: true, email: true, statusMessage: true, avatarUrl: true, updatedAt: true },
       });
-      if (me && tree.length > 0 && tree[0].departments.length > 0) {
+      if (me && tree.length > 0 && (tree[0]?.departments?.length ?? 0) > 0) {
         const firstDept = tree[0].departments[0];
         firstDept.users = [...firstDept.users, toUserWithAvatarPath(me)].sort((a, b) => a.name.localeCompare(b.name));
       }

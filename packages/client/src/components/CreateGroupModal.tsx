@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersApi, roomsApi, foldersApi, type User, type Folder, type Room } from '../api';
 import { useAuthStore, useThemeStore } from '../store';
 import UserAvatar from './UserAvatar';
+import AvatarEditModal from './AvatarEditModal';
 
 type Props = {
   mode: 'topic' | 'chat';
@@ -26,6 +27,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
   const [formSnapshot, setFormSnapshot] = useState<{ folderId: string; viewMode: 'chat' | 'board' } | null>(null);
   const [roomAvatarFile, setRoomAvatarFile] = useState<File | null>(null);
   const [roomAvatarPreview, setRoomAvatarPreview] = useState<string | null>(null);
+  const [roomAvatarFileToCrop, setRoomAvatarFileToCrop] = useState<File | null>(null);
   const [roomInitials, setRoomInitials] = useState('');
   const [editingAvatarUserId, setEditingAvatarUserId] = useState<string | null>(null);
   const [customInitials, setCustomInitials] = useState<Record<string, string>>(() => {
@@ -271,25 +273,21 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                       style={{ display: 'none' }}
                       onChange={(e) => {
                         const f = e.target.files?.[0];
-                        if (f) {
-                          setRoomAvatarFile(f);
-                          const url = URL.createObjectURL(f);
-                          setRoomAvatarPreview((prev) => {
-                            if (prev) URL.revokeObjectURL(prev);
-                            return url;
-                          });
+                        if (f && f.type.startsWith('image/')) {
+                          setRoomAvatarFileToCrop(f);
                         }
                         e.target.value = '';
                       }}
                     />
                     {roomAvatarFile ? '사진 변경' : '사진 선택'}
                   </label>
-                  {roomAvatarFile && (
+                  {(roomAvatarFile || roomAvatarFileToCrop) && (
                     <button
                       type="button"
                       style={{ ...st.avatarRemoveBtn, color: '#ef4444' }}
                       onClick={() => {
                         setRoomAvatarFile(null);
+                        setRoomAvatarFileToCrop(null);
                         setRoomAvatarPreview((prev) => {
                           if (prev) URL.revokeObjectURL(prev);
                           return null;
@@ -301,6 +299,20 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                   )}
                 </div>
               </div>
+              {roomAvatarFileToCrop && (
+                <AvatarEditModal
+                  file={roomAvatarFileToCrop}
+                  onClose={() => setRoomAvatarFileToCrop(null)}
+                  onConfirm={async (croppedFile) => {
+                    setRoomAvatarFile(croppedFile);
+                    setRoomAvatarPreview((prev) => {
+                      if (prev) URL.revokeObjectURL(prev);
+                      return URL.createObjectURL(croppedFile);
+                    });
+                    setRoomAvatarFileToCrop(null);
+                  }}
+                />
+              )}
               <p style={st.fieldHint}>
                 {roomAvatarFile ? 'jpg, png, gif, webp (최대 10MB)' : '이니셜은 사진 없을 때 표시됩니다'}
               </p>

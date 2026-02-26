@@ -26,6 +26,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
           <pre style={{ background: '#f1f5f9', padding: 16, borderRadius: 8, overflow: 'auto', fontSize: 13 }}>
             {this.state.error.toString()}
           </pre>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{ marginTop: 16, padding: '10px 20px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}
+          >
+            새로고침
+          </button>
         </div>
       );
     }

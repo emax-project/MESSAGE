@@ -23,9 +23,16 @@ export default function AvatarEditModal({ file, onClose, onConfirm }: Props) {
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
+    if (!file) return;
+    let url = '';
+    try {
+      url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } catch (e) {
+      console.warn('[AvatarEditModal] createObjectURL 실패:', e);
+      setPreviewUrl('');
+    }
+    return () => { if (url) URL.revokeObjectURL(url); };
   }, [file]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -101,7 +108,7 @@ export default function AvatarEditModal({ file, onClose, onConfirm }: Props) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10000,
+        zIndex: 10005,
       }}
       onClick={onClose}
     >
@@ -135,11 +142,12 @@ export default function AvatarEditModal({ file, onClose, onConfirm }: Props) {
           onMouseLeave={handleMouseUp}
           onWheel={handleWheel}
         >
-          {previewUrl && (
+          {previewUrl ? (
             <img
               ref={imgRef}
               src={previewUrl}
               alt="미리보기"
+              onError={() => setError('이미지를 불러올 수 없습니다')}
               style={{
                 position: 'absolute' as const,
                 left: '50%',
@@ -152,6 +160,8 @@ export default function AvatarEditModal({ file, onClose, onConfirm }: Props) {
               }}
               draggable={false}
             />
+          ) : (
+            <span style={{ fontSize: 13, color: muted }}>이미지 로딩 중...</span>
           )}
         </div>
         {error && <p style={{ margin: '0 0 12px', fontSize: 13, color: '#ef4444' }}>{error}</p>}

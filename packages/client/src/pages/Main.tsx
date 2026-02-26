@@ -327,7 +327,7 @@ export default function Main() {
   useEffect(() => { aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [aiMessages, aiLoading]);
   useEffect(() => { if (!contextMenu) return; const close = () => setContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [contextMenu]);
   useEffect(() => { if (!roomContextMenu) return; const close = () => setRoomContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [roomContextMenu]);
-  useEffect(() => { if (statusSyncedRef.current || !myId) return; for (const company of (orgTreeRaw as OrgCompany[])) { for (const dept of company.departments) { const me = dept.users.find((u) => String(u.id) === String(myId)); if (me) { setStatusInput(me.statusMessage || ''); statusSyncedRef.current = true; return; } } } }, [orgTreeRaw, myId]);
+  useEffect(() => { if (statusSyncedRef.current || !myId) return; for (const company of (Array.isArray(orgTreeRaw) ? orgTreeRaw : [])) { for (const dept of (company.departments ?? [])) { const me = (dept.users ?? []).find((u) => String(u.id) === String(myId)); if (me) { setStatusInput(me.statusMessage || ''); statusSyncedRef.current = true; return; } } } }, [orgTreeRaw, myId]);
 
   // Socket
   useEffect(() => {
@@ -713,10 +713,10 @@ export default function Main() {
                     </div>
                   )}
                   {/* Public rooms in topic section */}
-                  {(publicRooms as PublicRoom[]).filter((pr) => !allRooms.some((r) => r.id === pr.id)).length > 0 && (
+                  {(Array.isArray(publicRooms) ? publicRooms : []).filter((pr: PublicRoom) => !allRooms.some((r) => r.id === pr.id)).length > 0 && (
                     <div style={{ padding: '4px 16px 8px' }}>
                       <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af', marginBottom: 4 }}>공개 채널</div>
-                      {(publicRooms as PublicRoom[]).filter((pr) => !allRooms.some((r) => r.id === pr.id)).map((pr) => (
+                      {(Array.isArray(publicRooms) ? publicRooms : []).filter((pr: PublicRoom) => !allRooms.some((r) => r.id === pr.id)).map((pr) => (
                         <div key={pr.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
                           <span style={{ color: isDark ? '#94a3b8' : '#6b7280' }}>{pr.name}</span>
                           <button
@@ -872,11 +872,11 @@ export default function Main() {
               <div style={st.panelWrap}>
                 <div style={st.panelHeader}><h3 style={st.panelTitle}>멘션</h3></div>
                 <div style={st.panelBody}>
-                  {(mentions as MentionItem[]).length === 0 ? (
+                  {(Array.isArray(mentions) ? mentions : []).length === 0 ? (
                     <div style={st.panelEmpty}>대화에서 @멘션 되면 여기에 표시됩니다</div>
                   ) : (
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                      {(mentions as MentionItem[]).map((m) => (
+                      {(Array.isArray(mentions) ? mentions : []).map((m) => (
                         <li
                           key={m.id}
                           style={{ ...st.panelItem, background: !m.readAt ? (isDark ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.04)') : 'transparent' }}
@@ -908,11 +908,11 @@ export default function Main() {
               <div style={st.panelWrap}>
                 <div style={st.panelHeader}><h3 style={st.panelTitle}>북마크</h3></div>
                 <div style={st.panelBody}>
-                  {(bookmarks as Bookmark[]).length === 0 ? (
+                  {(Array.isArray(bookmarks) ? bookmarks : []).length === 0 ? (
                     <div style={st.panelEmpty}>채팅에서 메시지를 북마크하세요</div>
                   ) : (
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                      {(bookmarks as Bookmark[]).map((b) => (
+                      {(Array.isArray(bookmarks) ? bookmarks : []).map((b) => (
                         <li
                           key={b.id} style={st.panelItem} role="button" tabIndex={0}
                           onClick={() => b.message?.room?.id && (setActivePanel('none'), navigate(`/room/${b.message.room.id}`))}

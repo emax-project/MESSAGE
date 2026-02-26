@@ -23,11 +23,12 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
 
   const memberSet = new Set(currentMemberIds);
 
-  // Collect all invitable users
+  // Collect all invitable users (방어: departments, users가 undefined일 수 있음)
   const allUsers: { id: string; name: string }[] = [];
-  orgTree.forEach((c) =>
-    c.departments.forEach((d) =>
-      d.users.forEach((u) => {
+  const safeOrgTree = Array.isArray(orgTree) ? orgTree : [];
+  safeOrgTree.forEach((c) =>
+    (c.departments ?? []).forEach((d) =>
+      (d.users ?? []).forEach((u) => {
         if (!memberSet.has(u.id)) allUsers.push(u);
       })
     )
@@ -43,7 +44,7 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
   };
 
   const toggleDepartment = (dept: OrgCompany['departments'][number]) => {
-    const invitable = dept.users.filter((u) => !memberSet.has(u.id));
+    const invitable = (dept.users ?? []).filter((u) => !memberSet.has(u.id));
     const allSelected = invitable.every((u) => selected.has(u.id));
     setSelected((prev) => {
       const next = new Set(prev);
@@ -115,11 +116,11 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
               </label>
 
               <div style={st.treeWrap}>
-                {orgTree.map((company) => (
+                {safeOrgTree.map((company) => (
                   <div key={company.id} style={st.companyBlock}>
                     <span style={st.companyName}>{company.name}</span>
-                    {company.departments.map((dept) => {
-                      const invitable = dept.users.filter((u) => !memberSet.has(u.id));
+                    {(company.departments ?? []).map((dept) => {
+                      const invitable = (dept.users ?? []).filter((u) => !memberSet.has(u.id));
                       const deptAllChecked = invitable.length > 0 && invitable.every((u) => selected.has(u.id));
                       const deptSomeChecked = invitable.some((u) => selected.has(u.id));
                       return (
@@ -141,7 +142,7 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                             )}
                           </label>
                           <ul style={st.userList}>
-                            {dept.users.map((user) => {
+                            {(dept.users ?? []).map((user) => {
                               const isMember = memberSet.has(user.id);
                               return (
                                 <li key={user.id} style={st.userItem}>

@@ -318,6 +318,7 @@ const chatWindowStyles = {
 const s = chatWindowStyles;
 
 function RightPanelMembers({ members, isDark, onInvite, canInvite = true }: { members: User[]; isDark: boolean; onInvite: () => void; canInvite?: boolean }) {
+  const safeMembers = Array.isArray(members) ? members : [];
   return (
     <>
       {canInvite && (
@@ -346,10 +347,10 @@ function RightPanelMembers({ members, isDark, onInvite, canInvite = true }: { me
         초대하기
       </button>
       )}
-      {members.length === 0 ? (
+      {safeMembers.length === 0 ? (
         <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14 }}>멤버가 없습니다</p>
       ) : (
-        members.map((m) => (
+        safeMembers.map((m) => (
           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, marginBottom: 4, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
             <span style={{ width: 32, height: 32, borderRadius: '50%', background: isDark ? '#475569' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569', flexShrink: 0 }}>
               {m.name?.trim()?.[0]?.toUpperCase() || '?'}
@@ -2106,12 +2107,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         {readersPopup && (
           <div style={{ position: 'fixed', zIndex: 10010, left: readersPopup.x, top: readersPopup.y, background: isDark ? '#334155' : '#fff', borderRadius: 10, boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.15)', border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, minWidth: 180, maxHeight: 240, overflow: 'auto', padding: 8 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b', padding: '6px 10px', borderBottom: `1px solid ${isDark ? '#475569' : '#e2e8f0'}` }}>
-              읽은 사람 ({readersPopup.readers.length})
+              읽은 사람 ({(readersPopup.readers ?? []).length})
             </div>
-            {readersPopup.readers.length === 0 ? (
+            {(readersPopup.readers ?? []).length === 0 ? (
               <div style={{ padding: '12px 10px', fontSize: 13, color: isDark ? '#64748b' : '#999' }}>아직 읽은 사람이 없습니다</div>
             ) : (
-              readersPopup.readers.map((r) => (
+              (readersPopup.readers ?? []).map((r) => (
                 <div key={r.userId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px' }}>
                   <span style={{ width: 24, height: 24, borderRadius: '50%', background: isDark ? '#475569' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569', flexShrink: 0 }}>{r.userName[0]?.toUpperCase()}</span>
                   <span style={{ fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b' }}>{r.userName}</span>
@@ -2143,9 +2144,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 </div>
                 {/* Replies */}
                 <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 10 }}>
-                  답글 {threadOpen.replies.length}개
+                  답글 {(threadOpen.replies ?? []).length}개
                 </div>
-                {threadOpen.replies.map((r) => (
+                {(threadOpen.replies ?? []).map((r) => (
                   <div key={r.id} style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
                     <span style={{ width: 28, height: 28, borderRadius: '50%', background: isDark ? '#475569' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569', flexShrink: 0 }}>
                       {r.sender?.name?.[0]?.toUpperCase() || '?'}
@@ -2159,7 +2160,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                     </div>
                   </div>
                 ))}
-                {threadOpen.replies.length === 0 && (
+                {(threadOpen.replies ?? []).length === 0 && (
                   <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 13, marginTop: 20 }}>아직 답글이 없습니다</p>
                 )}
               </div>

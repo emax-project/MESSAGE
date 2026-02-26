@@ -9,8 +9,9 @@ type Props = {
 
 export default function MentionPopup({ members, query, onSelect }: Props) {
   const isDark = useThemeStore((s) => s.isDark);
-  const filtered = members.filter((m) =>
-    m.name.toLowerCase().includes(query.toLowerCase())
+  const safeMembers = Array.isArray(members) ? members : [];
+  const filtered = safeMembers.filter((m) =>
+    m?.name?.toLowerCase?.().includes(query.toLowerCase())
   );
 
   if (filtered.length === 0) return null;
