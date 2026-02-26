@@ -228,6 +228,8 @@ roomsRouter.post('/topic', async (req, res) => {
         const sockets = await io.in(`user:${uid}`).fetchSockets();
         for (const s of sockets) s.join(newRoom.id);
       }
+      // 초대된 멤버가 방 목록을 즉시 갱신하도록 알림 (아바타 등 포함)
+      io.to(newRoom.id).emit('members_added', { roomId: newRoom.id, newRoom: true });
     }
 
     return res.status(201).json({

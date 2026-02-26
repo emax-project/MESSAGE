@@ -40,6 +40,7 @@ export default function RoomAvatar({ roomId, name, initials, hasAvatar, avatarUr
       doFetch()
         .then((url) => {
           if (cancelled || !url) return;
+          setError(false); // fetch 성공 시 img 태그 onError로 설정된 error 초기화
           if (url.startsWith('data:')) {
             setImgSrc(url);
           } else {

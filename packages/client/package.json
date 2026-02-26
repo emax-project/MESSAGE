@@ -1,6 +1,6 @@
 {
   "name": "client",
-  "version": "1.2.18",
+  "version": "1.2.19",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -68,7 +68,8 @@
     "mac": {
       "category": "public.app-category.social",
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "icon": "build/icons/icon.icns"
     },
