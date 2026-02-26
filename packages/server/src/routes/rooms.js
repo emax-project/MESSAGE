@@ -108,7 +108,7 @@ roomsRouter.get('/', async (req, res) => {
       return {
         id: m.room.id,
         name: displayName,
-        avatarUrl: m.room.avatarUrl ? `/rooms/${m.room.id}/avatar` : null,
+        avatarUrl: m.room.avatarUrl ? `/rooms/${m.room.id}/avatar?v=${new Date(m.room.updatedAt).getTime()}` : null,
         initials: m.room.initials || null,
         isGroup: m.room.isGroup,
         isTopic: m.room.isTopic ?? !!(m.room.description || m.room.initials),
@@ -233,7 +233,7 @@ roomsRouter.post('/topic', async (req, res) => {
     return res.status(201).json({
       id: newRoom.id,
       name: newRoom.name,
-      avatarUrl: newRoom.avatarUrl ? `/rooms/${newRoom.id}/avatar` : null,
+      avatarUrl: newRoom.avatarUrl ? `/rooms/${newRoom.id}/avatar?v=${new Date(newRoom.updatedAt).getTime()}` : null,
       initials: newRoom.initials || null,
       description: newRoom.description,
       viewMode: newRoom.viewMode,
@@ -286,7 +286,7 @@ roomsRouter.post('/', async (req, res) => {
       const toRoomResponse = (r) => ({
         id: r.id,
         name: r.name || r.members.map((m) => m.user.name).filter(Boolean).join(', ') || '채팅방',
-        avatarUrl: r.avatarUrl ? `/rooms/${r.id}/avatar` : null,
+        avatarUrl: r.avatarUrl ? `/rooms/${r.id}/avatar?v=${new Date(r.updatedAt).getTime()}` : null,
         initials: r.initials || null,
         isGroup: r.isGroup,
         isTopic: r.isTopic ?? false,
@@ -312,7 +312,7 @@ roomsRouter.post('/', async (req, res) => {
     const toRoomResponse = (r) => ({
       id: r.id,
       name: r.name || r.members.map((m) => m.user.name).filter(Boolean).join(', ') || '채팅방',
-      avatarUrl: r.avatarUrl ? `/rooms/${r.id}/avatar` : null,
+      avatarUrl: r.avatarUrl ? `/rooms/${r.id}/avatar?v=${new Date(r.updatedAt).getTime()}` : null,
       initials: r.initials || null,
       isGroup: r.isGroup,
       isTopic: r.isTopic ?? false,
@@ -362,7 +362,7 @@ roomsRouter.get('/:id', async (req, res) => {
     return res.json({
       id: room.id,
       name: displayName,
-      avatarUrl: room.avatarUrl ? `/rooms/${room.id}/avatar` : null,
+      avatarUrl: room.avatarUrl ? `/rooms/${room.id}/avatar?v=${new Date(room.updatedAt).getTime()}` : null,
       initials: room.initials || null,
       isGroup: room.isGroup,
       isTopic: room.isTopic ?? !!(room.description || room.initials),
@@ -428,6 +428,17 @@ roomsRouter.post('/:id/avatar', (req, res, next) => {
       data: { avatarUrl: req.file.filename },
     });
     console.log(`[avatar] Room ${req.params.id} 아바타 저장됨: ${req.file.filename}`);
+    const io = req.app.get('io');
+    if (io) {
+      const members = await prisma.roomMember.findMany({
+        where: { roomId: req.params.id, leftAt: null },
+        select: { userId: true },
+      });
+      const payload = { roomId: req.params.id };
+      for (const m of members) {
+        io.to(`user:${m.userId}`).emit('room_avatar_updated', payload);
+      }
+    }
     return res.json({ avatarUrl: `/rooms/${req.params.id}/avatar` });
   } catch (err) {
     console.error(err);

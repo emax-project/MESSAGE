@@ -27,13 +27,15 @@ export default function RoomAvatar({ roomId, name, initials, hasAvatar, avatarUr
 
   useEffect(() => {
     if (!hasAvatar) return;
+    setError(false);
     let cancelled = false;
+    const cacheBuster = avatarUrlPath?.includes('?v=') ? avatarUrlPath.split('?v=')[1]?.split('&')[0] : undefined;
     const fetchAvatar = (retry = 0) => {
       const doFetch = () => {
         if (window.electronAPI?.fetchRoomAvatar && base && token) {
-          return window.electronAPI.fetchRoomAvatar(roomId, base, token);
+          return window.electronAPI.fetchRoomAvatar(roomId, base, token, cacheBuster);
         }
-        return roomsApi.fetchRoomAvatarBlob(roomId).then((blob) => URL.createObjectURL(blob));
+        return roomsApi.fetchRoomAvatarBlob(roomId, cacheBuster).then((blob) => URL.createObjectURL(blob));
       };
       doFetch()
         .then((url) => {
@@ -60,7 +62,7 @@ export default function RoomAvatar({ roomId, name, initials, hasAvatar, avatarUr
         blobUrlRef.current = null;
       }
     };
-  }, [roomId, hasAvatar, token, base]);
+  }, [roomId, hasAvatar, token, base, avatarUrlPath]);
 
   // directImgSrc 사용 시 img로 바로 표시 (인증 쿠키/헤더가 포함된 요청은 fetch 필요)
   if (hasAvatar && directImgSrc && !imgSrc && !error) {

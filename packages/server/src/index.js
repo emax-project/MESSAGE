@@ -74,6 +74,17 @@ const avatarUploadHandler = async (req, res) => {
       data: { avatarUrl: req.file.filename },
     });
     console.log('[avatar] Room', req.params.id, '아바타 저장됨:', req.file.filename);
+    const io = req.app.get('io');
+    if (io) {
+      const members = await prisma.roomMember.findMany({
+        where: { roomId: req.params.id, leftAt: null },
+        select: { userId: true },
+      });
+      const payload = { roomId: req.params.id };
+      for (const m of members) {
+        io.to(`user:${m.userId}`).emit('room_avatar_updated', payload);
+      }
+    }
     return res.json({ avatarUrl: `/rooms/${req.params.id}/avatar` });
   } catch (err) {
     console.error(err);

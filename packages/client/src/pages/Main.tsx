@@ -434,6 +434,10 @@ export default function Main() {
       });
       if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
     });
+    s.on('room_avatar_updated', (_payload: { roomId: string }) => {
+      const uid = myIdRef.current;
+      if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
+    });
     s.on('online_list', (payload: { userIds?: string[] }) => { setOnlineUserIds(new Set((payload.userIds || []).map((id) => String(id)))); });
     s.on('user_online', (payload: { userId?: string; userName?: string | null }) => {
       if (payload.userId) setOnlineUserIds((prev) => new Set([...prev, String(payload.userId)]));

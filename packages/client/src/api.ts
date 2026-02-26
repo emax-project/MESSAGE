@@ -427,10 +427,11 @@ export const roomsApi = {
     formData.append('avatar', file);
     return api.upload(`/rooms/${roomId}/avatar`, formData) as Promise<{ avatarUrl: string }>;
   },
-  fetchRoomAvatarBlob(roomId: string): Promise<Blob> {
+  fetchRoomAvatarBlob(roomId: string, cacheBuster?: string): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const base = getBaseUrl();
-      const url = base ? `${base.replace(/\/$/, '')}/rooms/${roomId}/avatar` : `/rooms/${roomId}/avatar`;
+      const qs = cacheBuster ? `?v=${cacheBuster}` : '';
+      const url = base ? `${base.replace(/\/$/, '')}/rooms/${roomId}/avatar${qs}` : `/rooms/${roomId}/avatar${qs}`;
       const xhr = new XMLHttpRequest();
       xhr.open('GET', url);
       const t = getToken();

@@ -583,10 +583,11 @@ ipcMain.handle('quit-and-install', () => {
 ipcMain.handle('get-app-version', () => app.getVersion());
 
 // CORS 우회: 메인 프로세스에서 아바타 fetch (Electron file:// 환경)
-ipcMain.handle('fetch-room-avatar', async (_, { roomId, baseUrl, token }) => {
+ipcMain.handle('fetch-room-avatar', async (_, { roomId, baseUrl, token, cacheBuster }) => {
   if (!roomId || !baseUrl || !token) return null;
   try {
-    const url = `${String(baseUrl).replace(/\/$/, '')}/rooms/${roomId}/avatar`;
+    const qs = cacheBuster ? `?v=${cacheBuster}` : '';
+    const url = `${String(baseUrl).replace(/\/$/, '')}/rooms/${roomId}/avatar${qs}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return null;
     const buf = await res.arrayBuffer();
