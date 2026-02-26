@@ -200,6 +200,8 @@ export type Room = {
   viewMode?: 'chat' | 'board';
   /** 폴더 ID (사용자별로 RoomMember.folderId) */
   folderId?: string | null;
+  /** 아젠다 생성자 ID (방 설정 권한) */
+  createdBy?: string | null;
   members: User[];
   lastMessage: { id: string; content: string; createdAt: string; senderName: string } | null;
   updatedAt: string;

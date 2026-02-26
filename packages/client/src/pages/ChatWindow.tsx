@@ -3,11 +3,12 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore } from '../store';
-import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, navigateToLogin, type Room, type Message, type ReactionGroup, type ReaderInfo, type FileInfo, type User, type PinnedMessageItem } from '../api';
+import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, getBaseUrl, navigateToLogin, type Room, type Message, type ReactionGroup, type ReaderInfo, type FileInfo, type User, type PinnedMessageItem } from '../api';
 import { ollamaSummarize } from '../ollama';
 import FileMessage from '../components/FileMessage';
 import FileUploadButton from '../components/FileUploadButton';
 import InviteModal from '../components/InviteModal';
+import RoomSettingsModal from '../components/RoomSettingsModal';
 import EventCard from '../components/EventCard';
 import PollCard from '../components/PollCard';
 import PollCreateModal from '../components/PollCreateModal';
@@ -77,7 +78,7 @@ const chatWindowStyles = {
     justifyContent: 'center',
     padding: '10px 16px',
     margin: '8px 16px',
-    borderLeft: '4px solid #6366f1',
+    borderLeft: '4px solid #171717',
     background: dark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
     borderRadius: 8,
     animation: 'unread-divider-pulse 2s ease-in-out 3',
@@ -85,7 +86,7 @@ const chatWindowStyles = {
   unreadDividerText: (dark: boolean): React.CSSProperties => ({
     fontSize: 12,
     fontWeight: 600,
-    color: dark ? '#818cf8' : '#6366f1',
+    color: dark ? '#404040' : '#171717',
   }),
   systemMessageRow: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 0' }),
   systemMessageText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12, textAlign: 'center' }),
@@ -316,9 +317,10 @@ const chatWindowStyles = {
 
 const s = chatWindowStyles;
 
-function RightPanelMembers({ members, isDark, onInvite }: { members: User[]; isDark: boolean; onInvite: () => void }) {
+function RightPanelMembers({ members, isDark, onInvite, canInvite = true }: { members: User[]; isDark: boolean; onInvite: () => void; canInvite?: boolean }) {
   return (
     <>
+      {canInvite && (
       <button
         type="button"
         onClick={onInvite}
@@ -343,6 +345,7 @@ function RightPanelMembers({ members, isDark, onInvite }: { members: User[]; isD
         </svg>
         초대하기
       </button>
+      )}
       {members.length === 0 ? (
         <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14 }}>멤버가 없습니다</p>
       ) : (
@@ -488,6 +491,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const [threadOpen, setThreadOpen] = useState<{ parentId: string; parent: Message; replies: Message[] } | null>(null);
   const [fileDrawerData, setFileDrawerData] = useState<FileInfo[]>([]);
   const [rightPanel, setRightPanel] = useState<'none' | 'file' | 'members' | 'pins'>('none');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => {
+    setRightPanel('none');
+  }, [roomId]);
   const [boardCommentInputs, setBoardCommentInputs] = useState<Record<string, string>>({});
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryText, setSummaryText] = useState('');
@@ -664,6 +671,56 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         if (now - lastMarkReadRef.current > 1000) {
           lastMarkReadRef.current = now;
           roomsApi.markRead(roomId).catch(() => {});
+        }
+        // 별도 채팅 창: 창이 백그라운드일 때 알림 표시 (Main에 소켓이 없을 수 있음)
+        if (!embedded && typeof document !== 'undefined' && document.hidden) {
+          try {
+            const snoozed = Number(localStorage.getItem('notificationsSnoozedUntil') || 0);
+            const mutedRaw = localStorage.getItem('mutedRoomIds');
+            const muted = mutedRaw ? new Set(JSON.parse(mutedRaw).map(String)) : new Set();
+            if (snoozed > Date.now() || muted.has(String(msg.roomId))) return;
+            const title = msg.sender?.name ?? '알 수 없음';
+            const body = msg.fileUrl && msg.fileName ? msg.fileName : msg.content;
+            if (window.electronAPI?.showNotification) {
+              (async () => {
+                try {
+                  let icon: string | null = null;
+                  let imagePreview: string | null = null;
+                  if (msg.senderId && token) {
+                    try {
+                      const base = getBaseUrl();
+                      if (window.electronAPI.fetchUserAvatar && base) {
+                        icon = await Promise.race([
+                          window.electronAPI.fetchUserAvatar(msg.senderId, base, token),
+                          new Promise<null>((r) => setTimeout(() => r(null), 250)),
+                        ]);
+                      }
+                    } catch { /* ignore */ }
+                  }
+                  if (msg.fileUrl && msg.fileMimeType?.startsWith('image/')) {
+                    try {
+                      const blob = await Promise.race([
+                        filesApi.fetchBlob(msg.id),
+                        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 400)),
+                      ]);
+                      imagePreview = await new Promise<string>((resolve, reject) => {
+                        const r = new FileReader();
+                        r.onload = () => resolve(r.result as string);
+                        r.onerror = () => reject(new Error('read failed'));
+                        r.readAsDataURL(blob);
+                      });
+                      if (imagePreview.length > 80 * 1024) imagePreview = null;
+                    } catch { /* ignore */ }
+                  }
+                  window.electronAPI.showNotification(title, body, msg.roomId, icon, imagePreview);
+                } catch {
+                  window.electronAPI.showNotification(title, body, msg.roomId);
+                }
+              })();
+            } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+              new Notification(title, { body });
+            }
+          } catch { /* ignore */ }
         }
       }
     });
@@ -877,15 +934,17 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       return () => clearTimeout(t);
     }
 
-    // 새 메시지 추가 시 맨 아래 있을 때만 자동 스크롤
+    // 새 메시지 추가 시: 맨 아래에 있거나, 내가 보낸 메시지면 맨 끝으로 스크롤
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_BOTTOM_THRESHOLD;
-    if (atBottom && prevCount > 0) {
+    const newestIsMine = messages[0]?.senderId === myId;
+    const shouldScroll = (atBottom || newestIsMine) && prevCount > 0;
+    if (shouldScroll) {
       const run = () => { el.scrollTop = el.scrollHeight; };
       requestAnimationFrame(run);
       const t = setTimeout(run, 150);
       return () => clearTimeout(t);
     }
-  }, [messages.length, room, firstUnreadMessageId]);
+  }, [messages.length, room, firstUnreadMessageId, messages, myId]);
 
   // 요약 표시 시 맨 아래로 스크롤
   useEffect(() => {
@@ -1215,6 +1274,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const displayMessages = displayMessagesForScroll;
   const hasElectron = !!window.electronAPI;
   const members = room?.members ?? [];
+  const isCreator = !!(room?.isTopic && room?.createdBy && room.createdBy === myId);
+  const canInvite = !room?.isTopic || isCreator;
 
   const wrapperStyle: React.CSSProperties = embedded
     ? { flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: isDark ? '#0f172a' : '#fafafa' }
@@ -1288,16 +1349,20 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 <rect x="3" y="3" width="7" height="18" rx="1" /><rect x="14" y="3" width="7" height="10" rx="1" />
               </svg>
             </button>
-            <button type="button" style={s.headerIconBtn(isDark)} onClick={handleOpenFileDrawer} title="파일함">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-              </svg>
-            </button>
+            {isCreator && (
+              <button type="button" style={s.headerIconBtn(isDark)} onClick={() => setSettingsOpen(true)} title="방 설정">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
+                </svg>
+              </button>
+            )}
+            {canInvite && (
             <button type="button" style={s.headerIconBtn(isDark)} onClick={() => setInviteOpen(true)} title="멤버 초대">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
               </svg>
             </button>
+            )}
           </div>
         </header>
 
@@ -1342,6 +1407,18 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               } else {
                 window.open(`${window.location.origin}/chat/${newRoomId}`, '_blank', 'width=480,height=680');
               }
+            }}
+          />
+        )}
+
+        {settingsOpen && room && (
+          <RoomSettingsModal
+            room={room}
+            onClose={() => setSettingsOpen(false)}
+            onUpdated={() => {
+              queryClient.invalidateQueries({ queryKey: ['rooms'] });
+              queryClient.invalidateQueries({ queryKey: ['rooms', roomId] });
+              setSettingsOpen(false);
             }}
           />
         )}
@@ -1765,7 +1842,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               <div style={s.senderLabel(isDark)}>AI 요약</div>
               <div style={s.messageRowInner()}>
                 <div style={s.avatarWrap()} aria-hidden>
-                  <span style={{ ...s.avatarCircle(isDark), background: isDark ? '#6366f1' : '#4f46e5', color: '#fff' }}>AI</span>
+                  <span style={{ ...s.avatarCircle(isDark), background: isDark ? '#171717' : '#171717', color: '#fff' }}>AI</span>
                 </div>
                 <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
                   <div
@@ -2094,7 +2171,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           style={{
             display: 'flex',
             flexShrink: 0,
-            width: rightPanel ? RIGHT_SIDEBAR_ICON_WIDTH + RIGHT_SIDEBAR_PANEL_WIDTH : RIGHT_SIDEBAR_ICON_WIDTH,
+            width: rightPanel !== 'none' ? RIGHT_SIDEBAR_ICON_WIDTH + RIGHT_SIDEBAR_PANEL_WIDTH : RIGHT_SIDEBAR_ICON_WIDTH,
             borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
             background: isDark ? '#1e293b' : '#fff',
             transition: 'width 0.2s ease',
@@ -2165,7 +2242,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               </svg>
             </button>
           </div>
-          {rightPanel && (
+          {rightPanel !== 'none' && (
             <div style={{ width: 280, display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' }}>
@@ -2173,7 +2250,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                   {rightPanel === 'members' && '멤버'}
                   {rightPanel === 'pins' && '고정 메시지'}
                 </span>
-                <button type="button" onClick={() => setRightPanel('none')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: isDark ? '#94a3b8' : '#666', padding: 4 }}>×</button>
+                <button
+                  type="button"
+                  aria-label="패널 닫기"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); setRightPanel('none'); }}
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 20, color: isDark ? '#94a3b8' : '#666', padding: 8, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}
+                >×</button>
               </div>
               <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
                 {rightPanel === 'file' && (
@@ -2203,7 +2285,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                     )}
                   </>
                 )}
-                {rightPanel === 'members' && <RightPanelMembers members={members} isDark={isDark} onInvite={() => setInviteOpen(true)} />}
+                {rightPanel === 'members' && <RightPanelMembers members={members} isDark={isDark} onInvite={() => setInviteOpen(true)} canInvite={canInvite} />}
                 {rightPanel === 'pins' && <RightPanelPins roomId={roomId!} isDark={isDark} />}
               </div>
             </div>

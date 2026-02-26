@@ -131,18 +131,10 @@ export default function FileMessage({ message }: Props) {
   const [previewError, setPreviewError] = useState(false);
   const isDark = useThemeStore((s) => s.isDark);
 
-  if (!fileUrl) {
-    return <span style={{ fontSize: 13, color: isDark ? '#64748b' : '#999', fontStyle: 'italic' }}>파일이 만료되었습니다</span>;
-  }
-
-  const expiresAt = fileExpiresAt ? new Date(fileExpiresAt) : null;
-  const isExpiringSoon =
-    expiresAt && expiresAt.getTime() - Date.now() < 24 * 60 * 60 * 1000;
-
   useEffect(() => {
     let active = true;
     let objectUrl: string | null = null;
-    if (isImageMime(fileMimeType)) {
+    if (fileUrl && isImageMime(fileMimeType)) {
       filesApi.fetchBlob(id).then((blob) => {
         if (!active) return;
         objectUrl = URL.createObjectURL(blob);
@@ -155,7 +147,15 @@ export default function FileMessage({ message }: Props) {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [id, fileMimeType]);
+  }, [id, fileMimeType, fileUrl]);
+
+  if (!fileUrl) {
+    return <span style={{ fontSize: 13, color: isDark ? '#64748b' : '#999', fontStyle: 'italic' }}>파일이 만료되었습니다</span>;
+  }
+
+  const expiresAt = fileExpiresAt ? new Date(fileExpiresAt) : null;
+  const isExpiringSoon =
+    expiresAt && expiresAt.getTime() - Date.now() < 24 * 60 * 60 * 1000;
 
   const handleDownload = async () => {
     try {

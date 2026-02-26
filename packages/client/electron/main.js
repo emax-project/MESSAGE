@@ -28,7 +28,7 @@ function escapeHtml(str) {
     .replace(/\n/g, '<br>');
 }
 
-function getNotificationHTML(title, body, progressPercent, hasRoomId) {
+function getNotificationHTML(title, body, progressPercent, hasRoomId, iconDataUrl, imagePreviewDataUrl) {
   const t = escapeHtml(title);
   const b = escapeHtml(body);
   const showProgress = typeof progressPercent === 'number';
@@ -42,6 +42,12 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId) {
     : '';
   const clickHint = hasRoomId && !showProgress
     ? `<div class="toast-hint">클릭하여 채팅방으로 이동</div>`
+    : '';
+  const iconHtml = iconDataUrl && typeof iconDataUrl === 'string' && iconDataUrl.startsWith('data:')
+    ? `<img src="${iconDataUrl.replace(/"/g, '&quot;')}" alt="" class="toast-avatar" />`
+    : '';
+  const imagePreviewHtml = imagePreviewDataUrl && typeof imagePreviewDataUrl === 'string' && imagePreviewDataUrl.startsWith('data:')
+    ? `<img src="${imagePreviewDataUrl.replace(/"/g, '&quot;')}" alt="" class="toast-preview" />`
     : '';
   return `<!DOCTYPE html>
 <html>
@@ -74,13 +80,52 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId) {
     }
     .toast:hover {
       background: linear-gradient(145deg, #f0f4ff 0%, #e8eeff 100%);
-      border-color: rgba(99,102,241,0.2);
+      border-color: rgba(23,23,23,0.15);
     }
     .toast-brand {
       font-size: 11px;
       font-weight: 700;
-      color: #6366f1;
+      color: #171717;
       letter-spacing: 0.02em;
+    }
+    .toast-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .toast-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 0 1 auto;
+    }
+    .toast-right {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+      margin-left: auto;
+      text-align: right;
+    }
+    .toast-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .toast-preview {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      margin-left: auto;
     }
     .toast-title {
       font-size: 14px;
@@ -90,6 +135,7 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId) {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      min-width: 0;
     }
     .toast-body {
       font-size: 12px;
@@ -101,7 +147,7 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId) {
     }
     .toast-hint {
       font-size: 11px;
-      color: #6366f1;
+      color: #171717;
       margin-top: 2px;
       opacity: 0.8;
     }
@@ -114,7 +160,7 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId) {
     }
     .progress-bar {
       height: 100%;
-      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      background: linear-gradient(90deg, #171717, #262626);
       border-radius: 3px;
       transition: width 0.2s ease;
     }
@@ -129,8 +175,13 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId) {
 <body>
   <div class="toast">
     <span class="toast-brand">EMAX</span>
-    <div class="toast-title">${t}</div>
-    <div class="toast-body">${b}</div>
+    <div class="toast-row">
+      <div class="toast-left">
+        ${iconHtml}
+        <div class="toast-title">${t}</div>
+      </div>
+      ${imagePreviewHtml || (b ? `<div class="toast-right" title="${b.replace(/"/g, '&quot;')}">${b}</div>` : '')}
+    </div>
     ${clickHint}
     ${progressBlock}
   </div>
@@ -150,6 +201,8 @@ function showCustomNotification(title, body, options) {
   const progress = opts.progress;
   const showProgressBar = typeof progress === 'number';
   const roomId = opts.roomId || null;
+  const icon = opts.icon || null;
+  const imagePreview = opts.imagePreview || null;
 
   if (customNotifWin && !customNotifWin.isDestroyed()) {
     customNotifWin.close();
@@ -185,7 +238,7 @@ function showCustomNotification(title, body, options) {
   });
 
   win.setMenu(null);
-  win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(getNotificationHTML(title, body, progress, !!roomId)));
+  win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(getNotificationHTML(title, body, progress, !!roomId, icon, imagePreview)));
   win.once('ready-to-show', () => {
     win.show();
   });
@@ -480,8 +533,8 @@ ipcMain.on('app-ready', (event) => {
   if (showFn) showFn();
 });
 
-ipcMain.handle('show-notification', (_, { title, body, roomId }) => {
-  showCustomNotification(title || 'EMAX', body || '', { roomId: roomId || null });
+ipcMain.handle('show-notification', (_, { title, body, roomId, icon, imagePreview }) => {
+  showCustomNotification(title || 'EMAX', body || '', { roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null });
 });
 
 ipcMain.on('notification-clicked', () => {

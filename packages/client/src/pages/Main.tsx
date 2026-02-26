@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, getSocketUrl, authApi, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, filesApi, getSocketUrl, getBaseUrl, authApi, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
 import { ollamaChat, getOllamaConfig, type OllamaMessage } from '../ollama';
 import CreateGroupModal from '../components/CreateGroupModal';
 import FolderManageModal from '../components/FolderManageModal';
@@ -375,9 +375,45 @@ export default function Main() {
         } catch { /* ignore */ }
         const senderName = msg.sender?.name ?? '알 수 없음';
         const title = senderName;
-        const body = msg.content;
-        if (window.electronAPI?.showNotification) {
-          window.electronAPI.showNotification(title, body, msg.roomId);
+        const body = msg.fileUrl && msg.fileName ? msg.fileName : msg.content;
+        const electronAPI = window.electronAPI;
+        if (electronAPI?.showNotification) {
+          (async () => {
+            let icon: string | null = null;
+            let imagePreview: string | null = null;
+            const senderId = msg.senderId;
+            if (senderId && token) {
+              try {
+                const base = getBaseUrl();
+                if (electronAPI.fetchUserAvatar && base) {
+                  icon = await Promise.race([
+                    electronAPI.fetchUserAvatar(senderId, base, token),
+                    new Promise<null>((r) => setTimeout(() => r(null), 250)),
+                  ]);
+                }
+              } catch { /* ignore */ }
+            }
+            if (msg.fileUrl && msg.fileMimeType?.startsWith('image/')) {
+              try {
+                const blob = await Promise.race([
+                  filesApi.fetchBlob(msg.id),
+                  new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 400)),
+                ]);
+                imagePreview = await new Promise<string>((resolve, reject) => {
+                  const r = new FileReader();
+                  r.onload = () => resolve(r.result as string);
+                  r.onerror = () => reject(new Error('read failed'));
+                  r.readAsDataURL(blob);
+                });
+                if (imagePreview.length > 80 * 1024) imagePreview = null;
+              } catch { /* ignore */ }
+            }
+            try {
+              electronAPI.showNotification(title, body, msg.roomId, icon, imagePreview);
+            } catch {
+              electronAPI.showNotification(title, body, msg.roomId);
+            }
+          })();
         } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           if (typeof document !== 'undefined' && document.hidden) new Notification(title, { body });
         }
@@ -810,7 +846,7 @@ export default function Main() {
           {/* Content Area */}
           <div style={st.contentArea}>
             {selectedRoomId && activePanel === 'none' ? (
-              <ChatWindow embedded onOpenInNewWindow={() => { openChatWindow(selectedRoomId); navigate('/'); }} />
+              <ChatWindow key={selectedRoomId} embedded onOpenInNewWindow={() => { openChatWindow(selectedRoomId); navigate('/'); }} />
             ) : (
               <>
                 {activePanel === 'none' && (
@@ -844,7 +880,7 @@ export default function Main() {
                             if (m.message?.room?.id) { setActivePanel('none'); navigate(`/room/${m.message.room.id}`); }
                           }}
                         >
-                          {!m.readAt && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#6366f1', flexShrink: 0 }} />}
+                          {!m.readAt && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#171717', flexShrink: 0 }} />}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                               <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>{m.message?.sender?.name || '알 수 없음'}</span>
@@ -1015,7 +1051,7 @@ export default function Main() {
                               ...(isToday ? { boxShadow: 'inset 0 0 0 2px #94a3b8' } : {}),
                             }}>
                               <span style={{ fontSize: 12, fontWeight: 700 }}>{day}</span>
-                              {list.length > 0 && <span style={{ fontSize: 8, fontWeight: 700, background: isDark ? '#6366f1' : '#0f172a', color: '#fff', borderRadius: 8, padding: '0px 3px' }}>{list.length}</span>}
+                              {list.length > 0 && <span style={{ fontSize: 8, fontWeight: 700, background: isDark ? '#171717' : '#0f172a', color: '#fff', borderRadius: 8, padding: '0px 3px' }}>{list.length}</span>}
                             </button>
                           );
                         }
@@ -1193,7 +1229,7 @@ export default function Main() {
                       <div style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>{user?.email}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
-                      <label style={{ padding: '10px 18px', borderRadius: 10, background: isDark ? '#475569' : '#6366f1', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      <label style={{ padding: '10px 18px', borderRadius: 10, background: isDark ? '#475569' : '#171717', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                         사진 변경
                         <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) setAvatarEditFile(f); e.target.value = ''; }} />
                       </label>
@@ -1204,7 +1240,7 @@ export default function Main() {
                       )}
                     </div>
                   </div>
-                  {notificationsSnoozedUntil > Date.now() && <div style={{ padding: '6px 10px', borderRadius: 999, background: isDark ? '#6366f1' : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' }}>알림 일시 중지 중</div>}
+                  {notificationsSnoozedUntil > Date.now() && <div style={{ padding: '6px 10px', borderRadius: 999, background: isDark ? '#171717' : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' }}>알림 일시 중지 중</div>}
                   <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>알림 일시 중지</div>
                     {notificationsSnoozedUntil > Date.now() ? (
@@ -1221,7 +1257,7 @@ export default function Main() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
                     <span style={{ fontSize: 14, fontWeight: 500, color: isDark ? '#e2e8f0' : '#333' }}>다크 모드</span>
-                    <button type="button" onClick={toggleDark} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: isDark ? '#6366f1' : '#e5e7eb', cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
+                    <button type="button" onClick={toggleDark} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: isDark ? '#171717' : '#e5e7eb', cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
                       <span style={{ position: 'absolute' as const, top: 3, left: isDark ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
                     </button>
                   </div>
@@ -1262,16 +1298,16 @@ export default function Main() {
                             style={{
                               display: 'flex', alignItems: 'center', gap: 10,
                               padding: '8px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                              background: isSelected ? (isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.08)') : 'transparent',
+                              background: isSelected ? (isDark ? 'rgba(23,23,23,0.12)' : 'rgba(23,23,23,0.06)') : 'transparent',
                               width: '100%', textAlign: 'left' as const,
                             }}
                           >
                             <span style={{
                               width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                              border: `2px solid ${isSelected ? '#6366f1' : (isDark ? '#64748b' : '#d1d5db')}`,
+                              border: `2px solid ${isSelected ? '#171717' : (isDark ? '#64748b' : '#d1d5db')}`,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>
-                              {isSelected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', display: 'block' }} />}
+                              {isSelected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#171717', display: 'block' }} />}
                             </span>
                             {opt.id ? <StatusIcon status={opt.id} size={18} /> : <span style={{ width: 18, height: 18, display: 'block' }} />}
                             <span style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#374151', fontWeight: isSelected ? 600 : 400 }}>{opt.label}</span>
@@ -1329,22 +1365,32 @@ export default function Main() {
 
       {showFolderManageModal && <FolderManageModal topicRooms={topicRooms} onClose={() => setShowFolderManageModal(false)} />}
 
-      {contextMenu && (
-        <div style={{ ...st.ctxMenu, left: contextMenu.x, top: contextMenu.y }} onClick={(e) => e.stopPropagation()}>
-          <button type="button" style={st.ctxMenuItem} onClick={() => { setProfileModalUser(contextMenu.user); setContextMenu(null); }}>프로필 보기</button>
-        </div>
-      )}
+      {contextMenu && (() => {
+        const estH = 50;
+        const top = contextMenu.y + estH > window.innerHeight - 8 ? contextMenu.y - estH : contextMenu.y;
+        const left = Math.min(Math.max(contextMenu.x, 8), window.innerWidth - 130);
+        return (
+          <div style={{ ...st.ctxMenu, left, top }} onClick={(e) => e.stopPropagation()}>
+            <button type="button" style={st.ctxMenuItem} onClick={() => { setProfileModalUser(contextMenu.user); setContextMenu(null); }}>프로필 보기</button>
+          </div>
+        );
+      })()}
 
-      {roomContextMenu && (
-        <div style={{ ...st.ctxMenu, left: roomContextMenu.x, top: roomContextMenu.y }} onClick={(e) => e.stopPropagation()}>
+      {roomContextMenu && (() => {
+        const estH = 180;
+        const top = roomContextMenu.y + estH > window.innerHeight - 8 ? roomContextMenu.y - estH : roomContextMenu.y;
+        const left = Math.min(Math.max(roomContextMenu.x, 8), window.innerWidth - 210);
+        return (
+        <div style={{ ...st.ctxMenu, left, top }} onClick={(e) => e.stopPropagation()}>
           <button type="button" style={st.ctxMenuItem} onClick={() => handleToggleFavorite(roomContextMenu.room)}>{roomContextMenu.room.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}</button>
           <button type="button" style={st.ctxMenuItem} onClick={() => handleToggleMuteRoom(roomContextMenu.room.id)}>{mutedRoomIds.has(roomContextMenu.room.id) ? '알림 켜기' : '알림 끄기'}</button>
-          {roomContextMenu.room.isGroup && (
+          {roomContextMenu.room.isGroup && roomContextMenu.room.isTopic && (
             <button type="button" style={st.ctxMenuItem} onClick={() => { setShowFolderManageModal(true); setRoomContextMenu(null); }}>폴더로 이동</button>
           )}
           <button type="button" style={{ ...st.ctxMenuItem, color: '#c62828' }} onClick={() => handleLeaveRoom(roomContextMenu.room.id)}>나가기</button>
         </div>
-      )}
+        );
+      })()}
 
       {profileModalUser && (
         <div style={st.overlay} onClick={() => setProfileModalUser(null)}>

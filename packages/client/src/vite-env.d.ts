@@ -17,7 +17,7 @@ interface Window {
     openChatWindow: (roomId: string) => Promise<void>;
     openKanbanWindow: (roomId: string) => Promise<void>;
     openGanttWindow: (roomId: string) => Promise<void>;
-    showNotification: (title: string, body: string, roomId?: string) => Promise<void>;
+    showNotification: (title: string, body: string, roomId?: string, icon?: string | null, imagePreview?: string | null) => Promise<void>;
     openExternal: (url: string) => Promise<void>;
     windowClose: () => Promise<void>;
     windowMinimize: () => Promise<void>;

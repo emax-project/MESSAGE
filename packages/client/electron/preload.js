@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openChatWindow: (roomId) => ipcRenderer.invoke('open-chat-window', roomId),
   openKanbanWindow: (roomId) => ipcRenderer.invoke('open-kanban-window', roomId),
   openGanttWindow: (roomId) => ipcRenderer.invoke('open-gantt-window', roomId),
-  showNotification: (title, body, roomId) => ipcRenderer.invoke('show-notification', { title, body, roomId: roomId || null }),
+  showNotification: (title, body, roomId, icon, imagePreview) => ipcRenderer.invoke('show-notification', { title, body, roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null }),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   windowClose: () => ipcRenderer.invoke('window-close'),
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),
