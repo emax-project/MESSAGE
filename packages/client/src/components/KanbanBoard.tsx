@@ -297,7 +297,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                   flexDirection: 'column',
                   background: columnBg,
                   borderRadius: 12,
-                  border: isDragOver ? '2px dashed #6366f1' : '2px solid transparent',
+                  border: isDragOver ? '2px dashed #171717' : '2px solid transparent',
                   overflow: 'hidden',
                 }}
                 onDragOver={(e) => { e.preventDefault(); setDragOverBoardId(board.id); }}

@@ -20,17 +20,13 @@
 
 ---
 
-### 1-2. 사용자 목록 (GET /users) — 전체 조회, 제한 없음
+### 1-2. 사용자 목록 (GET /users) — ✅ 개선됨
 
 **위치:** `packages/server/src/routes/users.js` (usersRouter.get('/'))
 
-**문제:**
-- `prisma.user.findMany()`에 **limit 없이** 전체 사용자를 반환합니다.
-- 사용자 1만 명이면 응답 크기·DB 부하 모두 커짐.
-
-**개선:**
-- 페이지네이션: `take`/`skip` 또는 cursor 기반.
-- 검색/필터: 이름·부서 등 조건으로 `where` 추가 후 `take`로 상한 두기.
+**적용된 개선:**
+- `take: 200` 기본 제한 (최대 500, `?limit=` 쿼리로 조정).
+- `?search=` 쿼리로 이름·이메일 검색 지원.
 
 ---
 
@@ -62,17 +58,14 @@
 
 ---
 
-### 1-5. 소켓 — 멘션 시 전체 소켓 순회
+### 1-5. 소켓 — ✅ 개선됨
 
-**위치:** `packages/server/src/socket.js` (message 핸들러 내 멘션 알림)
+**위치:** `packages/server/src/socket.js`, `packages/server/src/routes/rooms.js`
 
-**문제:**
-- 멘션 알림을 보낼 때 `io.fetchSockets()`로 **연결된 소켓 전체**를 가져온 뒤, `userId`가 같은 소켓만 골라서 `emit`합니다.
-- 동시 접속자가 많을수록 `fetchSockets()`와 루프 비용이 커짐.
-
-**개선:**
-- `userId`별로 소켓을 그룹 짓는 맵(또는 Room)을 두고, 해당 유저 소켓만 골라서 `emit`.
-- 또는 Socket.IO의 `io.in(userRoomId).emit(...)`처럼 “유저별 룸”을 사용해 전체 소켓을 매번 가져오지 않기.
+**적용된 개선:**
+- 연결 시 `socket.join('user:' + userId)`로 유저별 룸 사용.
+- 멘션 알림: `io.to('user:' + userId).emit()`로 해당 유저 소켓만 타겟.
+- 방 생성/초대/참가 시: `io.in('user:' + uid).fetchSockets()`로 해당 유저 소켓만 조회 후 `join`.
 
 ---
 
@@ -87,6 +80,15 @@
 **개선:**
 - 프로젝트 목록은 페이지네이션 또는 상한(예: `take: 50`).
 - 태스크는 보드별·상태별로 나누어 요청하거나, 필요 시 별도 API로 페이지네이션.
+
+---
+
+### 1-7. 방 읽음 처리 (POST /rooms/:id/read) — ✅ 개선됨
+
+**위치:** `packages/server/src/routes/rooms.js`
+
+**적용된 개선:**
+- N개 메시지마다 `readReceipt.upsert` 루프 → `readReceipt.createMany({ skipDuplicates: true })` 단일 쿼리로 변경.
 
 ---
 

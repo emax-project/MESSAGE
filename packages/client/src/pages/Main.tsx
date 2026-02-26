@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore } from '../store';
 import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, filesApi, getSocketUrl, getBaseUrl, authApi, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
@@ -345,21 +345,24 @@ export default function Main() {
     s.on('disconnect', () => { setSocketConnected(false); });
     s.on('message', (msg: Message) => {
       const withReadCount = { ...msg, readCount: msg.readCount ?? 0 };
-      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>(['rooms', msg.roomId, 'messages'], (old) => {
-        if (!old) return { messages: [withReadCount], nextCursor: null, hasMore: false };
-        if (old.messages.some((m) => m.id === msg.id)) return old;
-        return { ...old, messages: [withReadCount, ...old.messages] };
+      queryClient.setQueryData<InfiniteData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>>(['rooms', msg.roomId, 'messages'], (old) => {
+        if (!old?.pages?.length) return { pages: [{ messages: [withReadCount], nextCursor: null, hasMore: false }], pageParams: [undefined] };
+        const firstPage = old.pages[0];
+        if (firstPage?.messages?.some((m) => m.id === msg.id)) return old;
+        const updatedFirst = { ...firstPage, messages: [withReadCount, ...(firstPage.messages ?? [])] };
+        return { ...old, pages: [updatedFirst, ...old.pages.slice(1, 5)] };
       });
       (async () => {
         const myId = myIdRef.current;
         if (!myId) return;
-        const rooms = await queryClient.fetchQuery<Room[]>({ queryKey: ['rooms', myId], queryFn: roomsApi.list });
+        await queryClient.refetchQueries({ queryKey: ['rooms', myId] });
+        const rooms = queryClient.getQueryData<Room[]>(['rooms', myId]) ?? [];
         const recent = recentTopicRoomRef.current;
         const fixed =
           recent && recent.id === msg.roomId && Date.now() - recent.at < 5000
             ? rooms.map((r) => (r.id === recent.id ? { ...r, isTopic: true, isGroup: true } : r))
             : rooms;
-        queryClient.setQueryData(['rooms', myId], fixed);
+        if (fixed !== rooms) queryClient.setQueryData(['rooms', myId], fixed);
         if (recent?.id === msg.roomId) recentTopicRoomRef.current = null;
       })();
       if (msg.senderId !== myIdRef.current) {
@@ -420,13 +423,16 @@ export default function Main() {
       }
     });
     s.on('room_read', (payload: { roomId: string; userId: string }) => {
-      if (payload.userId === myIdRef.current) { queryClient.refetchQueries({ queryKey: ['rooms'] }); return; }
-      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>(['rooms', payload.roomId, 'messages'], (old) => {
-        if (!old) return old;
-        return { ...old, messages: old.messages.map((m) => m.senderId === myIdRef.current ? { ...m, readCount: Math.max(m.readCount ?? 0, 1) } : m) };
+      const uid = myIdRef.current;
+      if (payload.userId === uid) {
+        if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
+        return;
+      }
+      queryClient.setQueryData<InfiniteData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>>(['rooms', payload.roomId, 'messages'], (old) => {
+        if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
+        return { ...old, pages: old.pages.map((p) => ({ ...p, messages: (p.messages ?? []).map((m) => m.senderId === myIdRef.current ? { ...m, readCount: Math.max(m.readCount ?? 0, 1) } : m) })) };
       });
-      queryClient.refetchQueries({ queryKey: ['rooms'] });
-      queryClient.refetchQueries({ queryKey: ['rooms', payload.roomId, 'messages'] });
+      if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
     });
     s.on('online_list', (payload: { userIds?: string[] }) => { setOnlineUserIds(new Set((payload.userIds || []).map((id) => String(id)))); });
     s.on('user_online', (payload: { userId?: string; userName?: string | null }) => {

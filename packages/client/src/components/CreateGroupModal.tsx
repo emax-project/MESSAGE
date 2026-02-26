@@ -142,6 +142,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
           folderId: folderIdFromServer,
           isFavorite: (room as { isFavorite?: boolean })?.isFavorite ?? false,
           unreadCount: 0,
+          createdBy: (room as { createdBy?: string | null })?.createdBy ?? null,
         };
         queryClient.setQueryData(['rooms', room.id], newRoomData);
         // 아젠다: invalidate 없이 setQueryData만 사용 (refetch가 isTopic을 덮어쓰는 문제 방지)
@@ -556,7 +557,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
   const sub = isDark ? '#94a3b8' : '#64748b';
   const muted = isDark ? '#64748b' : '#9ca3af';
   const inputBg = isDark ? '#334155' : '#f8fafc';
-  const accent = isDark ? '#6366f1' : '#22c55e';
+  const accent = '#171717';
 
   return {
     overlay: {

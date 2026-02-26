@@ -114,6 +114,7 @@ roomsRouter.get('/', async (req, res) => {
         isTopic: m.room.isTopic ?? !!(m.room.description || m.room.initials),
         viewMode: m.room.viewMode || 'chat',
         folderId: m.folderId || null,
+        createdBy: m.room.createdBy || null,
         members: m.room.members.map((mb) => { const ver = mb.user.updatedAt ? `?v=${new Date(mb.user.updatedAt).getTime()}` : ''; return { id: mb.user.id, name: mb.user.name, email: mb.user.email, avatarUrl: mb.user.avatarUrl ? `/users/${mb.user.id}/avatar${ver}` : null }; }),
         lastMessage: last
           ? { id: last.id, content: last.deletedAt ? '[삭제된 메시지]' : last.content, createdAt: last.createdAt, senderName: last.sender.name }
@@ -189,6 +190,7 @@ roomsRouter.post('/topic', async (req, res) => {
           viewMode: roomViewMode,
           isPublic: !!isPublic,
           initials: roomInitials,
+          createdBy: req.userId,
           members: {
             create: [...allMemberIds].map((uid) => ({ userId: uid })),
           },
@@ -222,11 +224,9 @@ roomsRouter.post('/topic', async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      const sockets = await io.fetchSockets();
-      for (const s of sockets) {
-        if (allMemberIds.has(s.userId)) {
-          s.join(newRoom.id);
-        }
+      for (const uid of allMemberIds) {
+        const sockets = await io.in(`user:${uid}`).fetchSockets();
+        for (const s of sockets) s.join(newRoom.id);
       }
     }
 
@@ -240,6 +240,7 @@ roomsRouter.post('/topic', async (req, res) => {
       isGroup: true,
       isTopic: true,
       isPublic: newRoom.isPublic,
+      createdBy: newRoom.createdBy || null,
       members: newRoom.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
       updatedAt: newRoom.updatedAt,
       folderId: folderId || null,
@@ -366,6 +367,7 @@ roomsRouter.get('/:id', async (req, res) => {
       isGroup: room.isGroup,
       isTopic: room.isTopic ?? !!(room.description || room.initials),
       viewMode: room.viewMode || 'chat',
+      createdBy: room.createdBy || null,
       members: room.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
       updatedAt: room.updatedAt,
       lastReadAt: member.lastReadAt ? member.lastReadAt.toISOString() : null,
@@ -395,7 +397,7 @@ roomsRouter.get('/:id/avatar', async (req, res) => {
   }
 });
 
-// Upload room avatar (topic/agenda only)
+// Upload room avatar (topic/agenda only, creator only)
 roomsRouter.post('/:id/avatar', (req, res, next) => {
   avatarUpload.single('avatar')(req, res, (err) => {
     if (err) {
@@ -410,13 +412,16 @@ roomsRouter.post('/:id/avatar', (req, res, next) => {
     if (!req.file) return res.status(400).json({ error: '이미지 파일을 선택해주세요' });
     const member = await prisma.roomMember.findFirst({
       where: { roomId: req.params.id, userId: req.userId, leftAt: null },
-      include: { room: { select: { isGroup: true, avatarUrl: true } } },
+      include: { room: { select: { isGroup: true, isTopic: true, avatarUrl: true, createdBy: true } } },
     });
     if (!member) {
       if (process.env.NODE_ENV !== 'production') console.warn('[avatar] Room not found:', req.params.id);
       return res.status(404).json({ error: '방을 찾을 수 없습니다. 방에 참가한 상태인지 확인해 주세요.' });
     }
     if (!member.room.isGroup) return res.status(400).json({ error: '아젠다/그룹 방만 프로필 사진을 설정할 수 있습니다' });
+    if (member.room.isTopic && member.room.createdBy && member.room.createdBy !== req.userId) {
+      return res.status(403).json({ error: '아젠다 방 설정은 생성자만 변경할 수 있습니다' });
+    }
 
     await prisma.room.update({
       where: { id: req.params.id },
@@ -430,7 +435,7 @@ roomsRouter.post('/:id/avatar', (req, res, next) => {
   }
 });
 
-// Update room viewMode (chat/board) - DB에 저장
+// Update room viewMode (chat/board) - DB에 저장, 아젠다는 생성자만
 roomsRouter.put('/:id', async (req, res) => {
   try {
     const { viewMode } = req.body;
@@ -440,8 +445,12 @@ roomsRouter.put('/:id', async (req, res) => {
     }
     const member = await prisma.roomMember.findFirst({
       where: { roomId: req.params.id, userId: req.userId, leftAt: null },
+      include: { room: { select: { isTopic: true, createdBy: true } } },
     });
     if (!member) return res.status(404).json({ error: 'Room not found' });
+    if (member.room.isTopic && member.room.createdBy && member.room.createdBy !== req.userId) {
+      return res.status(403).json({ error: '아젠다 방 설정은 생성자만 변경할 수 있습니다' });
+    }
 
     const updated = await prisma.room.update({
       where: { id: req.params.id },
@@ -472,11 +481,10 @@ roomsRouter.post('/:id/read', async (req, res) => {
         where: { roomId: req.params.id, senderId: { not: req.userId } },
         select: { id: true },
       });
-      for (const msg of msgs) {
-        await tx.readReceipt.upsert({
-          where: { messageId_userId: { messageId: msg.id, userId: req.userId } },
-          create: { messageId: msg.id, userId: req.userId },
-          update: {},
+      if (msgs.length > 0) {
+        await tx.readReceipt.createMany({
+          data: msgs.map((m) => ({ messageId: m.id, userId: req.userId })),
+          skipDuplicates: true,
         });
       }
     });
@@ -489,7 +497,7 @@ roomsRouter.post('/:id/read', async (req, res) => {
   }
 });
 
-// Invite members → create a NEW group room
+// Invite members → create a NEW group room (아젠다는 생성자만 초대 가능)
 roomsRouter.post('/:id/members', async (req, res) => {
   try {
     const { userIds, isPublic } = req.body;
@@ -500,8 +508,12 @@ roomsRouter.post('/:id/members', async (req, res) => {
     const sourceRoomId = req.params.id;
     const member = await prisma.roomMember.findFirst({
       where: { roomId: sourceRoomId, userId: req.userId, leftAt: null },
+      include: { room: { select: { isTopic: true, createdBy: true } } },
     });
     if (!member) return res.status(403).json({ error: 'Not a member of this room' });
+    if (member.room.isTopic && member.room.createdBy && member.room.createdBy !== req.userId) {
+      return res.status(403).json({ error: '아젠다 멤버 초대는 생성자만 할 수 있습니다' });
+    }
 
     const requester = await prisma.user.findUnique({
       where: { id: req.userId },
@@ -576,11 +588,9 @@ roomsRouter.post('/:id/members', async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      const sockets = await io.fetchSockets();
-      for (const s of sockets) {
-        if (allMemberIds.includes(s.userId)) {
-          s.join(newRoom.id);
-        }
+      for (const uid of allMemberIds) {
+        const sockets = await io.in(`user:${uid}`).fetchSockets();
+        for (const s of sockets) s.join(newRoom.id);
       }
 
       const systemMsg = roomWithMsg.messages[0];
@@ -1261,12 +1271,8 @@ roomsRouter.post('/:id/join', async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      const sockets = await io.fetchSockets();
-      for (const s of sockets) {
-        if (s.userId === req.userId) {
-          s.join(req.params.id);
-        }
-      }
+      const sockets = await io.in(`user:${req.userId}`).fetchSockets();
+      for (const s of sockets) s.join(req.params.id);
       io.to(req.params.id).emit('message', { ...systemMsg, readCount: 0 });
       io.to(req.params.id).emit('members_added', { roomId: req.params.id });
     }

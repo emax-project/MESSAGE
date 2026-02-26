@@ -39,6 +39,7 @@ model User {
   roomMemberships RoomMember[]
   department      Department?   @relation(fields: [departmentId], references: [id])
   sessions        UserSession[]
+  createdRooms    Room[]        @relation("RoomCreator")
 
   @@index([departmentId])
 }
@@ -55,10 +56,14 @@ model Room {
   isPublic       Boolean         @default(false)
   description    String?
   viewMode       String          @default("chat")
+  createdBy      String?         // 아젠다 생성자 (방 설정 권한)
+  creator        User?           @relation("RoomCreator", fields: [createdBy], references: [id])
   messages       Message[]
   pinnedMessages PinnedMessage[]
   projects       Project[]
   members        RoomMember[]
+
+  @@index([createdBy])
 }
 
 model RoomMember {

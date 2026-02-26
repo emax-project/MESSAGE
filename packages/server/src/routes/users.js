@@ -10,10 +10,20 @@ usersRouter.use(authMiddleware);
 
 usersRouter.get('/', async (req, res) => {
   try {
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    const limit = Math.min(Number(req.query.limit) || 200, 500);
+    const where = { id: { not: req.userId } };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
     const users = await prisma.user.findMany({
-      where: { id: { not: req.userId } },
+      where,
       select: { id: true, email: true, name: true, statusMessage: true },
       orderBy: { name: 'asc' },
+      take: limit,
     });
     return res.json(users);
   } catch (err) {

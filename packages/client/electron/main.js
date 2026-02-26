@@ -79,7 +79,7 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId, iconDataUr
       transition: background 0.15s;
     }
     .toast:hover {
-      background: linear-gradient(145deg, #f0f4ff 0%, #e8eeff 100%);
+      background: linear-gradient(145deg, #f8f8f8 0%, #f0f0f0 100%);
       border-color: rgba(23,23,23,0.15);
     }
     .toast-brand {
@@ -284,6 +284,7 @@ const iconPath = path.join(__dirname, '../build/icons/icon.png');
 let tray = null;
 let mainWindow = null;
 let isQuitting = false;
+let updateDownloadedPending = false;
 
 // 창별 show 핸들러 (Map으로 관리, win 객체에 프로퍼티 직접 부착보다 안전)
 const windowReadyHandlers = new Map();
@@ -628,11 +629,19 @@ function setupAutoUpdate() {
     updateNotificationProgress(progress.percent);
   });
   autoUpdater.on('update-downloaded', () => {
-    showCustomNotification('EMAX 업데이트 준비됨', '앱을 종료하면 새 버전이 적용됩니다.');
+    updateDownloadedPending = true;
+    showCustomNotification('EMAX 업데이트 준비됨', '3초 후 앱이 자동으로 재시작됩니다.');
     // 설정 화면에 "지금 재시작" 버튼 표시를 위해 렌더러에 알림
     if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
       mainWindow.webContents.send('update-downloaded');
     }
+    // 3초 후 자동 재시작 (사용자가 알림을 볼 시간 확보)
+    setTimeout(() => {
+      if (updateDownloadedPending && app.isPackaged && !isDev) {
+        updateDownloadedPending = false;
+        autoUpdater.quitAndInstall(false, true);
+      }
+    }, 3000);
   });
   autoUpdater.on('error', (err) => {
     console.error('Auto-updater error:', err);
@@ -644,6 +653,12 @@ function setupAutoUpdate() {
     .catch((err) => {
       console.error('Update check failed:', err);
     });
+
+  // 앱 실행 중 주기적 업데이트 확인 (30분마다)
+  const CHECK_INTERVAL_MS = 30 * 60 * 1000;
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch((err) => console.error('Update check failed:', err));
+  }, CHECK_INTERVAL_MS);
 }
 
 app.on('second-instance', () => {
@@ -710,8 +725,18 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(menu);
 });
 
-app.on('before-quit', () => {
-  isQuitting = true;
+app.on('before-quit', (e) => {
+  if (!isQuitting) isQuitting = true;
+  // 업데이트 대기 중이면 quitAndInstall로 설치 후 재시작 (한 번에 적용)
+  if (updateDownloadedPending && app.isPackaged && !isDev) {
+    updateDownloadedPending = false;
+    e.preventDefault();
+    setImmediate(() => {
+      app.removeAllListeners('window-all-closed');
+      BrowserWindow.getAllWindows().forEach((w) => { if (!w.isDestroyed()) w.destroy(); });
+      autoUpdater.quitAndInstall(false, true);
+    });
+  }
 });
 
 app.on('window-all-closed', () => {

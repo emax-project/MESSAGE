@@ -5,6 +5,7 @@ export function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
     if (socket.userId) {
       const uid = String(socket.userId);
+      socket.join(`user:${uid}`);
       const wasOnline = onlineUsers.has(uid);
       onlineUsers.add(uid);
       socket.emit('online_list', { userIds: onlineUsers.getAll() });
@@ -111,18 +112,12 @@ export function registerSocketHandlers(io) {
               await prisma.mention.create({
                 data: { messageId: message.id, userId: rm.userId },
               });
-              // Send mention notification to specific user's sockets
-              const sockets = await io.fetchSockets();
-              for (const s of sockets) {
-                if (s.userId === rm.userId) {
-                  s.emit('mention', {
-                    roomId,
-                    messageId: message.id,
-                    senderName: message.sender.name,
-                    content: text,
-                  });
-                }
-              }
+              io.to(`user:${rm.userId}`).emit('mention', {
+                roomId,
+                messageId: message.id,
+                senderName: message.sender.name,
+                content: text,
+              });
             }
           }
         }

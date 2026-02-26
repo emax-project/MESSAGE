@@ -612,7 +612,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
   // 이전 페이지 로드 완료 시 스크롤 위치 보정
   useEffect(() => {
-    const pageCount = messagesInfinite?.pages.length ?? 0;
+    const pageCount = messagesInfinite?.pages?.length ?? 0;
     if (pageCount > prevPageCountRef.current && prevPageCountRef.current > 0) {
       const el = messagesScrollRef.current;
       if (el) {
@@ -658,14 +658,16 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
-          if (!old) return { pages: [{ messages: [withDefaults], nextCursor: null, hasMore: false }], pageParams: [undefined] };
+          if (!old?.pages?.length) return { pages: [{ messages: [withDefaults], nextCursor: null, hasMore: false }], pageParams: [undefined] };
           const firstPage = old.pages[0];
-          if (firstPage.messages.some((m) => m.id === msg.id)) return old;
-          const updatedFirst = { ...firstPage, messages: [withDefaults, ...firstPage.messages] };
+          if (firstPage?.messages?.some((m) => m.id === msg.id)) return old;
+          const updatedFirst = { ...firstPage, messages: [withDefaults, ...(firstPage.messages ?? [])] };
           return { ...old, pages: [updatedFirst, ...old.pages.slice(1, 5)] };
         }
       );
-      queryClient.refetchQueries({ queryKey: ['rooms'] });
+      // 방 목록만 갱신 (메시지 refetch 시 소켓으로 받은 새 메시지가 덮어써져 사라지는 문제 방지)
+      const uid = myIdRef.current;
+      if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
       if (msg.senderId !== myIdRef.current) {
         const now = Date.now();
         if (now - lastMarkReadRef.current > 1000) {
@@ -729,8 +731,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
-          if (!old) return old;
-          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: page.messages.map((m) => m.id === payload.id ? { ...m, content: payload.content, editedAt: payload.editedAt } : m) })) };
+          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
+          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: (page.messages ?? []).map((m) => m.id === payload.id ? { ...m, content: payload.content, editedAt: payload.editedAt } : m) })) };
         }
       );
     });
@@ -739,8 +741,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
-          if (!old) return old;
-          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: page.messages.map((m) => m.id === payload.id ? { ...m, content: '[삭제된 메시지]', deletedAt: new Date().toISOString() } : m) })) };
+          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
+          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: (page.messages ?? []).map((m) => m.id === payload.id ? { ...m, content: '[삭제된 메시지]', deletedAt: new Date().toISOString() } : m) })) };
         }
       );
     });
@@ -748,8 +750,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
-          if (!old) return old;
-          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: page.messages.map((m) => m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m) })) };
+          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
+          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: (page.messages ?? []).map((m) => m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m) })) };
         }
       );
     });
@@ -757,12 +759,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
-          if (!old) return old;
+          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
           return {
             ...old,
             pages: old.pages.map((page) => ({
               ...page,
-              messages: page.messages.map((m) => {
+              messages: (page.messages ?? []).map((m) => {
                 if (m.poll && m.poll.id === payload.id) {
                   return { ...m, poll: { ...m.poll, options: payload.options } };
                 }
@@ -802,12 +804,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       queryClient.setQueryData<InfiniteData<MessagesPage>>(
         ['rooms', roomId, 'messages'],
         (old) => {
-          if (!old) return old;
+          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
           return {
             ...old,
             pages: old.pages.map((page) => ({
               ...page,
-              messages: page.messages.map((m) =>
+              messages: (page.messages ?? []).map((m) =>
                 m.senderId === myIdRef.current ? { ...m, readCount: Math.max(m.readCount ?? 0, 1) } : m
               ),
             })),
@@ -916,7 +918,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     prevMsgCountRef.current = curCount;
 
     // 이전 메시지 로드(페이지 추가)일 때는 스크롤 금지 - 위 useEffect에서 보정함
-    const pageCount = messagesInfinite?.pages.length ?? 0;
+    const pageCount = messagesInfinite?.pages?.length ?? 0;
     if (pageCount > 1 && curCount > prevCount && curCount - prevCount >= 10) return;
 
     // 초기 로드 시에만 진입 스크롤 (room + messages 준비 후)

@@ -159,7 +159,7 @@ export default function AvatarEditModal({ file, onClose, onConfirm }: Props) {
           <button type="button" onClick={onClose} style={{ padding: '10px 18px', borderRadius: 10, border: `1px solid ${border}`, background: 'transparent', color: text, fontSize: 14, cursor: 'pointer' }}>
             취소
           </button>
-          <button type="button" onClick={cropAndUpload} disabled={saving} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: '#6366f1', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
+          <button type="button" onClick={cropAndUpload} disabled={saving} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: '#171717', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
             {saving ? '적용 중...' : '적용'}
           </button>
         </div>
