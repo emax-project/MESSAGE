@@ -228,7 +228,15 @@ roomsRouter.post('/topic', async (req, res) => {
         const sockets = await io.in(`user:${uid}`).fetchSockets();
         for (const s of sockets) s.join(newRoom.id);
       }
-      // 초대된 멤버가 방 목록을 즉시 갱신하도록 알림 (아바타 등 포함)
+      // 시스템 메시지 브로드캐스트 → 초대된 멤버에게 알림
+      const systemMsg = await prisma.message.findFirst({
+        where: { roomId: newRoom.id },
+        orderBy: { createdAt: 'desc' },
+        include: { sender: { select: { id: true, name: true, email: true } } },
+      });
+      if (systemMsg) {
+        io.to(newRoom.id).emit('message', { ...systemMsg, readCount: 0 });
+      }
       io.to(newRoom.id).emit('members_added', { roomId: newRoom.id, newRoom: true });
     }
 

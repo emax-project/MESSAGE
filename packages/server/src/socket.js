@@ -51,7 +51,7 @@ export function registerSocketHandlers(io) {
     });
 
     socket.on('message', async (payload) => {
-      const { roomId, content, sharedEvent, replyToId } = payload;
+      const { roomId, content, sharedEvent, replyToId, context } = payload;
       const text = typeof content === 'string' ? content : '';
       const hasEvent = sharedEvent && typeof sharedEvent === 'object' && sharedEvent.title != null && sharedEvent.startAt != null && sharedEvent.endAt != null;
       if (!roomId || (text === '' && !hasEvent) || socket.userId == null) return;
@@ -70,6 +70,19 @@ export function registerSocketHandlers(io) {
         }
         if (replyToId) {
           data.replyToId = String(replyToId);
+        }
+        if (context && typeof context === 'object' && (context.filePath || context.branch)) {
+          if (context.filePath && typeof context.filePath === 'string' && context.filePath.trim()) {
+            data.contextFilePath = context.filePath.trim().slice(0, 500);
+          }
+          if (typeof context.line === 'number' && context.line > 0) {
+            data.contextLine = context.line;
+          } else if (typeof context.line === 'string' && /^\d+$/.test(context.line)) {
+            data.contextLine = parseInt(context.line, 10);
+          }
+          if (context.branch && typeof context.branch === 'string' && context.branch.trim()) {
+            data.contextBranch = context.branch.trim().slice(0, 200);
+          }
         }
         const message = await prisma.message.create({
           data,

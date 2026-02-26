@@ -19,6 +19,7 @@ import PinnedMessages from '../components/PinnedMessages';
 import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
 import LinkPreview, { extractFirstUrl } from '../components/LinkPreview';
+import ContextAttachModal, { type MessageContext } from '../components/ContextAttachModal';
 
 const MAX_DROP_SIZE = 2 * 1024 * 1024 * 1024;
 const EDIT_LIMIT_MS = 5 * 60 * 1000;
@@ -493,6 +494,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const [fileDrawerData, setFileDrawerData] = useState<FileInfo[]>([]);
   const [rightPanel, setRightPanel] = useState<'none' | 'file' | 'members' | 'pins'>('none');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [messageContext, setMessageContext] = useState<MessageContext | null>(null);
   useEffect(() => {
     setRightPanel('none');
   }, [roomId]);
@@ -682,8 +685,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             const mutedRaw = localStorage.getItem('mutedRoomIds');
             const muted = mutedRaw ? new Set(JSON.parse(mutedRaw).map(String)) : new Set();
             if (snoozed > Date.now() || muted.has(String(msg.roomId))) return;
-            const title = msg.sender?.name ?? '알 수 없음';
-            const body = msg.fileUrl && msg.fileName ? msg.fileName : msg.content;
+            const senderName = msg.sender?.name ?? '알 수 없음';
+            const isTopic = !!room?.isTopic;
+            const roomName = room?.name ?? '';
+            const title = isTopic && roomName ? `${roomName} 아젠다` : senderName;
+            const body = isTopic && roomName ? `${senderName}: ${msg.fileUrl && msg.fileName ? msg.fileName : msg.content}` : (msg.fileUrl && msg.fileName ? msg.fileName : msg.content);
             if (window.electronAPI?.showNotification) {
               (async () => {
                 try {
@@ -1013,14 +1019,23 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     // 텍스트만 전송 (socketRef 사용 - stale closure 방지)
     const s = socketRef.current;
     if (!text || !roomId || !s) return;
-    s.emit('message', {
+    const payload: { roomId: string; content: string; replyToId?: string; context?: { filePath?: string; line?: number; branch?: string } } = {
       roomId,
       content: text,
       replyToId: replyTo?.id || undefined,
-    });
+    };
+    if (messageContext && (messageContext.filePath || messageContext.branch)) {
+      payload.context = {
+        filePath: messageContext.filePath || undefined,
+        line: messageContext.line > 0 ? messageContext.line : undefined,
+        branch: messageContext.branch || undefined,
+      };
+    }
+    s.emit('message', payload);
     queryClient.invalidateQueries({ queryKey: ['rooms'] });
     setInput('');
     setReplyTo(null);
+    setMessageContext(null);
   };
 
   const handleSearch = async () => {
@@ -1404,6 +1419,13 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           </div>
         )}
 
+        {contextOpen && (
+          <ContextAttachModal
+            initialContext={messageContext}
+            onClose={() => setContextOpen(false)}
+            onConfirm={(ctx) => { setMessageContext(ctx); setContextOpen(false); }}
+          />
+        )}
         {inviteOpen && room && (
           <InviteModal
             roomId={roomId!}
@@ -1515,6 +1537,22 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                     </svg>
                   </button>
                 </div>
+                {(m.contextFilePath || m.contextBranch) && (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      const str = m.contextFilePath
+                        ? m.contextFilePath + (m.contextLine ? `:${m.contextLine}` : '')
+                        : (m.contextBranch || '');
+                      if (str && navigator.clipboard?.writeText) navigator.clipboard.writeText(str);
+                    }}
+                    style={{ fontSize: 11, padding: '4px 10px', marginBottom: 6, borderRadius: 6, background: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)', color: isDark ? '#a5b4fc' : '#4f46e5', cursor: 'pointer', display: 'inline-block' }}
+                    title="클릭하여 복사"
+                  >
+                    📍 {[m.contextFilePath, m.contextLine ? `:${m.contextLine}` : null, m.contextBranch ? ` (${m.contextBranch})` : null].filter(Boolean).join('')}
+                  </div>
+                )}
                 {/* 본문 */}
                 <div style={s.boardCardBody(isDark)}>
                   {m.poll ? (
@@ -1711,6 +1749,37 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               >
                 {m.senderId !== myId && <div style={s.senderLabel(isDark)}>{m.sender.name}</div>}
 
+                {(m.contextFilePath || m.contextBranch) && (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      const str = m.contextFilePath
+                        ? m.contextFilePath + (m.contextLine ? `:${m.contextLine}` : '')
+                        : (m.contextBranch || '');
+                      if (str && navigator.clipboard?.writeText) navigator.clipboard.writeText(str);
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click(); }}
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      borderRadius: 8,
+                      background: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
+                      color: isDark ? '#a5b4fc' : '#4f46e5',
+                      marginBottom: 4,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      maxWidth: '100%',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    title="클릭하여 복사 (IDE에서 파일:라인 형식)"
+                  >
+                    📍 {[m.contextFilePath, m.contextLine ? `:${m.contextLine}` : null, m.contextBranch ? ` (${m.contextBranch})` : null].filter(Boolean).join('')}
+                  </div>
+                )}
                 {m.replyTo && (
                   <div
                     role="button"
@@ -2078,11 +2147,34 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           </div>
         )}
 
+        {messageContext && (messageContext.filePath || messageContext.branch) && (
+          <div style={{ padding: '6px 16px 4px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span
+              style={{
+                fontSize: 11,
+                padding: '4px 10px',
+                borderRadius: 8,
+                background: isDark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.12)',
+                color: isDark ? '#a5b4fc' : '#4f46e5',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              📍 {[messageContext.filePath, messageContext.line > 0 ? `:${messageContext.line}` : null, messageContext.branch ? ` (${messageContext.branch})` : null].filter(Boolean).join('')}
+              <button type="button" onClick={() => setMessageContext(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, opacity: 0.8 }} aria-label="제거">×</button>
+            </span>
+          </div>
+        )}
         <div style={s.inputRow(isDark)}>
           <div style={s.plusWrap()}>
             <button type="button" style={s.plusBtn(isDark)} onClick={() => setActionsOpen((v) => !v)} disabled={!socket} title="추가">+</button>
             {actionsOpen && (
               <div style={s.plusMenu(isDark)}>
+                <button type="button" style={s.plusMenuItem(isDark)} onClick={() => { setActionsOpen(false); setContextOpen(true); }}>
+                  코드 위치 첨부
+                </button>
+                <div style={{ height: 1, background: isDark ? '#475569' : '#eef2f7', margin: '2px 0' }} />
                 <button type="button" style={s.plusMenuItem(isDark)} onClick={() => { setActionsOpen(false); setShareEventOpen(true); }}>
                   일정 공유
                 </button>

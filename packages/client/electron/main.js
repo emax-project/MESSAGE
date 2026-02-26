@@ -538,6 +538,41 @@ ipcMain.handle('show-notification', (_, { title, body, roomId, icon, imagePrevie
   showCustomNotification(title || 'EMAX', body || '', { roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null });
 });
 
+// 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 새 메시지 있으면 N 표시
+ipcMain.handle('set-badge-count', (_, count) => {
+  if (typeof count !== 'number' || count < 0) return;
+  try {
+    const hasUnread = count > 0;
+    if (process.platform === 'darwin' && app.dock) {
+      app.dock.setBadge(hasUnread ? 'N' : '');
+    } else if (process.platform === 'win32') {
+      // 윈도우: setBadgeCount 미지원 → setOverlayIcon 사용 (이미지는 renderer에서 생성 후 set-overlay-icon으로 전달)
+      app.setBadgeCount(0);
+    } else {
+      app.setBadgeCount(hasUnread ? 1 : 0);
+    }
+  } catch (e) {
+    if (process.env.NODE_ENV !== 'production') console.warn('[set-badge-count]', e?.message);
+  }
+});
+
+// 윈도우 태스크바 오버레이 아이콘 (N 배지 등)
+ipcMain.handle('set-overlay-icon', (_, dataUrl) => {
+  if (process.platform !== 'win32') return;
+  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : BrowserWindow.getFocusedWindow();
+  if (!win) return;
+  try {
+    if (dataUrl && typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
+      const img = nativeImage.createFromDataURL(dataUrl);
+      win.setOverlayIcon(img, '새 메시지');
+    } else {
+      win.setOverlayIcon(null, '');
+    }
+  } catch (e) {
+    if (process.env.NODE_ENV !== 'production') console.warn('[set-overlay-icon]', e?.message);
+  }
+});
+
 ipcMain.on('notification-clicked', () => {
   const roomId = pendingNotifRoomId;
   pendingNotifRoomId = null;

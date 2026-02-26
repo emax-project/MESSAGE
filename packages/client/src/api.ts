@@ -235,6 +235,9 @@ export type Message = {
   deletedAt?: string | null;
   reactions?: ReactionGroup[];
   poll?: Poll | null;
+  contextFilePath?: string | null;
+  contextLine?: number | null;
+  contextBranch?: string | null;
 };
 
 export type PinnedMessageItem = {

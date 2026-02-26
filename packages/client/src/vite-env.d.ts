@@ -18,6 +18,8 @@ interface Window {
     openKanbanWindow: (roomId: string) => Promise<void>;
     openGanttWindow: (roomId: string) => Promise<void>;
     showNotification: (title: string, body: string, roomId?: string, icon?: string | null, imagePreview?: string | null) => Promise<void>;
+    setBadgeCount: (count: number) => Promise<void>;
+    setOverlayIcon: (dataUrl: string | null) => Promise<void>;
     openExternal: (url: string) => Promise<void>;
     windowClose: () => Promise<void>;
     windowMinimize: () => Promise<void>;

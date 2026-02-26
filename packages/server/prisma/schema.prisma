@@ -103,6 +103,9 @@ model Message {
   deletedAt        DateTime?
   editedAt         DateTime?
   replyToId        String?
+  contextFilePath  String?   // 컨텍스트 스택: 파일 경로
+  contextLine      Int?      // 컨텍스트 스택: 라인 번호
+  contextBranch    String?   // 컨텍스트 스택: 브랜치
   bookmarks        Bookmark[]
   mentions         Mention[]
   replyTo          Message?        @relation("Reply", fields: [replyToId], references: [id])

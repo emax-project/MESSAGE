@@ -287,6 +287,7 @@ export default function Main() {
 
   const topicUnreadCount = useMemo(() => topicRooms.reduce((sum, r) => sum + (r.unreadCount ?? 0), 0), [topicRooms]);
   const chatUnreadCount = useMemo(() => chatRooms.reduce((sum, r) => sum + (r.unreadCount ?? 0), 0), [chatRooms]);
+  const totalUnreadCount = topicUnreadCount + chatUnreadCount;
 
   const { data: orgTreeRaw = [], isLoading: orgLoading, isError: orgError, refetch: refetchOrg } = useQuery({ queryKey: ['org', 'tree'], queryFn: orgApi.tree });
   const orgTree = useMemo(() => {
@@ -328,6 +329,23 @@ export default function Main() {
   useEffect(() => { if (!contextMenu) return; const close = () => setContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [contextMenu]);
   useEffect(() => { if (!roomContextMenu) return; const close = () => setRoomContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [roomContextMenu]);
   useEffect(() => { if (statusSyncedRef.current || !myId) return; for (const company of (Array.isArray(orgTreeRaw) ? orgTreeRaw : [])) { for (const dept of (company.departments ?? [])) { const me = (dept.users ?? []).find((u) => String(u.id) === String(myId)); if (me) { setStatusInput(me.statusMessage || ''); statusSyncedRef.current = true; return; } } } }, [orgTreeRaw, myId]);
+
+  // 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 카톡처럼 N 표시
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api) return;
+    const hasUnread = !!(token && totalUnreadCount > 0);
+    if (api.platform === 'darwin' && api.setBadgeCount) {
+      api.setBadgeCount(hasUnread ? 1 : 0).catch(() => {});
+    } else if (api.platform === 'win32' && api.setOverlayIcon) {
+      import('../utils/badgeOverlay').then(({ generateBadgeOverlayIcon }) => {
+        const dataUrl = hasUnread ? generateBadgeOverlayIcon('N') : null;
+        api.setOverlayIcon!(dataUrl).catch(() => {});
+      });
+    } else if (api.setBadgeCount) {
+      api.setBadgeCount(hasUnread ? 1 : 0).catch(() => {});
+    }
+  }, [token, totalUnreadCount]);
 
   // Socket
   useEffect(() => {
@@ -377,8 +395,12 @@ export default function Main() {
           } else if (activeRoomId === msg.roomId && activeFocused === '1') return;
         } catch { /* ignore */ }
         const senderName = msg.sender?.name ?? '알 수 없음';
-        const title = senderName;
-        const body = msg.fileUrl && msg.fileName ? msg.fileName : msg.content;
+        const rooms = queryClient.getQueryData<Room[]>(['rooms', myIdRef.current]) ?? [];
+        const room = rooms.find((r) => r.id === msg.roomId);
+        const isTopic = !!room?.isTopic;
+        const roomName = room?.name ?? '';
+        const title = isTopic && roomName ? `${roomName} 아젠다` : senderName;
+        const body = isTopic && roomName ? `${senderName}: ${msg.fileUrl && msg.fileName ? msg.fileName : msg.content}` : (msg.fileUrl && msg.fileName ? msg.fileName : msg.content);
         const electronAPI = window.electronAPI;
         if (electronAPI?.showNotification) {
           (async () => {
