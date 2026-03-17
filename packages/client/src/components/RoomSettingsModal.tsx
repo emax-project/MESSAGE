@@ -5,6 +5,7 @@ import AvatarEditModal from './AvatarEditModal';
 import RoomAvatar from './RoomAvatar';
 import UIButton from './ui/UIButton';
 import UIModal from './ui/UIModal';
+import ModalFooter from './ui/ModalFooter';
 
 type Props = {
   room: Room;
@@ -154,7 +155,7 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
               </div>
             )}
 
-            <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <ModalFooter bordered={false} marginTop={16}>
               <UIButton variant="secondary" onClick={onClose}>
                 닫기
               </UIButton>
@@ -165,7 +166,7 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
               >
                 {saving ? '저장 중...' : '보기 모드 저장'}
               </UIButton>
-            </div>
+            </ModalFooter>
       </UIModal>
       {avatarFile && (
         <AvatarEditModal

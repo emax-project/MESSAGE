@@ -5,6 +5,7 @@ import { useThemeStore, useToastStore } from '../store';
 import UIButton from './ui/UIButton';
 import UITextInput from './ui/UITextInput';
 import UIModal from './ui/UIModal';
+import ModalFooter from './ui/ModalFooter';
 
 type Props = {
   roomId: string;
@@ -235,7 +236,7 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
           )}
       </div>
 
-      <div style={st.footer}>
+      <ModalFooter justify="space-between" bordered paddingTop={12} marginTop={0} style={{ gap: 12 }}>
         <div style={st.footerLeft} ref={summaryRef}>
           {selected.size > 0 ? (
             <>
@@ -292,7 +293,7 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
             {loading ? '초대 중...' : '초대'}
           </UIButton>
         </div>
-      </div>
+      </ModalFooter>
     </UIModal>
   );
 }
@@ -429,15 +430,6 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       padding: '2px 6px',
       borderRadius: 4,
       marginLeft: 'auto',
-    },
-    footer: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '12px 20px',
-      borderTop: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-      flexShrink: 0,
-      gap: 12,
     },
     footerLeft: { position: 'relative', flex: 1, minWidth: 0 },
     summaryPill: {

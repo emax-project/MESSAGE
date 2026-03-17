@@ -3,6 +3,7 @@ import { useThemeStore } from '../store';
 import UIModal from './ui/UIModal';
 import UITextInput from './ui/UITextInput';
 import UIButton from './ui/UIButton';
+import ModalFooter from './ui/ModalFooter';
 
 export type MessageContext = {
   filePath: string;
@@ -74,14 +75,14 @@ export default function ContextAttachModal({ initialContext, onClose, onConfirm 
           onChange={(e) => setBranch(e.target.value)}
         />
       </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <ModalFooter bordered={false}>
         <UIButton type="button" onClick={onClose}>
           취소
         </UIButton>
         <UIButton type="button" variant="primary" onClick={handleConfirm}>
           첨부
         </UIButton>
-      </div>
+      </ModalFooter>
     </UIModal>
   );
 }

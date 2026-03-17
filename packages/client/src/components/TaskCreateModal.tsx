@@ -4,6 +4,7 @@ import type { Board, User } from '../api';
 import UIModal from './ui/UIModal';
 import UIButton from './ui/UIButton';
 import UITextInput from './ui/UITextInput';
+import ModalFooter from './ui/ModalFooter';
 
 type Props = {
   boards: Board[];
@@ -134,7 +135,7 @@ export default function TaskCreateModal({ boards, members, defaultBoardId, defau
             />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+        <ModalFooter bordered={false} marginTop={4}>
           <UIButton type="button" onClick={onClose}>
             취소
           </UIButton>
@@ -146,7 +147,7 @@ export default function TaskCreateModal({ boards, members, defaultBoardId, defau
           >
             추가
           </UIButton>
-        </div>
+        </ModalFooter>
       </div>
     </UIModal>
   );

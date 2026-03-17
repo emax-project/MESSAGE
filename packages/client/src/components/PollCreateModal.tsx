@@ -3,6 +3,7 @@ import { useThemeStore } from '../store';
 import UIModal from './ui/UIModal';
 import UIButton from './ui/UIButton';
 import UITextInput from './ui/UITextInput';
+import ModalFooter from './ui/ModalFooter';
 
 type Props = {
   onClose: () => void;
@@ -67,7 +68,7 @@ export default function PollCreateModal({ onClose, onCreate }: Props) {
         <input type="checkbox" checked={isMultiple} onChange={(e) => setIsMultiple(e.target.checked)} />
         복수 선택 허용
       </label>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <ModalFooter bordered={false}>
         <UIButton
           type="button"
           variant="primary"
@@ -85,7 +86,7 @@ export default function PollCreateModal({ onClose, onCreate }: Props) {
         <UIButton type="button" onClick={onClose}>
           취소
         </UIButton>
-      </div>
+      </ModalFooter>
     </UIModal>
   );
 }

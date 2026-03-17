@@ -5,6 +5,7 @@ import { useThemeStore } from '../store';
 import UIModal from './ui/UIModal';
 import UIButton from './ui/UIButton';
 import UITextInput from './ui/UITextInput';
+import ModalFooter from './ui/ModalFooter';
 
 type Props = {
   task: TaskItem;
@@ -153,7 +154,7 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
             />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+        <ModalFooter bordered={false} justify="space-between">
           <UIButton
             type="button"
             variant="ghost"
@@ -170,7 +171,7 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
           >
             {saving ? '저장 중...' : '저장'}
           </UIButton>
-        </div>
+        </ModalFooter>
         <div style={{ borderTop: `1px solid ${border}`, paddingTop: 14 }}>
           <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: text }}>
             댓글 ({comments.length})
