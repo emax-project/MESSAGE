@@ -116,6 +116,56 @@ app.get('/api/rooms/:id/avatar', authMiddleware, roomAvatarGetHandler);
 app.post('/rooms/:id/avatar', authMiddleware, avatarUpload.single('avatar'), avatarUploadHandler);
 app.post('/api/rooms/:id/avatar', authMiddleware, avatarUpload.single('avatar'), avatarUploadHandler);
 
+// Public avatar endpoints (no auth required, used by <img> / <Image> tags)
+app.get('/users/:id/avatar', async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { avatarUrl: true },
+    });
+    if (!user?.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
+    const filePath = path.resolve(UPLOAD_DIR, user.avatarUrl);
+    return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch avatar' });
+  }
+});
+app.get('/rooms/:id/avatar', async (req, res) => {
+  try {
+    const room = await prisma.room.findUnique({
+      where: { id: req.params.id },
+      select: { avatarUrl: true },
+    });
+    if (!room?.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
+    const filePath = path.resolve(UPLOAD_DIR, room.avatarUrl);
+    return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch avatar' });
+  }
+});
+
+// /api 접두사 지원 (모바일·배포 시 baseUrl에 /api 포함 시)
+app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/rooms', roomsRouter);
+app.use('/api/org', orgRouter);
+app.use('/api/files', filesRouter);
+app.use('/api/announcement', announcementRouter);
+app.use('/api/events', eventsRouter);
+app.use('/api/polls', pollsRouter);
+app.use('/api/projects', projectsRouter);
+app.use('/api/bookmarks', bookmarksRouter);
+app.use('/api/mentions', mentionsRouter);
+app.use('/api/link-preview', linkPreviewRouter());
+app.use('/api/folders', foldersRouter);
+app.use('/api/ollama', ollamaRouter);
+// 기존 경로도 유지 (하위 호환)
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
 app.use('/rooms', roomsRouter);

@@ -32,7 +32,7 @@ export async function verifySessionToken(token) {
 export async function authMiddleware(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : (req.query?.token || null);
     if (!token) {
       return res.status(401).json({ error: 'Unauthorized' });
     }

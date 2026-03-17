@@ -1,5 +1,27 @@
 import { prisma } from './db.js';
 import * as onlineUsers from './onlineUsers.js';
+import { sendPushToRoom } from './push.js';
+
+// viewing_room: userId -> Set<roomId> (사용자가 현재 보고 있는 방)
+const viewingRooms = new Map();
+
+function setViewingRoom(userId, roomId) {
+  if (!viewingRooms.has(userId)) viewingRooms.set(userId, new Set());
+  viewingRooms.get(userId).clear();
+  if (roomId) viewingRooms.get(userId).add(roomId);
+}
+
+function clearViewingRoom(userId) {
+  viewingRooms.delete(userId);
+}
+
+function getUsersViewingRoom(roomId) {
+  const result = [];
+  for (const [uid, rooms] of viewingRooms) {
+    if (rooms.has(roomId)) result.push(uid);
+  }
+  return result;
+}
 
 export function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
@@ -25,11 +47,17 @@ export function registerSocketHandlers(io) {
     socket.on('disconnect', () => {
       if (socket.userId) {
         const uid = String(socket.userId);
+        clearViewingRoom(uid);
         onlineUsers.remove(uid);
         if (!onlineUsers.has(uid)) {
           io.emit('user_offline', { userId: uid });
         }
       }
+    });
+
+    socket.on('viewing_room', ({ roomId }) => {
+      if (!socket.userId) return;
+      setViewingRoom(String(socket.userId), roomId || null);
     });
     async function isRoomMember(roomId, userId) {
       if (!roomId || !userId) return false;
@@ -87,7 +115,7 @@ export function registerSocketHandlers(io) {
         const message = await prisma.message.create({
           data,
           include: {
-            sender: { select: { id: true, name: true, email: true } },
+            sender: { select: { id: true, name: true, email: true, avatarUrl: true, updatedAt: true } },
             replyTo: {
               select: {
                 id: true,
@@ -98,43 +126,13 @@ export function registerSocketHandlers(io) {
             },
           },
         });
-        const now = new Date();
-        await prisma.room.update({
-          where: { id: roomId },
-          data: { updatedAt: now },
-        });
-        await prisma.roomMember.updateMany({
-          where: { roomId, userId: socket.userId },
-          data: { lastReadAt: now },
-        });
-
-        // Parse mentions from content
-        const mentionRegex = /@(\S+)/g;
-        let match;
-        const mentionNames = [];
-        while ((match = mentionRegex.exec(text)) !== null) {
-          mentionNames.push(match[1]);
-        }
-        if (mentionNames.length > 0) {
-          const roomMembers = await prisma.roomMember.findMany({
-            where: { roomId, leftAt: null },
-            include: { user: { select: { id: true, name: true } } },
-          });
-          for (const rm of roomMembers) {
-            if (mentionNames.includes(rm.user.name)) {
-              await prisma.mention.create({
-                data: { messageId: message.id, userId: rm.userId },
-              });
-              io.to(`user:${rm.userId}`).emit('mention', {
-                roomId,
-                messageId: message.id,
-                senderName: message.sender.name,
-                content: text,
-              });
-            }
-          }
-        }
-
+        const sVer = message.sender?.updatedAt ? `?v=${new Date(message.sender.updatedAt).getTime()}` : '';
+        const senderForClient = message.sender ? {
+          id: message.sender.id,
+          name: message.sender.name,
+          email: message.sender.email,
+          avatarUrl: message.sender.avatarUrl ? `/users/${message.sender.id}/avatar${sVer}` : null,
+        } : message.sender;
         const replyToData = message.replyTo
           ? {
               id: message.replyTo.id,
@@ -143,13 +141,67 @@ export function registerSocketHandlers(io) {
             }
           : null;
 
+        // 즉시 emit → 연속 메시지가 빠르게 표시되도록
         io.to(roomId).emit('message', {
           ...message,
+          sender: senderForClient,
           readCount: 0,
           replyTo: replyToData,
           reactions: [],
           poll: null,
         });
+
+        // room/mention/푸시는 백그라운드에서 처리 (다음 메시지 처리 블로킹 안 함)
+        (async () => {
+          try {
+            const now = new Date();
+            await prisma.room.update({
+              where: { id: roomId },
+              data: { updatedAt: now },
+            });
+            await prisma.roomMember.updateMany({
+              where: { roomId, userId: socket.userId },
+              data: { lastReadAt: now },
+            });
+            const mentionRegex = /@(\S+)/g;
+            let match;
+            const mentionNames = [];
+            while ((match = mentionRegex.exec(text)) !== null) {
+              mentionNames.push(match[1]);
+            }
+            if (mentionNames.length > 0) {
+              const roomMembers = await prisma.roomMember.findMany({
+                where: { roomId, leftAt: null },
+                include: { user: { select: { id: true, name: true } } },
+              });
+              for (const rm of roomMembers) {
+                if (mentionNames.includes(rm.user.name)) {
+                  await prisma.mention.create({
+                    data: { messageId: message.id, userId: rm.userId },
+                  });
+                  io.to(`user:${rm.userId}`).emit('mention', {
+                    roomId,
+                    messageId: message.id,
+                    senderName: message.sender.name,
+                    content: text,
+                  });
+                }
+              }
+            }
+            const viewingUsers = getUsersViewingRoom(roomId);
+            const excludeIds = [...new Set([socket.userId, ...viewingUsers])];
+            const room = await prisma.room.findUnique({ where: { id: roomId }, select: { name: true } });
+            const roomName = room?.name || '채팅';
+            const bodyText = text.length > 100 ? text.slice(0, 100) + '...' : text;
+            sendPushToRoom(roomId, excludeIds, {
+              title: `${message.sender.name} (${roomName})`,
+              body: bodyText || '[파일/일정]',
+              data: { roomId, roomName, messageId: message.id },
+            });
+          } catch (e) {
+            console.error('[socket] post-message background error:', e);
+          }
+        })();
       } catch (e) {
         socket.emit('error', { code: 'MESSAGE_CREATE', message: e.message });
       }

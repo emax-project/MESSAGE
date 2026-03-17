@@ -671,7 +671,7 @@ roomsRouter.get('/:id/messages', async (req, res) => {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: { createdAt: 'desc' },
       include: {
-        sender: { select: { id: true, name: true, email: true } },
+        sender: { select: { id: true, name: true, email: true, avatarUrl: true, updatedAt: true } },
         readReceipts: { select: { userId: true } },
         replyTo: {
           select: {
@@ -692,8 +692,17 @@ roomsRouter.get('/:id/messages', async (req, res) => {
     const hasMore = messages.length > limit;
     const list = hasMore ? messages.slice(0, limit) : messages;
     const nextCursor = hasMore ? list[list.length - 1].id : null;
-    const normalized = list.map(({ readReceipts, reactions, ...m }) => ({
+    const normalized = list.map(({ readReceipts, reactions, ...m }) => {
+      const senderVer = m.sender?.updatedAt ? `?v=${new Date(m.sender.updatedAt).getTime()}` : '';
+      const senderWithAvatar = m.sender ? {
+        id: m.sender.id,
+        name: m.sender.name,
+        email: m.sender.email,
+        avatarUrl: m.sender.avatarUrl ? `/users/${m.sender.id}/avatar${senderVer}` : null,
+      } : m.sender;
+      return {
       ...m,
+      sender: senderWithAvatar,
       content: m.deletedAt ? '[삭제된 메시지]' : m.content,
       fileSize: m.fileSize != null ? Number(m.fileSize) : null,
       readCount: readReceipts.filter((r) => String(r.userId) !== String(m.senderId)).length,
@@ -718,7 +727,7 @@ roomsRouter.get('/:id/messages', async (req, res) => {
             })),
           }
         : null,
-    }));
+    };});
     return res.json({ messages: normalized, nextCursor, hasMore });
   } catch (err) {
     console.error(err);

@@ -21,11 +21,15 @@ usersRouter.get('/', async (req, res) => {
     }
     const users = await prisma.user.findMany({
       where,
-      select: { id: true, email: true, name: true, statusMessage: true },
+      select: { id: true, email: true, name: true, phone: true, jobTitle: true, statusMessage: true, avatarUrl: true, updatedAt: true },
       orderBy: { name: 'asc' },
       take: limit,
     });
-    return res.json(users);
+    const result = users.map((u) => {
+      const ver = u.updatedAt ? `?v=${new Date(u.updatedAt).getTime()}` : '';
+      return { ...u, avatarUrl: u.avatarUrl ? `/users/${u.id}/avatar${ver}` : null };
+    });
+    return res.json(result);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch users' });
@@ -36,7 +40,7 @@ usersRouter.get('/:id', async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.params.id },
-      select: { id: true, email: true, name: true, statusMessage: true, avatarUrl: true, updatedAt: true },
+      select: { id: true, email: true, name: true, phone: true, jobTitle: true, statusMessage: true, avatarUrl: true, updatedAt: true },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
     const avatarVer = user.updatedAt ? `?v=${new Date(user.updatedAt).getTime()}` : '';
@@ -93,6 +97,69 @@ usersRouter.get('/:id/avatar', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch avatar' });
+  }
+});
+
+// Register / update push device token
+usersRouter.post('/me/device-token', async (req, res) => {
+  try {
+    const { token, platform } = req.body;
+    if (!token || !platform) {
+      return res.status(400).json({ error: 'token and platform are required' });
+    }
+    const allowed = ['ios', 'android', 'web'];
+    if (!allowed.includes(platform)) {
+      return res.status(400).json({ error: `platform must be one of: ${allowed.join(', ')}` });
+    }
+    await prisma.deviceToken.upsert({
+      where: { userId_token: { userId: req.userId, token } },
+      create: { userId: req.userId, token, platform },
+      update: { platform, updatedAt: new Date() },
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to save device token' });
+  }
+});
+
+// Remove device token (logout / unregister)
+usersRouter.delete('/me/device-token', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'token is required' });
+    await prisma.deviceToken.deleteMany({
+      where: { userId: req.userId, token },
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to delete device token' });
+  }
+});
+
+// Update my profile (phone, jobTitle, statusMessage)
+usersRouter.put('/me', async (req, res) => {
+  try {
+    const { phone, jobTitle, statusMessage } = req.body;
+    const data = {};
+    if (phone !== undefined) data.phone = phone && String(phone).trim() ? String(phone).trim().slice(0, 50) : null;
+    if (jobTitle !== undefined) data.jobTitle = jobTitle && String(jobTitle).trim() ? String(jobTitle).trim().slice(0, 30) : null;
+    if (statusMessage !== undefined) data.statusMessage = statusMessage && String(statusMessage).trim() ? String(statusMessage).trim().slice(0, 200) : null;
+    if (Object.keys(data).length === 0) return res.json({ ok: true });
+    await prisma.user.update({
+      where: { id: req.userId },
+      data,
+    });
+    const io = req.app.get('io');
+    if (io && (data.statusMessage !== undefined)) {
+      io.emit('user_status_changed', { userId: req.userId, statusMessage: data.statusMessage ?? null });
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[users/me PUT]', err);
+    const msg = err?.message || 'Failed to update profile';
+    return res.status(500).json({ error: msg });
   }
 });
 

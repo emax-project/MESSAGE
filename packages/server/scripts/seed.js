@@ -7,8 +7,8 @@ const prisma = new PrismaClient();
 const COMPANY_NAME = '이맥스';
 const DEPT_NAME = '개발부서';
 const TEST_USERS = [
-  { email: 'test1@test.com', password: '123456', name: '테스트1' },
-  { email: 'test2@test.com', password: '123456', name: '테스트2' },
+  { email: 'test1@test.com', password: '123456', name: '테스트1', phone: '010-1234-5678', jobTitle: '대리' },
+  { email: 'test2@test.com', password: '123456', name: '테스트2', phone: '010-2345-6789', jobTitle: '과장' },
 ];
 
 async function seed() {
@@ -32,6 +32,8 @@ async function seed() {
       const updates = {};
       if (existing.departmentId !== dept.id) updates.departmentId = dept.id;
       if (existing.name !== u.name) updates.name = u.name;
+      if (u.phone != null && existing.phone !== u.phone) updates.phone = u.phone;
+      if (u.jobTitle != null && existing.jobTitle !== u.jobTitle) updates.jobTitle = u.jobTitle;
       if (Object.keys(updates).length > 0) {
         await prisma.user.update({
           where: { id: existing.id },
@@ -46,7 +48,7 @@ async function seed() {
     }
     const hashed = await bcrypt.hash(u.password, 10);
     await prisma.user.create({
-      data: { email: u.email, password: hashed, name: u.name, departmentId: dept.id },
+      data: { email: u.email, password: hashed, name: u.name, departmentId: dept.id, phone: u.phone ?? null, jobTitle: u.jobTitle ?? null },
     });
     console.log(`생성: ${u.email} / 비밀번호: ${u.password}`);
   }

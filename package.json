@@ -14,10 +14,13 @@
     "build:app": "cd packages/client && npm run build:icon && npm run electron:build",
     "build:app:mac": "cd packages/client && npm run build:icon && npm run electron:build:mac",
     "build:app:win": "cd packages/client && npm run build:icon && npm run electron:build:win",
-    "postinstall": "npm run db:generate --workspace=server"
+    "postinstall": "npm run db:generate --workspace=server",
+    "dev:mobile": "npm run start --workspace=mobile"
   },
   "workspaces": [
     "packages/server",
-    "packages/client"
+    "packages/client",
+    "packages/mobile",
+    "packages/shared"
   ]
 }
