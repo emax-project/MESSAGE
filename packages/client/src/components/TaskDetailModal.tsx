@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectsApi, type TaskItem, type TaskComment, type User } from '../api';
 import { useThemeStore } from '../store';
+import UIModal from './ui/UIModal';
+import UIButton from './ui/UIButton';
+import UITextInput from './ui/UITextInput';
 
 type Props = {
   task: TaskItem;
@@ -30,7 +33,6 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
   const [commentInput, setCommentInput] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const bg = isDark ? '#1e293b' : '#fff';
   const text = isDark ? '#e2e8f0' : '#333';
   const sub = isDark ? '#94a3b8' : '#666';
   const inputBg = isDark ? '#334155' : '#f5f5f5';
@@ -86,146 +88,127 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
     dueDate !== (task.dueDate ? task.dueDate.split('T')[0] : '');
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 10010, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div style={{ background: bg, borderRadius: 12, width: 500, maxWidth: '90%', maxHeight: '85vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_LABELS[priority]?.color || '#f59e0b' }} />
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: text }}>태스크 상세</h3>
-          </div>
-          <button type="button" onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 20, color: sub, cursor: 'pointer' }}>×</button>
+    <UIModal onClose={onClose} width={520} title="태스크 상세" zIndex={10010}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -2 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_LABELS[priority]?.color || '#f59e0b' }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: sub }}>{PRIORITY_LABELS[priority]?.label || '보통'}</span>
         </div>
-
-        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Title */}
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 16, fontWeight: 600, background: inputBg, color: text, outline: 'none', boxSizing: 'border-box' }}
-          />
-
-          {/* Description */}
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="설명 추가..."
-            rows={3}
-            style={{ width: '100%', padding: '10px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 14, background: inputBg, color: text, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
-          />
-
-          {/* Properties */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 120 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>담당자</label>
-              <select
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, background: inputBg, color: text, outline: 'none' }}
-              >
-                <option value="">미배정</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-            </div>
-            <div style={{ flex: 1, minWidth: 120 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>우선순위</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as 'low' | 'medium' | 'high')}
-                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, background: inputBg, color: text, outline: 'none' }}
-              >
-                <option value="low">낮음</option>
-                <option value="medium">보통</option>
-                <option value="high">높음</option>
-              </select>
-            </div>
-            <div style={{ flex: 1, minWidth: 120 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>시작일</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, background: inputBg, color: text, outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 120 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>마감일</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, background: inputBg, color: text, outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-          </div>
-
-          {/* Save / Delete */}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-            <button
-              type="button"
-              onClick={() => { if (confirm('태스크를 삭제하시겠습니까?')) onDelete(task.id); }}
-              style={{ padding: '8px 16px', border: `1px solid ${border}`, borderRadius: 8, background: 'none', color: '#ef4444', fontSize: 13, cursor: 'pointer' }}
+        <UITextInput
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={{ padding: '10px 12px', fontSize: 16, fontWeight: 600, background: inputBg, color: text }}
+        />
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="설명 추가..."
+          rows={3}
+          style={{ width: '100%', padding: '10px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 14, background: inputBg, color: text, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+        />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 120 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>담당자</label>
+            <select
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, background: inputBg, color: text, outline: 'none' }}
             >
-              삭제
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!hasChanges || saving || !title.trim()}
-              style={{
-                padding: '8px 20px', border: 'none', borderRadius: 8,
-                background: hasChanges && title.trim() ? '#475569' : (isDark ? '#334155' : '#e5e7eb'),
-                color: hasChanges && title.trim() ? '#fff' : sub,
-                fontSize: 13, fontWeight: 600, cursor: hasChanges ? 'pointer' : 'default',
-              }}
-            >
-              {saving ? '저장 중...' : '저장'}
-            </button>
-          </div>
-
-          {/* Comments */}
-          <div style={{ borderTop: `1px solid ${border}`, paddingTop: 14 }}>
-            <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: text }}>
-              댓글 ({comments.length})
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflow: 'auto', marginBottom: 10 }}>
-              {comments.map((c: TaskComment) => (
-                <div key={c.id} style={{ padding: '8px 10px', borderRadius: 8, background: cardBg }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: text }}>{c.userName}</span>
-                    <span style={{ fontSize: 11, color: sub }}>{new Date(c.createdAt).toLocaleString('ko-KR')}</span>
-                  </div>
-                  <div style={{ fontSize: 13, color: text, whiteSpace: 'pre-wrap' }}>{c.content}</div>
-                </div>
+              <option value="">미배정</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
               ))}
-              {comments.length === 0 && (
-                <p style={{ fontSize: 12, color: sub, margin: 0 }}>아직 댓글이 없습니다</p>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                placeholder="댓글 입력..."
-                style={{ flex: 1, padding: '8px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, background: inputBg, color: text, outline: 'none' }}
-              />
-              <button
-                type="button"
-                onClick={handleAddComment}
-                disabled={!commentInput.trim()}
-                style={{ padding: '8px 14px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
-              >
-                등록
-              </button>
-            </div>
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: 120 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>우선순위</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as 'low' | 'medium' | 'high')}
+              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, background: inputBg, color: text, outline: 'none' }}
+            >
+              <option value="low">낮음</option>
+              <option value="medium">보통</option>
+              <option value="high">높음</option>
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: 120 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>시작일</label>
+            <UITextInput
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              style={{ padding: '8px 10px', fontSize: 13, background: inputBg, color: text }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 120 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>마감일</label>
+            <UITextInput
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              style={{ padding: '8px 10px', fontSize: 13, background: inputBg, color: text }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+          <UIButton
+            type="button"
+            variant="ghost"
+            onClick={() => { if (confirm('태스크를 삭제하시겠습니까?')) onDelete(task.id); }}
+            style={{ color: '#ef4444', border: `1px solid ${border}` }}
+          >
+            삭제
+          </UIButton>
+          <UIButton
+            type="button"
+            variant="primary"
+            onClick={handleSave}
+            disabled={!hasChanges || saving || !title.trim()}
+          >
+            {saving ? '저장 중...' : '저장'}
+          </UIButton>
+        </div>
+        <div style={{ borderTop: `1px solid ${border}`, paddingTop: 14 }}>
+          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: text }}>
+            댓글 ({comments.length})
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflow: 'auto', marginBottom: 10 }}>
+            {comments.map((c: TaskComment) => (
+              <div key={c.id} style={{ padding: '8px 10px', borderRadius: 8, background: cardBg }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: text }}>{c.userName}</span>
+                  <span style={{ fontSize: 11, color: sub }}>{new Date(c.createdAt).toLocaleString('ko-KR')}</span>
+                </div>
+                <div style={{ fontSize: 13, color: text, whiteSpace: 'pre-wrap' }}>{c.content}</div>
+              </div>
+            ))}
+            {comments.length === 0 && (
+              <p style={{ fontSize: 12, color: sub, margin: 0 }}>아직 댓글이 없습니다</p>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <UITextInput
+              value={commentInput}
+              onChange={(e) => setCommentInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+              placeholder="댓글 입력..."
+              style={{ flex: 1, padding: '8px 12px', fontSize: 13, background: inputBg, color: text }}
+            />
+            <UIButton
+              type="button"
+              variant="primary"
+              onClick={handleAddComment}
+              disabled={!commentInput.trim()}
+              style={{ flexShrink: 0, padding: '8px 14px', fontSize: 13 }}
+            >
+              등록
+            </UIButton>
           </div>
         </div>
       </div>
-    </div>
+    </UIModal>
   );
 }
