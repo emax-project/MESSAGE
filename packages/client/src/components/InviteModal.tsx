@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { orgApi, roomsApi, type OrgUser } from '../api';
-import { useThemeStore } from '../store';
+import { useThemeStore, useToastStore } from '../store';
 import UIButton from './ui/UIButton';
 import UITextInput from './ui/UITextInput';
 import UIModal from './ui/UIModal';
@@ -16,11 +16,11 @@ type Props = {
 export default function InviteModal({ roomId, currentMemberIds, onClose, onInvited }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [summaryOpen, setSummaryOpen] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
   const isDark = useThemeStore((s) => s.isDark);
+  const showToast = useToastStore((s) => s.show);
 
   const { data: orgTree = [], isLoading: orgLoading } = useQuery({
     queryKey: ['org', 'tree'],
@@ -102,13 +102,13 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
   const handleInvite = async () => {
     if (selected.size === 0) return;
     setLoading(true);
-    setError(null);
     try {
       const result = await roomsApi.addMembers(roomId, Array.from(selected));
+      showToast(`${selected.size}명을 초대했습니다.`, 'success');
       onInvited(result.id);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '초대 실패');
+      showToast(err instanceof Error ? err.message : '초대 실패', 'error');
     } finally {
       setLoading(false);
     }
@@ -234,8 +234,6 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
             </>
           )}
       </div>
-
-      {error && <p style={st.error}>{error}</p>}
 
       <div style={st.footer}>
         <div style={st.footerLeft} ref={summaryRef}>
@@ -431,12 +429,6 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       padding: '2px 6px',
       borderRadius: 4,
       marginLeft: 'auto',
-    },
-    error: {
-      color: '#ef4444',
-      fontSize: 13,
-      padding: '0 20px 8px',
-      margin: 0,
     },
     footer: {
       display: 'flex',

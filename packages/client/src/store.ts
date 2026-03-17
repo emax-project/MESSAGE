@@ -43,3 +43,30 @@ export const useThemeStore = create<ThemeState>()(
     { name: 'theme' }
   )
 );
+
+// Toast
+type Toast = {
+  id: number;
+  message: string;
+  type: 'info' | 'success' | 'error';
+};
+
+type ToastState = {
+  toasts: Toast[];
+  show: (message: string, type?: Toast['type']) => void;
+  remove: (id: number) => void;
+};
+
+let toastIdCounter = 1;
+
+export const useToastStore = create<ToastState>()((set) => ({
+  toasts: [],
+  show: (message, type = 'info') => {
+    const id = toastIdCounter++;
+    set((s) => ({ toasts: [...s.toasts, { id, message, type }] }));
+    setTimeout(() => {
+      set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
+    }, 3500);
+  },
+  remove: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+}));
