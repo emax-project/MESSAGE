@@ -145,28 +145,80 @@ const chatWindowStyles = {
   searchResults: (dark: boolean): React.CSSProperties => ({ maxHeight: 200, overflow: 'auto', borderBottom: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#fff' }),
   searchResultItem: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderBottom: `1px solid ${dark ? '#334155' : '#f0f0f0'}`, fontSize: 13 }),
   replyIndicator: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderTop: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#f8fafc' }),
-  inputRow: (dark: boolean): React.CSSProperties => ({ padding: '10px 16px 14px', display: 'flex', gap: 8, alignItems: 'center', background: dark ? '#1e293b' : '#fff', borderTop: `1px solid ${dark ? '#334155' : '#e2e8f0'}` }),
+  inputRow: (dark: boolean): React.CSSProperties => ({
+    padding: '10px 16px 14px',
+    display: 'flex',
+    gap: 10,
+    alignItems: 'center',
+    background: dark ? '#1e293b' : '#fff',
+    borderTop: `1px solid ${dark ? '#334155' : '#e2e8f0'}`,
+  }),
+  inputRowLeft: (): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+  }),
+  inputRowCenter: (): React.CSSProperties => ({
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0,
+  }),
+  inputRowRight: (): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexShrink: 0,
+  }),
   plusWrap: (): React.CSSProperties => ({ position: 'relative', flexShrink: 0 }),
-  plusBtn: (dark: boolean): React.CSSProperties => ({ width: 36, height: 36, borderRadius: 10, border: 'none', background: dark ? '#334155' : '#f1f5f9', color: dark ? '#94a3b8' : '#475569', fontSize: 20, lineHeight: '36px', textAlign: 'center', cursor: 'pointer', transition: 'background 0.15s' }),
+  plusBtn: (dark: boolean): React.CSSProperties => ({
+    width: 40,
+    height: 40,
+    borderRadius: '50%',
+    border: 'none',
+    background: dark ? '#334155' : '#f1f5f9',
+    color: dark ? '#94a3b8' : '#475569',
+    fontSize: 20,
+    lineHeight: '40px',
+    textAlign: 'center',
+    cursor: 'pointer',
+    transition: 'background 0.15s',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }),
   plusMenu: (dark: boolean): React.CSSProperties => ({ position: 'absolute', bottom: 48, left: 0, background: dark ? '#334155' : '#fff', border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`, borderRadius: 12, boxShadow: dark ? '0 6px 24px rgba(0,0,0,0.3)' : '0 6px 24px rgba(0,0,0,0.1)', padding: 6, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 150, zIndex: 50 }),
   plusMenuItem: (dark: boolean): React.CSSProperties => ({ border: 'none', background: 'transparent', borderRadius: 8, padding: '9px 12px', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: dark ? '#e2e8f0' : '#334155', transition: 'background 0.1s' }),
   input: (dark: boolean): React.CSSProperties => ({
-    flex: 1,
-    padding: '10px 18px',
+    width: '100%',
+    padding: '10px 16px',
     border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`,
     borderRadius: 20,
     fontSize: 14,
     lineHeight: 1.4,
     minHeight: 42,
-    maxHeight: 160,
+    maxHeight: 120,
     resize: 'none',
     background: dark ? '#0f172a' : '#f8fafc',
     color: dark ? '#e2e8f0' : '#1e293b',
     outline: 'none',
-    transition: 'border-color 0.15s',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
     fontFamily: 'inherit',
   }),
-  sendBtn: (_dark: boolean): React.CSSProperties => ({ padding: '10px 20px', background: '#475569', color: '#fff', border: 'none', borderRadius: 20, fontWeight: 700, cursor: 'pointer', fontSize: 14, transition: 'background 0.15s' }),
+  sendBtn: (dark: boolean, disabled: boolean): React.CSSProperties => ({
+    padding: '10px 20px',
+    background: disabled ? (dark ? '#334155' : '#cbd5e1') : '#475569',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 20,
+    fontWeight: 700,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: 14,
+    transition: 'background 0.15s, opacity 0.15s',
+    opacity: disabled ? 0.9 : 1,
+    whiteSpace: 'nowrap',
+  }),
   dropOverlay: (): React.CSSProperties => ({ position: 'absolute', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }),
   dropContent: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }),
   dropText: (): React.CSSProperties => ({ color: '#fff', fontSize: 16, fontWeight: 600 }),
@@ -2167,38 +2219,99 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           </div>
         )}
         <div style={s.inputRow(isDark)}>
-          <div style={s.plusWrap()}>
-            <button type="button" style={s.plusBtn(isDark)} onClick={() => setActionsOpen((v) => !v)} disabled={!socket} title="추가">+</button>
-            {actionsOpen && (
-              <div style={s.plusMenu(isDark)}>
-                <button type="button" style={s.plusMenuItem(isDark)} onClick={() => { setActionsOpen(false); setContextOpen(true); }}>
-                  코드 위치 첨부
-                </button>
-                <div style={{ height: 1, background: isDark ? '#475569' : '#eef2f7', margin: '2px 0' }} />
-                <button type="button" style={s.plusMenuItem(isDark)} onClick={() => { setActionsOpen(false); setShareEventOpen(true); }}>
-                  일정 공유
-                </button>
-                <div style={{ height: 1, background: isDark ? '#475569' : '#eef2f7', margin: '2px 0' }} />
-                <button type="button" style={s.plusMenuItem(isDark)} onClick={() => { setActionsOpen(false); setPollCreateOpen(true); }}>
-                  투표 만들기
-                </button>
-              </div>
-            )}
+          <div style={s.inputRowLeft()}>
+            <div style={s.plusWrap()}>
+              <button
+                type="button"
+                style={s.plusBtn(isDark)}
+                onClick={() => setActionsOpen((v) => !v)}
+                disabled={!socket}
+                title="추가 액션"
+              >
+                +
+              </button>
+              {actionsOpen && (
+                <div style={s.plusMenu(isDark)}>
+                  <button
+                    type="button"
+                    style={s.plusMenuItem(isDark)}
+                    onClick={() => {
+                      setActionsOpen(false);
+                      setContextOpen(true);
+                    }}
+                  >
+                    코드 위치 첨부
+                  </button>
+                  <div
+                    style={{
+                      height: 1,
+                      background: isDark ? '#475569' : '#eef2f7',
+                      margin: '2px 0',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    style={s.plusMenuItem(isDark)}
+                    onClick={() => {
+                      setActionsOpen(false);
+                      setShareEventOpen(true);
+                    }}
+                  >
+                    일정 공유
+                  </button>
+                  <div
+                    style={{
+                      height: 1,
+                      background: isDark ? '#475569' : '#eef2f7',
+                      margin: '2px 0',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    style={s.plusMenuItem(isDark)}
+                    onClick={() => {
+                      setActionsOpen(false);
+                      setPollCreateOpen(true);
+                    }}
+                  >
+                    투표 만들기
+                  </button>
+                </div>
+              )}
+            </div>
+            <FileUploadButton
+              disabled={!socket || fileUploading}
+              onFileSelected={(files) =>
+                setPendingFiles((prev) => [...prev, ...files])
+              }
+            />
           </div>
-          <FileUploadButton disabled={!socket || fileUploading} onFileSelected={(files) => setPendingFiles((prev) => [...prev, ...files])} />
-          <textarea
-            ref={inputRef}
-            placeholder={isBoardView ? '글 작성 (Shift+Enter로 줄바꿈)' : '메시지를 입력하세요 (Shift+Enter로 줄바꿈)'}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            rows={1}
-            style={s.input(isDark)}
-          />
-          <button type="button" onClick={sendMessage} style={s.sendBtn(isDark)}>
-            {editingMsg ? '수정' : '전송'}
-          </button>
+          <div style={s.inputRowCenter()}>
+            <textarea
+              ref={inputRef}
+              placeholder={
+                isBoardView
+                  ? '글을 입력하세요… (Shift+Enter 줄바꿈)'
+                  : '메시지를 입력하세요… (Shift+Enter 줄바꿈)'
+              }
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              rows={1}
+              style={s.input(isDark)}
+            />
+          </div>
+          <div style={s.inputRowRight()}>
+            <button
+              type="button"
+              onClick={sendMessage}
+              style={s.sendBtn(isDark, !input.trim() || !socket || fileUploading)}
+              disabled={!input.trim() || !socket || fileUploading}
+            >
+              {editingMsg ? '수정' : '전송'}
+            </button>
+          </div>
         </div>
 
         {/* Readers popup */}
