@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { orgApi, roomsApi, type OrgCompany } from '../api';
+import { orgApi, roomsApi, type OrgUser } from '../api';
 import { useThemeStore } from '../store';
 
 type Props = {
@@ -14,6 +14,9 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const summaryRef = useRef<HTMLDivElement>(null);
   const isDark = useThemeStore((s) => s.isDark);
 
   const { data: orgTree = [], isLoading: orgLoading } = useQuery({
@@ -23,16 +26,38 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
 
   const memberSet = new Set(currentMemberIds);
 
-  // Collect all invitable users (방어: departments, users가 undefined일 수 있음)
-  const allUsers: { id: string; name: string }[] = [];
+  // Collect all invitable users (id, name, email for search)
+  const allUsers: { id: string; name: string; email: string }[] = [];
   const safeOrgTree = Array.isArray(orgTree) ? orgTree : [];
   safeOrgTree.forEach((c) =>
     (c.departments ?? []).forEach((d) =>
-      (d.users ?? []).forEach((u) => {
-        if (!memberSet.has(u.id)) allUsers.push(u);
+      (d.users ?? []).forEach((u: OrgUser) => {
+        if (!memberSet.has(u.id)) allUsers.push({ id: u.id, name: u.name, email: u.email ?? '' });
       })
     )
   );
+
+  // Search filter: name or email contains query (case-insensitive). Only filters invitable users.
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredUserIds = new Set<string>(
+    searchLower
+      ? allUsers
+          .filter((u) => u.name.toLowerCase().includes(searchLower) || (u.email && u.email.toLowerCase().includes(searchLower)))
+          .map((u) => u.id)
+      : allUsers.map((u) => u.id)
+  );
+  // When rendering tree: if no search, show all (members + invitable). If search, only show matching invitable.
+  const showAllUsers = !searchLower;
+
+  // Close summary popover on outside click
+  useEffect(() => {
+    if (!summaryOpen) return;
+    const close = (e: MouseEvent) => {
+      if (summaryRef.current && !summaryRef.current.contains(e.target as Node)) setSummaryOpen(false);
+    };
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [summaryOpen]);
 
   const toggleUser = (userId: string) => {
     setSelected((prev) => {
@@ -43,25 +68,31 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
     });
   };
 
-  const toggleDepartment = (dept: OrgCompany['departments'][number]) => {
-    const invitable = (dept.users ?? []).filter((u) => !memberSet.has(u.id));
-    const allSelected = invitable.every((u) => selected.has(u.id));
+  const toggleDepartment = (invitableUserIds: string[]) => {
+    if (invitableUserIds.length === 0) return;
+    const allSelected = invitableUserIds.every((id) => selected.has(id));
     setSelected((prev) => {
       const next = new Set(prev);
-      invitable.forEach((u) => {
-        if (allSelected) next.delete(u.id);
-        else next.add(u.id);
-      });
+      invitableUserIds.forEach((id) => (allSelected ? next.delete(id) : next.add(id)));
       return next;
     });
   };
 
   const toggleAll = () => {
-    const allSelected = allUsers.every((u) => selected.has(u.id));
+    const filteredIds = Array.from(filteredUserIds);
+    const allSelected = filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
     if (allSelected) {
-      setSelected(new Set());
+      setSelected((prev) => {
+        const next = new Set(prev);
+        filteredIds.forEach((id) => next.delete(id));
+        return next;
+      });
     } else {
-      setSelected(new Set(allUsers.map((u) => u.id)));
+      setSelected((prev) => {
+        const next = new Set(prev);
+        filteredIds.forEach((id) => next.add(id));
+        return next;
+      });
     }
   };
 
@@ -80,7 +111,8 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
     }
   };
 
-  const allChecked = allUsers.length > 0 && allUsers.every((u) => selected.has(u.id));
+  const filteredIdList = Array.from(filteredUserIds);
+  const allChecked = filteredIdList.length > 0 && filteredIdList.every((id) => selected.has(id));
 
   const st = getStyles(isDark);
 
@@ -97,11 +129,27 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
           </button>
         </div>
 
+        {!orgLoading && allUsers.length > 0 && (
+          <div style={st.searchWrap}>
+            <input
+              type="text"
+              placeholder="이름 또는 이메일 검색"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={st.searchInput}
+            />
+          </div>
+        )}
+
         <div style={st.body}>
           {orgLoading ? (
-            <p style={st.loadingText}>조직 데이터 로딩 중...</p>
+            <div style={st.skeletonWrap}>
+              {[1, 2, 3].map((i) => (
+                <div key={i} style={st.skeletonLine} />
+              ))}
+            </div>
           ) : allUsers.length === 0 ? (
-            <p style={st.loadingText}>초대할 수 있는 사용자가 없습니다.</p>
+            <p style={st.emptyText}>초대할 수 있는 사용자가 없습니다.</p>
           ) : (
             <>
               <label style={st.allCheckRow}>
@@ -112,69 +160,86 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                   style={st.checkbox}
                 />
                 <span style={st.allCheckLabel}>전체 선택</span>
-                <span style={st.countBadge}>{allUsers.length}명</span>
+                <span style={st.countBadge}>
+                  {searchLower ? `${filteredIdList.length}명 (검색)` : `${allUsers.length}명`}
+                </span>
               </label>
 
+              {searchLower && filteredIdList.length === 0 ? (
+                <p style={st.emptyText}>검색 결과가 없습니다.</p>
+              ) : (
               <div style={st.treeWrap}>
-                {safeOrgTree.map((company) => (
-                  <div key={company.id} style={st.companyBlock}>
-                    <span style={st.companyName}>{company.name}</span>
-                    {(company.departments ?? []).map((dept) => {
-                      const invitable = (dept.users ?? []).filter((u) => !memberSet.has(u.id));
-                      const deptAllChecked = invitable.length > 0 && invitable.every((u) => selected.has(u.id));
-                      const deptSomeChecked = invitable.some((u) => selected.has(u.id));
-                      return (
-                        <div key={dept.id} style={st.deptBlock}>
-                          <label style={st.deptRow}>
-                            <input
-                              type="checkbox"
-                              checked={deptAllChecked}
-                              ref={(el) => {
-                                if (el) el.indeterminate = !deptAllChecked && deptSomeChecked;
-                              }}
-                              onChange={() => toggleDepartment(dept)}
-                              disabled={invitable.length === 0}
-                              style={st.checkbox}
-                            />
-                            <span style={st.deptName}>{dept.name}</span>
-                            {invitable.length > 0 && (
+                {safeOrgTree.map((company) => {
+                  const visibleDepts = (company.departments ?? []).filter((dept) => {
+                    const invitable = (dept.users ?? []).filter((u) => !memberSet.has(u.id));
+                    return showAllUsers ? invitable.length > 0 : invitable.some((u) => filteredUserIds.has(u.id));
+                  });
+                  if (visibleDepts.length === 0) return null;
+                  return (
+                    <div key={company.id} style={st.companyBlock}>
+                      <span style={st.companyName}>{company.name}</span>
+                      {visibleDepts.map((dept) => {
+                        const invitable = (dept.users ?? []).filter((u) =>
+                          !memberSet.has(u.id) && (showAllUsers || filteredUserIds.has(u.id))
+                        );
+                        const deptAllChecked = invitable.length > 0 && invitable.every((u) => selected.has(u.id));
+                        const deptSomeChecked = invitable.some((u) => selected.has(u.id));
+                        return (
+                          <div key={dept.id} style={st.deptBlock}>
+                            <label style={st.deptRow}>
+                              <input
+                                type="checkbox"
+                                checked={deptAllChecked}
+                                ref={(el) => {
+                                  if (el) el.indeterminate = !deptAllChecked && deptSomeChecked;
+                                }}
+                                onChange={() => toggleDepartment(invitable.map((u) => u.id))}
+                                style={st.checkbox}
+                              />
+                              <span style={st.deptName}>{dept.name}</span>
                               <span style={st.deptCount}>{invitable.length}명</span>
-                            )}
-                          </label>
-                          <ul style={st.userList}>
-                            {(dept.users ?? []).map((user) => {
-                              const isMember = memberSet.has(user.id);
-                              return (
-                                <li key={user.id} style={st.userItem}>
-                                  <label style={{
-                                    ...st.userRow,
-                                    ...(isMember ? st.userRowDisabled : {}),
-                                  }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={isMember || selected.has(user.id)}
-                                      disabled={isMember}
-                                      onChange={() => toggleUser(user.id)}
-                                      style={st.checkbox}
-                                    />
-                                    <span style={st.userAvatar}>
-                                      {user.name.trim()[0]?.toUpperCase() || '?'}
-                                    </span>
-                                    <span style={isMember ? st.userNameDisabled : st.userName}>
-                                      {user.name}
-                                    </span>
-                                    {isMember && <span style={st.memberBadge}>참여중</span>}
-                                  </label>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                            </label>
+                            <ul style={st.userList}>
+                              {(dept.users ?? []).map((user) => {
+                                const isMember = memberSet.has(user.id);
+                                const visible = showAllUsers || (!isMember && filteredUserIds.has(user.id));
+                                if (!visible) return null;
+                                if (isMember) {
+                                  return (
+                                    <li key={user.id} style={st.userItem}>
+                                      <label style={{ ...st.userRow, ...st.userRowDisabled }}>
+                                        <input type="checkbox" checked disabled style={st.checkbox} />
+                                        <span style={st.userAvatar}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
+                                        <span style={st.userNameDisabled}>{user.name}</span>
+                                        <span style={st.memberBadge}>참여중</span>
+                                      </label>
+                                    </li>
+                                  );
+                                }
+                                return (
+                                  <li key={user.id} style={st.userItem}>
+                                    <label style={st.userRow}>
+                                      <input
+                                        type="checkbox"
+                                        checked={selected.has(user.id)}
+                                        onChange={() => toggleUser(user.id)}
+                                        style={st.checkbox}
+                                      />
+                                      <span style={st.userAvatar}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
+                                      <span style={st.userName}>{user.name}</span>
+                                    </label>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
+              )}
             </>
           )}
         </div>
@@ -182,9 +247,50 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
         {error && <p style={st.error}>{error}</p>}
 
         <div style={st.footer}>
-          <span style={st.selectedCount}>
-            {selected.size > 0 ? `${selected.size}명 선택됨` : '선택된 사용자 없음'}
-          </span>
+          <div style={st.footerLeft} ref={summaryRef}>
+            {selected.size > 0 ? (
+              <>
+                <button
+                  type="button"
+                  style={st.summaryPill}
+                  onClick={() => setSummaryOpen((v) => !v)}
+                  aria-expanded={summaryOpen}
+                >
+                  {(() => {
+                    const names = Array.from(selected)
+                      .map((id) => allUsers.find((u) => u.id === id)?.name)
+                      .filter(Boolean) as string[];
+                    const n = names.length;
+                    const text = n <= 2 ? names.join(', ') : `${names[0]}, ${names[1]} 외 ${n - 2}명`;
+                    return `${n}명 선택됨: ${text}`;
+                  })()}
+                </button>
+                {summaryOpen && (
+                  <div style={st.summaryPopover}>
+                    <div style={st.summaryPopoverTitle}>선택된 멤버</div>
+                    {Array.from(selected).map((id) => {
+                      const name = allUsers.find((u) => u.id === id)?.name ?? '';
+                      return (
+                        <div key={id} style={st.summaryPopoverRow}>
+                          <span style={st.summaryPopoverName}>{name}</span>
+                          <button
+                            type="button"
+                            style={st.summaryPopoverRemove}
+                            onClick={() => setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; })}
+                            aria-label={`${name} 선택 해제`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : (
+              <span style={st.selectedCount}>선택된 사용자 없음</span>
+            )}
+          </div>
           <div style={st.footerButtons}>
             <button type="button" style={st.cancelBtn} onClick={onClose}>
               취소
@@ -246,13 +352,34 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       display: 'flex',
       alignItems: 'center',
     },
+    searchWrap: {
+      flexShrink: 0,
+      padding: '10px 20px',
+      borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+    },
+    searchInput: {
+      width: '100%',
+      padding: '8px 12px',
+      border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
+      borderRadius: 8,
+      fontSize: 14,
+      background: isDark ? '#0f172a' : '#f8fafc',
+      color: isDark ? '#e2e8f0' : '#1e293b',
+      outline: 'none',
+    },
     body: {
       flex: 1,
       overflow: 'auto',
       padding: '12px 20px',
       minHeight: 0,
     },
-    loadingText: { color: isDark ? '#94a3b8' : '#888', fontSize: 14 },
+    skeletonWrap: { padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 8 },
+    skeletonLine: {
+      height: 40,
+      borderRadius: 8,
+      background: isDark ? 'rgba(51,65,85,0.6)' : 'rgba(0,0,0,0.06)',
+    },
+    emptyText: { color: isDark ? '#94a3b8' : '#888', fontSize: 14, margin: 0, padding: '16px 0' },
     allCheckRow: {
       display: 'flex',
       alignItems: 'center',
@@ -331,6 +458,59 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       justifyContent: 'space-between',
       padding: '12px 20px',
       borderTop: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+      flexShrink: 0,
+      gap: 12,
+    },
+    footerLeft: { position: 'relative', flex: 1, minWidth: 0 },
+    summaryPill: {
+      border: 'none',
+      background: isDark ? '#334155' : '#f1f5f9',
+      color: isDark ? '#e2e8f0' : '#475569',
+      fontSize: 13,
+      padding: '6px 12px',
+      borderRadius: 20,
+      cursor: 'pointer',
+      maxWidth: '100%',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+    },
+    summaryPopover: {
+      position: 'absolute',
+      bottom: '100%',
+      left: 0,
+      marginBottom: 6,
+      background: isDark ? '#334155' : '#fff',
+      border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
+      borderRadius: 10,
+      boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 16px rgba(0,0,0,0.12)',
+      minWidth: 200,
+      maxHeight: 200,
+      overflow: 'auto',
+      zIndex: 10,
+    },
+    summaryPopoverTitle: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: isDark ? '#94a3b8' : '#64748b',
+      padding: '8px 12px',
+      borderBottom: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
+    },
+    summaryPopoverRow: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '6px 12px',
+      gap: 8,
+    },
+    summaryPopoverName: { fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+    summaryPopoverRemove: {
+      border: 'none',
+      background: 'none',
+      color: isDark ? '#94a3b8' : '#64748b',
+      cursor: 'pointer',
+      fontSize: 16,
+      padding: '0 4px',
       flexShrink: 0,
     },
     selectedCount: { fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' },
