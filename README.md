@@ -37,6 +37,25 @@ cd packages/server && cp .env.example .env && npm run dev
 - **맥에서 알림이 안 보일 때**: 시스템 설정 → 알림 → **Electron**(개발 시) 또는 **04 Message**(빌드 앱) → **알림 허용** 켜기. 앱에서 **알림 테스트** 버튼으로 동작 여부 확인 가능.
 - 앱은 기본적으로 `http://localhost:3001` API에 연결합니다. 서버 주소를 바꾸려면 `packages/client`에 `.env` 만들고 `VITE_API_URL=http://다른주소:3001` 로 설정한 뒤 앱을 다시 실행하세요.
 
+## 협업 시 서버 DB 연결 (테스트용)
+
+다른 개발자와 협업할 때, 로컬에서 **배포 서버의 DB**에 연결해 테스트할 수 있습니다.
+
+| 항목 | 값 |
+|------|-----|
+| **서버 주소** | http://203.254.98.92/ |
+| **DB 호스트** | `203.254.98.92` |
+| **DB 포트** | `5433` |
+| **사용자/비밀번호/DB** | `message` / `message` / `message` |
+
+`packages/server/.env`에 아래처럼 설정 후 `npm run dev:server` 실행:
+
+```
+DATABASE_URL="postgresql://message:message@203.254.98.92:5433/message"
+```
+
+> ⚠️ 운영 DB에 직접 연결하므로, 데이터 변경 시 주의하세요. 테스트용으로만 사용을 권장합니다.
+
 ## 로컬 개발 (DB만 Docker)
 
 1. `docker compose up -d db`
