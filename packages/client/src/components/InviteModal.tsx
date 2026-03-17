@@ -2,6 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { orgApi, roomsApi, type OrgUser } from '../api';
 import { useThemeStore } from '../store';
+import UIButton from './ui/UIButton';
+import UITextInput from './ui/UITextInput';
+import UIModal from './ui/UIModal';
 
 type Props = {
   roomId: string;
@@ -117,31 +120,19 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
   const st = getStyles(isDark);
 
   return (
-    <div style={st.overlay} onClick={onClose}>
-      <div style={st.modal} onClick={(e) => e.stopPropagation()}>
-        <div style={st.header}>
-          <h3 style={st.title}>멤버 초대</h3>
-          <button type="button" style={st.closeBtn} onClick={onClose} aria-label="닫기">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+    <UIModal title="멤버 초대" onClose={onClose} width={440}>
+      {!orgLoading && allUsers.length > 0 && (
+        <div style={st.searchWrap}>
+          <UITextInput
+            type="text"
+            placeholder="이름 또는 이메일 검색"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
+      )}
 
-        {!orgLoading && allUsers.length > 0 && (
-          <div style={st.searchWrap}>
-            <input
-              type="text"
-              placeholder="이름 또는 이메일 검색"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={st.searchInput}
-            />
-          </div>
-        )}
-
-        <div style={st.body}>
+      <div style={st.body}>
           {orgLoading ? (
             <div style={st.skeletonWrap}>
               {[1, 2, 3].map((i) => (
@@ -242,74 +233,69 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
               )}
             </>
           )}
+      </div>
+
+      {error && <p style={st.error}>{error}</p>}
+
+      <div style={st.footer}>
+        <div style={st.footerLeft} ref={summaryRef}>
+          {selected.size > 0 ? (
+            <>
+              <button
+                type="button"
+                style={st.summaryPill}
+                onClick={() => setSummaryOpen((v) => !v)}
+                aria-expanded={summaryOpen}
+              >
+                {(() => {
+                  const names = Array.from(selected)
+                    .map((id) => allUsers.find((u) => u.id === id)?.name)
+                    .filter(Boolean) as string[];
+                  const n = names.length;
+                  const text = n <= 2 ? names.join(', ') : `${names[0]}, ${names[1]} 외 ${n - 2}명`;
+                  return `${n}명 선택됨: ${text}`;
+                })()}
+              </button>
+              {summaryOpen && (
+                <div style={st.summaryPopover}>
+                  <div style={st.summaryPopoverTitle}>선택된 멤버</div>
+                  {Array.from(selected).map((id) => {
+                    const name = allUsers.find((u) => u.id === id)?.name ?? '';
+                    return (
+                      <div key={id} style={st.summaryPopoverRow}>
+                        <span style={st.summaryPopoverName}>{name}</span>
+                        <button
+                          type="button"
+                          style={st.summaryPopoverRemove}
+                          onClick={() => setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; })}
+                          aria-label={`${name} 선택 해제`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            <span style={st.selectedCount}>선택된 사용자 없음</span>
+          )}
         </div>
-
-        {error && <p style={st.error}>{error}</p>}
-
-        <div style={st.footer}>
-          <div style={st.footerLeft} ref={summaryRef}>
-            {selected.size > 0 ? (
-              <>
-                <button
-                  type="button"
-                  style={st.summaryPill}
-                  onClick={() => setSummaryOpen((v) => !v)}
-                  aria-expanded={summaryOpen}
-                >
-                  {(() => {
-                    const names = Array.from(selected)
-                      .map((id) => allUsers.find((u) => u.id === id)?.name)
-                      .filter(Boolean) as string[];
-                    const n = names.length;
-                    const text = n <= 2 ? names.join(', ') : `${names[0]}, ${names[1]} 외 ${n - 2}명`;
-                    return `${n}명 선택됨: ${text}`;
-                  })()}
-                </button>
-                {summaryOpen && (
-                  <div style={st.summaryPopover}>
-                    <div style={st.summaryPopoverTitle}>선택된 멤버</div>
-                    {Array.from(selected).map((id) => {
-                      const name = allUsers.find((u) => u.id === id)?.name ?? '';
-                      return (
-                        <div key={id} style={st.summaryPopoverRow}>
-                          <span style={st.summaryPopoverName}>{name}</span>
-                          <button
-                            type="button"
-                            style={st.summaryPopoverRemove}
-                            onClick={() => setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; })}
-                            aria-label={`${name} 선택 해제`}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            ) : (
-              <span style={st.selectedCount}>선택된 사용자 없음</span>
-            )}
-          </div>
-          <div style={st.footerButtons}>
-            <button type="button" style={st.cancelBtn} onClick={onClose}>
-              취소
-            </button>
-            <button
-              type="button"
-              style={{
-                ...st.inviteBtn,
-                ...(selected.size === 0 || loading ? st.inviteBtnDisabled : {}),
-              }}
-              disabled={selected.size === 0 || loading}
-              onClick={handleInvite}
-            >
-              {loading ? '초대 중...' : '초대'}
-            </button>
-          </div>
+        <div style={st.footerButtons}>
+          <UIButton variant="secondary" onClick={onClose}>
+            취소
+          </UIButton>
+          <UIButton
+            variant="primary"
+            disabled={selected.size === 0 || loading}
+            onClick={handleInvite}
+          >
+            {loading ? '초대 중...' : '초대'}
+          </UIButton>
         </div>
       </div>
-    </div>
+    </UIModal>
   );
 }
 

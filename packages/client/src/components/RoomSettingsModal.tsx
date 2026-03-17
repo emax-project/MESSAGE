@@ -3,6 +3,8 @@ import { useThemeStore } from '../store';
 import { roomsApi, type Room } from '../api';
 import AvatarEditModal from './AvatarEditModal';
 import RoomAvatar from './RoomAvatar';
+import UIButton from './ui/UIButton';
+import UIModal from './ui/UIModal';
 
 type Props = {
   room: Room;
@@ -51,7 +53,6 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
   };
 
   const viewModeChanged = viewMode !== (room.viewMode === 'board' ? 'board' : 'chat');
-  const bg = isDark ? '#1e293b' : '#fff';
   const border = isDark ? '#334155' : '#e2e8f0';
   const text = isDark ? '#f1f5f9' : '#1e293b';
   const muted = isDark ? '#94a3b8' : '#64748b';
@@ -61,52 +62,13 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
 
   return (
     <>
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-        <div
-          style={{ background: bg, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', border: `1px solid ${border}`, width: 440, maxWidth: '95vw' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: text }}>방 설정</h3>
-            <button type="button" onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, color: muted }} aria-label="닫기">×</button>
-          </div>
-          <div style={{ padding: 20 }}>
+      <UIModal title="방 설정" onClose={onClose} width={440}>
             {/* 탭 */}
             <div style={{ display: 'flex', gap: 6, padding: 4, borderRadius: 999, background: tabBg, marginBottom: 16 }}>
-              <button
-                type="button"
-                onClick={() => setActiveTab('profile')}
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  borderRadius: 999,
-                  padding: '6px 10px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  background: activeTab === 'profile' ? tabActiveBg : 'transparent',
-                  color: activeTab === 'profile' ? text : muted,
-                  boxShadow: activeTab === 'profile' ? `0 0 0 1px ${tabActiveBorder}` : 'none',
-                }}
-              >
+              <button type="button" onClick={() => setActiveTab('profile')} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '6px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: activeTab === 'profile' ? tabActiveBg : 'transparent', color: activeTab === 'profile' ? text : muted, boxShadow: activeTab === 'profile' ? `0 0 0 1px ${tabActiveBorder}` : 'none' }}>
                 프로필
               </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('view')}
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  borderRadius: 999,
-                  padding: '6px 10px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  background: activeTab === 'view' ? tabActiveBg : 'transparent',
-                  color: activeTab === 'view' ? text : muted,
-                  boxShadow: activeTab === 'view' ? `0 0 0 1px ${tabActiveBorder}` : 'none',
-                }}
-              >
+              <button type="button" onClick={() => setActiveTab('view')} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '6px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: activeTab === 'view' ? tabActiveBg : 'transparent', color: activeTab === 'view' ? text : muted, boxShadow: activeTab === 'view' ? `0 0 0 1px ${tabActiveBorder}` : 'none' }}>
                 보기 설정
               </button>
             </div>
@@ -194,30 +156,18 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
 
             {error && <p style={{ margin: '12px 0 0', fontSize: 13, color: '#ef4444' }}>{error}</p>}
             <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button type="button" onClick={onClose} style={{ padding: '10px 18px', borderRadius: 10, border: `1px solid ${border}`, background: 'transparent', color: text, fontSize: 14, cursor: 'pointer' }}>
+              <UIButton variant="secondary" onClick={onClose}>
                 닫기
-              </button>
-              <button
-                type="button"
+              </UIButton>
+              <UIButton
+                variant="primary"
                 onClick={handleViewModeSave}
                 disabled={activeTab !== 'view' || !viewModeChanged || saving}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: activeTab === 'view' && viewModeChanged && !saving ? '#171717' : (isDark ? '#334155' : '#cbd5e1'),
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: activeTab === 'view' && viewModeChanged && !saving ? 'pointer' : 'not-allowed',
-                }}
               >
                 {saving ? '저장 중...' : '보기 모드 저장'}
-              </button>
+              </UIButton>
             </div>
-          </div>
-        </div>
-      </div>
+      </UIModal>
       {avatarFile && (
         <AvatarEditModal
           file={avatarFile}
