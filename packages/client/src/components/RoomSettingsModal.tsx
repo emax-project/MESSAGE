@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useThemeStore } from '../store';
+import { useThemeStore, useToastStore } from '../store';
 import { roomsApi, type Room } from '../api';
 import AvatarEditModal from './AvatarEditModal';
 import RoomAvatar from './RoomAvatar';
@@ -14,10 +14,10 @@ type Props = {
 
 export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
   const isDark = useThemeStore((s) => s.isDark);
+  const showToast = useToastStore((s) => s.show);
   const [activeTab, setActiveTab] = useState<'profile' | 'view'>('profile');
   const [viewMode, setViewMode] = useState<'chat' | 'board'>(room.viewMode === 'board' ? 'board' : 'chat');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,25 +28,25 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
   };
 
   const handleAvatarConfirm = async (croppedFile: File) => {
-    setError(null);
     try {
       await roomsApi.uploadAvatar(room.id, croppedFile);
       setAvatarFile(null);
       onUpdated();
+      showToast('프로필 사진이 변경되었습니다.', 'success');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '프로필 사진 업로드 실패');
+      showToast(err instanceof Error ? err.message : '프로필 사진 업로드 실패', 'error');
     }
   };
 
   const handleViewModeSave = async () => {
     if (viewMode === (room.viewMode === 'board' ? 'board' : 'chat')) return;
     setSaving(true);
-    setError(null);
     try {
       await roomsApi.updateViewMode(room.id, viewMode);
       onUpdated();
+      showToast('보기 모드가 저장되었습니다.', 'success');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '설정 저장 실패');
+      showToast(err instanceof Error ? err.message : '설정 저장 실패', 'error');
     } finally {
       setSaving(false);
     }
@@ -154,7 +154,6 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
               </div>
             )}
 
-            {error && <p style={{ margin: '12px 0 0', fontSize: 13, color: '#ef4444' }}>{error}</p>}
             <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <UIButton variant="secondary" onClick={onClose}>
                 닫기

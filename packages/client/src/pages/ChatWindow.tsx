@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
-import { useAuthStore, useThemeStore } from '../store';
+import { useAuthStore, useThemeStore, useToastStore } from '../store';
 import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, getBaseUrl, navigateToLogin, type Room, type Message, type ReactionGroup, type ReaderInfo, type FileInfo, type User, type PinnedMessageItem } from '../api';
 import { ollamaSummarize } from '../ollama';
 import FileMessage from '../components/FileMessage';
@@ -518,6 +518,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const token = useAuthStore((s) => s.token);
   const myId = useAuthStore((s) => s.user?.id);
   const isDark = useThemeStore((s) => s.isDark);
+  const showToast = useToastStore((s) => s.show);
   const [input, setInput] = useState('');
   const [socket, setSocket] = useState<Socket | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -1597,7 +1598,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                       const str = m.contextFilePath
                         ? m.contextFilePath + (m.contextLine ? `:${m.contextLine}` : '')
                         : (m.contextBranch || '');
-                      if (str && navigator.clipboard?.writeText) navigator.clipboard.writeText(str);
+                      if (str && navigator.clipboard?.writeText) {
+                        navigator.clipboard.writeText(str).then(() => showToast('복사되었습니다.', 'success'));
+                      }
                     }}
                     style={{ fontSize: 11, padding: '4px 10px', marginBottom: 6, borderRadius: 6, background: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)', color: isDark ? '#a5b4fc' : '#4f46e5', cursor: 'pointer', display: 'inline-block' }}
                     title="클릭하여 복사"
@@ -1809,7 +1812,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                       const str = m.contextFilePath
                         ? m.contextFilePath + (m.contextLine ? `:${m.contextLine}` : '')
                         : (m.contextBranch || '');
-                      if (str && navigator.clipboard?.writeText) navigator.clipboard.writeText(str);
+                      if (str && navigator.clipboard?.writeText) {
+                        navigator.clipboard.writeText(str).then(() => showToast('복사되었습니다.', 'success'));
+                      }
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click(); }}
                     style={{

@@ -5,6 +5,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore } from '../store';
 import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, filesApi, getSocketUrl, getBaseUrl, authApi, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
 import { ollamaChat, getOllamaConfig, type OllamaMessage } from '../ollama';
+import ToastProvider from '../components/ui/ToastProvider';
 import CreateGroupModal from '../components/CreateGroupModal';
 import FolderManageModal from '../components/FolderManageModal';
 import AvatarEditModal from '../components/AvatarEditModal';
@@ -1444,6 +1445,7 @@ export default function Main() {
       )}
 
       {showSnoozeEndToast && <div style={st.toast}>알림 일시 중지가 해제되었습니다</div>}
+      <ToastProvider />
     </div>
   );
 }
