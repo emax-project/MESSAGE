@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
-import { useAuthStore, useThemeStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, filesApi, getSocketUrl, getBaseUrl, authApi, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type Bookmark, type MentionItem, type PublicRoom, type Folder } from '../api';
+import { useAuthStore, useThemeStore, useToastStore } from '../store';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, filesApi, getSocketUrl, getBaseUrl, authApi, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type PublicRoom, type Folder } from '../api';
 import { ollamaChat, getOllamaConfig, type OllamaMessage } from '../ollama';
 import ToastProvider from '../components/ui/ToastProvider';
 import CreateGroupModal from '../components/CreateGroupModal';
@@ -195,7 +195,7 @@ export default function Main() {
   const [notificationsSnoozedUntil, setNotificationsSnoozedUntil] = useState<number>(() => {
     try { const raw = localStorage.getItem('notificationsSnoozedUntil'); return raw ? Number(raw) : 0; } catch { return 0; }
   });
-  const [showSnoozeEndToast, setShowSnoozeEndToast] = useState(false);
+  const showToast = useToastStore((s) => s.show);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'latest'>('idle');
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
@@ -497,17 +497,16 @@ export default function Main() {
     const t = setTimeout(() => {
       setNotificationsSnoozedUntil(0);
       try { localStorage.removeItem('notificationsSnoozedUntil'); } catch { /* ignore */ }
-      setShowSnoozeEndToast(true);
+      showToast('알림 일시 중지가 해제되었습니다', 'info');
       try {
         const title = 'EMAX'; const body = '알림 일시 중지가 해제되었습니다';
         if (window.electronAPI?.showNotification) {
           window.electronAPI.showNotification(title, body);
         } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') { new Notification(title, { body }); }
       } catch { /* ignore */ }
-      setTimeout(() => setShowSnoozeEndToast(false), 3000);
     }, remaining);
     return () => clearTimeout(t);
-  }, [notificationsSnoozedUntil]);
+  }, [notificationsSnoozedUntil, showToast]);
 
   // 알림 클릭 시 해당 채팅방으로 이동
   useEffect(() => {
@@ -1444,7 +1443,6 @@ export default function Main() {
         </div>
       )}
 
-      {showSnoozeEndToast && <div style={st.toast}>알림 일시 중지가 해제되었습니다</div>}
       <ToastProvider />
     </div>
   );
@@ -1557,7 +1555,5 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     overlay: { position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     modal: { background: isDark ? '#1e293b' : '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', minWidth: 320, maxWidth: '90%', maxHeight: '80vh', overflow: 'auto', padding: 20 },
 
-    /* Toast */
-    toast: { position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', background: '#0f172a', color: '#fff', padding: '10px 14px', borderRadius: 999, fontSize: 12, boxShadow: '0 6px 18px rgba(0,0,0,0.2)', zIndex: 100000 },
   };
 }

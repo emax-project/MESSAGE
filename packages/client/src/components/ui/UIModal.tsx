@@ -5,11 +5,20 @@ type Props = {
   onClose: () => void;
   width?: number;
   title?: string;
+  overlayPosition?: 'fixed' | 'absolute';
+  zIndex?: number;
 };
 
-export default function UIModal({ children, onClose, width = 420, title }: Props) {
+export default function UIModal({
+  children,
+  onClose,
+  width = 420,
+  title,
+  overlayPosition = 'fixed',
+  zIndex = 10001,
+}: Props) {
   const isDark = useThemeStore((s) => s.isDark);
-  const st = getStyles(isDark, width);
+  const st = getStyles(isDark, width, overlayPosition, zIndex);
 
   return (
     <div style={st.overlay} onClick={onClose}>
@@ -28,12 +37,17 @@ export default function UIModal({ children, onClose, width = 420, title }: Props
   );
 }
 
-function getStyles(isDark: boolean, width: number): Record<string, React.CSSProperties> {
+function getStyles(
+  isDark: boolean,
+  width: number,
+  overlayPosition: 'fixed' | 'absolute',
+  zIndex: number
+): Record<string, React.CSSProperties> {
   return {
     overlay: {
-      position: 'fixed',
+      position: overlayPosition,
       inset: 0,
-      zIndex: 10001,
+      zIndex,
       background: 'rgba(0,0,0,0.5)',
       display: 'flex',
       alignItems: 'center',
