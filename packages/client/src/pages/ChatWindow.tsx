@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, getBaseUrl, navigateToLogin, type Room, type Message, type ReactionGroup, type ReaderInfo, type FileInfo, type User, type PinnedMessageItem } from '../api';
+import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, getBaseUrl, navigateToLogin, type Room, type Message, type ReactionGroup, type FileInfo, type User, type PinnedMessageItem } from '../api';
 import { ollamaSummarize } from '../ollama';
 import FileMessage from '../components/FileMessage';
 import FileUploadButton from '../components/FileUploadButton';
@@ -114,7 +114,10 @@ const chatWindowStyles = {
   metaColMine: (): React.CSSProperties => ({ alignItems: 'flex-end' }),
   metaTime: (dark: boolean): React.CSSProperties => ({ fontSize: 11, color: dark ? '#64748b' : '#64748b' }),
   messageContent: (): React.CSSProperties => ({ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 15, lineHeight: 1.4 }),
-  readStatusMine: (dark: boolean): React.CSSProperties => ({ fontSize: 12, fontWeight: 600, color: dark ? '#94a3b8' : '#334155' }),
+  // Board card footer background is neutral, so use accent color.
+  readStatusMineBoard: (dark: boolean): React.CSSProperties => ({ fontSize: 12, fontWeight: 700, color: getThemeTokens(dark).primary }),
+  // My chat bubble background is slate (#475569), so keep unread count near-white for contrast.
+  readStatusMineBubble: (): React.CSSProperties => ({ fontSize: 12, fontWeight: 700, color: '#f8fafc' }),
   replyPreview: (dark: boolean, isMine: boolean): React.CSSProperties => ({
     marginLeft: isMine ? 0 : 42,
     marginBottom: 6,
@@ -555,7 +558,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const [taskFromMessage, setTaskFromMessage] = useState<{ title: string; messageId: string } | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
-  const [readersPopup, setReadersPopup] = useState<{ messageId: string; readers: ReaderInfo[]; x: number; y: number } | null>(null);
   const [threadOpen, setThreadOpen] = useState<{ parentId: string; parent: Message; replies: Message[] } | null>(null);
   const [fileDrawerData, setFileDrawerData] = useState<FileInfo[]>([]);
   const [rightPanel, setRightPanel] = useState<'none' | 'file' | 'members' | 'pins'>('none');
@@ -1284,16 +1286,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     }
   };
 
-  const handleShowReaders = async (messageId: string, e: React.MouseEvent) => {
-    if (!roomId) return;
-    try {
-      const { readers } = await roomsApi.messageReaders(roomId, messageId);
-      setReadersPopup({ messageId, readers, x: e.clientX, y: e.clientY });
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleOpenThread = async (messageId: string) => {
     if (!roomId) return;
     try {
@@ -1319,14 +1311,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       console.error(err);
     }
   };
-
-  // Close readers popup on outside click
-  useEffect(() => {
-    if (!readersPopup) return;
-    const close = () => setReadersPopup(null);
-    const t = setTimeout(() => document.addEventListener('click', close), 50);
-    return () => { clearTimeout(t); document.removeEventListener('click', close); };
-  }, [readersPopup]);
 
   const viewModeFromState = (location.state as { viewMode?: 'chat' | 'board' })?.viewMode;
   const isBoardView = room?.viewMode === 'board' || viewModeFromListNow === 'board' || viewModeFromState === 'board';
@@ -1646,17 +1630,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                     const totalReaders = memberCount - 1;
                     const readCount = m.readCount ?? 0;
                     const unreadCount = Math.max(0, totalReaders - readCount);
+                    if (unreadCount === 0) return null;
                     return (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        style={{ cursor: 'pointer' }}
-                        onClick={(e) => handleShowReaders(m.id, e)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleShowReaders(m.id, e as unknown as React.MouseEvent); }}
-                        title="읽음 상세 보기"
-                      >
-                        읽음 {readCount}{unreadCount > 0 && ` · 미읽음 ${unreadCount}`}
-                      </span>
+                      <span style={s.readStatusMineBoard(isDark)}>{unreadCount}</span>
                     );
                   })()}
                   {m.reactions && m.reactions.length > 0 ? (
@@ -1926,16 +1902,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                           const readCount = m.readCount ?? 0;
                           const unreadCount = Math.max(0, totalReaders - readCount);
                           if (unreadCount === 0) return null;
-                          return (
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              style={{ ...s.readStatusMine(isDark), cursor: 'pointer' }}
-                              onClick={(e) => handleShowReaders(m.id, e)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') handleShowReaders(m.id, e as unknown as React.MouseEvent); }}
-                              title="읽음 상세 보기"
-                            >{unreadCount}</span>
-                          );
+                          return <span style={s.readStatusMineBubble()}>{unreadCount}</span>;
                         })()}
                       </div>
                     </div>
@@ -2332,26 +2299,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             </button>
           </div>
         </div>
-
-        {/* Readers popup */}
-        {readersPopup && (
-          <div style={{ position: 'fixed', zIndex: 10010, left: readersPopup.x, top: readersPopup.y, background: isDark ? '#334155' : '#fff', borderRadius: 10, boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.15)', border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, minWidth: 180, maxHeight: 240, overflow: 'auto', padding: 8 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b', padding: '6px 10px', borderBottom: `1px solid ${isDark ? '#475569' : '#e2e8f0'}` }}>
-              읽은 사람 ({(readersPopup.readers ?? []).length})
-            </div>
-            {(readersPopup.readers ?? []).length === 0 ? (
-              <div style={{ padding: '12px 10px', fontSize: 13, color: isDark ? '#64748b' : '#999' }}>아직 읽은 사람이 없습니다</div>
-            ) : (
-              (readersPopup.readers ?? []).map((r) => (
-                <div key={r.userId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px' }}>
-                  <span style={{ width: 24, height: 24, borderRadius: '50%', background: isDark ? '#475569' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569', flexShrink: 0 }}>{r.userName[0]?.toUpperCase()}</span>
-                  <span style={{ fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b' }}>{r.userName}</span>
-                  <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#999', marginLeft: 'auto' }}>{new Date(r.readAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              ))
-            )}
-          </div>
-        )}
 
         {/* Thread panel */}
         {threadOpen && (
