@@ -152,7 +152,7 @@ export default function Main() {
 
   // --- Layout state ---
   const [activePanel, setActivePanel] = useState<'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'ai' | 'settings'>('none');
-  const [sectionOpen, setSectionOpen] = useState<{ topic: boolean; chat: boolean; app: boolean }>({ topic: true, chat: true, app: false });
+  const [sectionOpen, setSectionOpen] = useState<{ topic: boolean; chat: boolean }>({ topic: true, chat: true });
   const [searchQuery, setSearchQuery] = useState('');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
@@ -529,7 +529,7 @@ export default function Main() {
   }, [navigate]);
 
   // --- Handlers ---
-  const toggleSection = (key: 'topic' | 'chat' | 'app') => setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleSection = (key: 'topic' | 'chat') => setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   const toggleTree = (key: string) => setTreeOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   const handleToggleFavorite = async (room: Room) => { try { await roomsApi.toggleFavorite(room.id, !room.isFavorite); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
   const handleToggleMuteRoom = (roomId: string) => { setMutedRoomIds((prev) => { const next = new Set(prev); if (next.has(roomId)) next.delete(roomId); else next.add(roomId); try { localStorage.setItem('mutedRoomIds', JSON.stringify(Array.from(next))); } catch { /* ignore */ } return next; }); setRoomContextMenu(null); };
@@ -633,9 +633,14 @@ export default function Main() {
         <div style={st.sidebar}>
           {/* Sidebar Header */}
           <div style={st.sidebarHeader}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => { setActivePanel('none'); navigate('/'); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: 'transparent', padding: 0, margin: 0, cursor: 'pointer' }}
+              title="대시보드로 이동"
+            >
               <EmaxLogo variant={isDark ? 'light' : 'accent'} size="sm" />
-            </div>
+            </button>
           </div>
 
           {/* Profile */}
@@ -796,33 +801,6 @@ export default function Main() {
               )}
             </div>
 
-            {/* APP Section */}
-            <div>
-              <button type="button" style={st.sectionHeader} onClick={() => toggleSection('app')}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={st.sectionChevron}><UIChevron open={sectionOpen.app} size={11} color={isDark ? '#94a3b8' : '#64748b'} /></span>
-                  <span style={st.sectionTitle}>앱</span>
-                </span>
-              </button>
-              {sectionOpen.app && (
-                <div style={{ padding: '4px 8px' }}>
-                  <button
-                    type="button"
-                    style={{ ...st.appItem, ...(activePanel === 'schedule' ? st.appItemActive : {}) }}
-                    onClick={() => setActivePanel(activePanel === 'schedule' ? 'none' : 'schedule')}
-                  >
-                    <span>캘린더</span>
-                  </button>
-                  <button
-                    type="button"
-                    style={{ ...st.appItem, ...(activePanel === 'ai' ? st.appItemActive : {}) }}
-                    onClick={() => setActivePanel(activePanel === 'ai' ? 'none' : 'ai')}
-                  >
-                    <span>AI 채팅</span>
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
@@ -1516,10 +1494,6 @@ function getStyles(isDark: boolean, isCompactLayout: boolean, isNarrowLayout: bo
     sectionAddBtn: { width: 22, height: 22, borderRadius: 6, background: t.primary, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1, cursor: 'pointer', flexShrink: 0 },
     sectionTextBtn: { height: 22, padding: '0 8px', borderRadius: 6, background: isDark ? '#334155' : '#e5e7eb', color: text, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, lineHeight: 1, cursor: 'pointer', flexShrink: 0 },
     folderHeader: { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 12px', border: 'none', background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 12, cursor: 'pointer', textAlign: 'left' as const },
-
-    /* App items */
-    appItem: { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '8px 12px', border: 'none', borderRadius: 6, background: 'transparent', cursor: 'pointer', fontSize: 13, color: text, textAlign: 'left' as const },
-    appItemActive: { background: isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb' },
 
     /* Room list */
     roomList: { listStyle: 'none', margin: 0, padding: 0 },
