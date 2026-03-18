@@ -1,566 +1,39 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
-import { io, Socket } from 'socket.io-client';
+import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, getSocketUrl, getBaseUrl, navigateToLogin, type Room, type Message, type ReactionGroup, type FileInfo, type User, type PinnedMessageItem } from '../api';
+import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, type Room, type Message, type FileInfo } from '../api';
 import { ollamaSummarize } from '../ollama';
-import FileMessage from '../components/FileMessage';
 import FileUploadButton from '../components/FileUploadButton';
 import InviteModal from '../components/InviteModal';
 import RoomSettingsModal from '../components/RoomSettingsModal';
-import EventCard from '../components/EventCard';
-import PollCard from '../components/PollCard';
 import PollCreateModal from '../components/PollCreateModal';
 import ForwardModal from '../components/ForwardModal';
-import EmojiPicker from '../components/EmojiPicker';
 import MentionPopup from '../components/MentionPopup';
 import PinnedMessages from '../components/PinnedMessages';
 import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
-import LinkPreview, { extractFirstUrl } from '../components/LinkPreview';
 import ContextAttachModal, { type MessageContext } from '../components/ContextAttachModal';
-import { getThemeTokens } from '../components/ui/themeTokens';
 import UICloseButton from '../components/ui/UICloseButton';
+import {
+  canEditOrDelete,
+  isSystemMessage,
+} from './chat-window/utils';
+import { useChatSocket } from './chat-window/hooks/useChatSocket';
+import { useActiveChatPresence } from './chat-window/hooks/useActiveChatPresence';
+import { chatWindowStyles } from './chat-window/styles';
+import ChatBubbleList from './chat-window/components/ChatBubbleList';
+import BoardMessageList from './chat-window/components/BoardMessageList';
+import ThreadPanel from './chat-window/components/ThreadPanel';
+import RightSidebar from './chat-window/components/RightSidebar';
 
 const MAX_DROP_SIZE = 2 * 1024 * 1024 * 1024;
-const EDIT_LIMIT_MS = 5 * 60 * 1000;
 const SCROLL_BOTTOM_THRESHOLD = 80;
 const RIGHT_SIDEBAR_PANEL_WIDTH = 280;
 const RIGHT_SIDEBAR_ICON_WIDTH = 48;
 
-function isSystemMessage(content: string): boolean {
-  return /님이\s.+님을\s초대했습니다$/.test(content) || content === '[파일 만료됨]' || /님이 채팅방을 나갔습니다$/.test(content);
-}
-
-function formatDateLabel(date: Date): string {
-  return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-}
-
-function getDateKey(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
-function canEditOrDelete(msg: Message, myId?: string): boolean {
-  if (!myId || msg.senderId !== myId || msg.deletedAt) return false;
-  return Date.now() - new Date(msg.createdAt).getTime() < EDIT_LIMIT_MS;
-}
-
-// Style functions for dark mode support (must be before components that use them)
-const chatWindowStyles = {
-  appWrap: (dark: boolean): React.CSSProperties => {
-    const t = getThemeTokens(dark);
-    return { display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: t.bgBase };
-  },
-  layout: (dark: boolean): React.CSSProperties => {
-    const t = getThemeTokens(dark);
-    return { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: t.bgBase, position: 'relative' };
-  },
-  loading: (dark: boolean): React.CSSProperties => ({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: getThemeTokens(dark).textMuted, fontSize: 16 }),
-  chatHeader: (dark: boolean, compact = false): React.CSSProperties => {
-    const t = getThemeTokens(dark);
-    return {
-      padding: compact ? '8px 12px' : '0 20px',
-      minHeight: 56,
-      borderBottom: `1px solid ${t.border}`,
-      background: t.bgSurface,
-      boxShadow: dark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: compact ? 8 : 12,
-      flexWrap: compact ? 'wrap' : 'nowrap',
-    };
-  },
-  chatHeaderName: (dark: boolean): React.CSSProperties => ({ fontSize: 16, fontWeight: 700, color: getThemeTokens(dark).textStrong, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }),
-  headerIconBtn: (dark: boolean, compact = false): React.CSSProperties => ({
-    width: compact ? 32 : 34,
-    height: compact ? 32 : 34,
-    borderRadius: 8,
-    border: 'none',
-    background: dark ? '#334155' : '#fff',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    transition: 'background 0.15s'
-  }),
-  messages: (dark: boolean): React.CSSProperties => ({ flex: 1, overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, background: getThemeTokens(dark).bgBase }),
-  scrollToBottomBtn: (dark: boolean): React.CSSProperties => ({
-    position: 'absolute',
-    bottom: 16,
-    right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: '50%',
-    border: 'none',
-    background: dark ? '#334155' : '#fff',
-    color: dark ? '#e2e8f0' : '#475569',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  }),
-  dateSeparator: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }),
-  dateSeparatorText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12 }),
-  unreadDivider: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '10px 16px',
-    margin: '8px 16px',
-    borderLeft: '4px solid #171717',
-    background: dark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
-    borderRadius: 8,
-    animation: 'unread-divider-pulse 2s ease-in-out 3',
-  }),
-  unreadDividerText: (dark: boolean): React.CSSProperties => ({
-    fontSize: 12,
-    fontWeight: 600,
-    color: dark ? '#404040' : '#171717',
-  }),
-  systemMessageRow: (): React.CSSProperties => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 0' }),
-  systemMessageText: (): React.CSSProperties => ({ fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.25)', padding: '4px 14px', borderRadius: 12, textAlign: 'center' }),
-  messageRow: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }),
-  messageRowMine: (): React.CSSProperties => ({ alignItems: 'flex-end' }),
-  messageRowInner: (): React.CSSProperties => ({ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%' }),
-  avatarWrap: (): React.CSSProperties => ({ width: 34, height: 34, flexShrink: 0 }),
-  avatarSpacer: (): React.CSSProperties => ({ width: 34, height: 34, flexShrink: 0 }),
-  avatarCircle: (dark: boolean): React.CSSProperties => ({ width: 34, height: 34, borderRadius: '50%', background: dark ? '#334155' : '#e2e8f0', color: dark ? '#94a3b8' : '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }),
-  messageBubble: (dark: boolean): React.CSSProperties => ({ minWidth: 80, padding: '10px 14px', borderRadius: 16, borderTopLeftRadius: 4, background: dark ? '#334155' : '#fff', color: dark ? '#e2e8f0' : '#1e293b', boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)', wordBreak: 'break-word', overflowWrap: 'break-word' }),
-  messageBubbleMine: (dark: boolean): React.CSSProperties => ({ borderTopLeftRadius: 16, borderTopRightRadius: 4, background: dark ? '#475569' : '#475569', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }),
-  senderLabel: (dark: boolean): React.CSSProperties => ({ fontSize: 12, color: dark ? '#94a3b8' : '#475569', marginBottom: 4, marginLeft: 42 }),
-  metaCol: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, fontSize: 11, color: '#64748b', flexShrink: 0, minWidth: 36 }),
-  metaColMine: (): React.CSSProperties => ({ alignItems: 'flex-end' }),
-  metaTime: (dark: boolean): React.CSSProperties => ({ fontSize: 11, color: dark ? '#64748b' : '#64748b' }),
-  messageContent: (): React.CSSProperties => ({ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 15, lineHeight: 1.4 }),
-  // Board card footer background is neutral, so use accent color.
-  readStatusMineBoard: (dark: boolean): React.CSSProperties => ({ fontSize: 12, fontWeight: 700, color: getThemeTokens(dark).primary }),
-  // My chat bubble background is slate (#475569), so keep unread count near-white for contrast.
-  readStatusMineBubble: (): React.CSSProperties => ({ fontSize: 12, fontWeight: 700, color: '#f8fafc' }),
-  replyPreview: (dark: boolean, isMine: boolean): React.CSSProperties => ({
-    marginLeft: isMine ? 0 : 42,
-    marginBottom: 6,
-    padding: '8px 12px',
-    borderRadius: 10,
-    background: dark ? 'rgba(51, 65, 85, 0.6)' : 'rgba(241, 245, 249, 0.9)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 3,
-    maxWidth: '85%',
-    overflow: 'hidden',
-    boxShadow: dark ? '0 1px 2px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.06)',
-    cursor: 'pointer',
-  }),
-  replyPreviewLabel: (dark: boolean): React.CSSProperties => ({
-    fontSize: 11,
-    fontWeight: 600,
-    color: dark ? '#94a3b8' : '#64748b',
-    letterSpacing: '0.02em',
-  }),
-  replyPreviewContent: (dark: boolean): React.CSSProperties => ({
-    fontSize: 13,
-    color: dark ? '#94a3b8' : '#475569',
-    lineHeight: 1.35,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  }),
-  reactionsRow: (isMine: boolean): React.CSSProperties => ({ display: 'flex', gap: 4, flexWrap: 'wrap', marginLeft: isMine ? 0 : 42, marginTop: 4 }),
-  reactionBadge: (dark: boolean, voted: boolean): React.CSSProperties => ({ border: `1px solid ${voted ? (dark ? '#60a5fa' : '#2563eb') : (dark ? '#475569' : '#e5e7eb')}`, borderRadius: 12, padding: '2px 8px', fontSize: 13, background: voted ? (dark ? 'rgba(96,165,250,0.15)' : 'rgba(37,99,235,0.08)') : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }),
-  hoverActionBtn: (dark: boolean): React.CSSProperties => ({ width: 28, height: 28, borderRadius: '50%', border: 'none', background: dark ? '#475569' : '#f0f0f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: dark ? '#94a3b8' : '#555', padding: 0 }),
-  ctxMenu: (dark: boolean): React.CSSProperties => ({ position: 'fixed', zIndex: 10000, minWidth: 120, padding: 4, background: dark ? '#334155' : '#fff', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', border: `1px solid ${dark ? '#475569' : '#eee'}` }),
-  ctxMenuItem: (dark: boolean): React.CSSProperties => ({ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: 'none', borderRadius: 6, fontSize: 13, color: dark ? '#e2e8f0' : '#333', textAlign: 'left', cursor: 'pointer' }),
-  searchBar: (dark: boolean): React.CSSProperties => ({ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: `1px solid ${getThemeTokens(dark).border}`, background: getThemeTokens(dark).bgSurface }),
-  searchInput: (dark: boolean): React.CSSProperties => ({ flex: 1, padding: '8px 12px', border: `1px solid ${getThemeTokens(dark).border}`, borderRadius: 8, fontSize: 13, background: getThemeTokens(dark).bgMuted, color: getThemeTokens(dark).text, outline: 'none' }),
-  searchBtn: (dark: boolean): React.CSSProperties => ({
-    height: 32,
-    minHeight: 32,
-    padding: '0 14px',
-    border: 'none',
-    borderRadius: 8,
-    background: getThemeTokens(dark).primary,
-    color: '#fff',
-    fontSize: 13,
-    cursor: 'pointer',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    lineHeight: 1,
-  }),
-  searchResults: (dark: boolean): React.CSSProperties => ({ maxHeight: 200, overflow: 'auto', borderBottom: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#fff' }),
-  searchResultItem: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderBottom: `1px solid ${dark ? '#334155' : '#f0f0f0'}`, fontSize: 13 }),
-  replyIndicator: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderTop: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#f8fafc' }),
-  inputRow: (dark: boolean): React.CSSProperties => ({
-    padding: '10px 16px 14px',
-    display: 'flex',
-    gap: 10,
-    alignItems: 'center',
-    background: getThemeTokens(dark).bgSurface,
-    borderTop: `1px solid ${getThemeTokens(dark).border}`,
-  }),
-  inputRowLeft: (): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
-  }),
-  inputRowCenter: (): React.CSSProperties => ({
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    minWidth: 0,
-  }),
-  inputRowRight: (): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    flexShrink: 0,
-  }),
-  plusWrap: (): React.CSSProperties => ({ position: 'relative', flexShrink: 0 }),
-  plusBtn: (dark: boolean): React.CSSProperties => ({
-    width: 40,
-    height: 40,
-    borderRadius: '50%',
-    border: 'none',
-    background: dark ? '#334155' : '#f1f5f9',
-    color: dark ? '#94a3b8' : '#475569',
-    fontSize: 20,
-    lineHeight: '40px',
-    textAlign: 'center',
-    cursor: 'pointer',
-    transition: 'background 0.15s',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  }),
-  plusMenu: (dark: boolean): React.CSSProperties => ({ position: 'absolute', bottom: 48, left: 0, background: dark ? '#334155' : '#fff', border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`, borderRadius: 12, boxShadow: dark ? '0 6px 24px rgba(0,0,0,0.3)' : '0 6px 24px rgba(0,0,0,0.1)', padding: 6, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 150, zIndex: 50 }),
-  plusMenuItem: (dark: boolean): React.CSSProperties => ({ border: 'none', background: 'transparent', borderRadius: 8, padding: '9px 12px', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: dark ? '#e2e8f0' : '#334155', transition: 'background 0.1s' }),
-  input: (dark: boolean): React.CSSProperties => ({
-    width: '100%',
-    padding: '10px 16px',
-    border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`,
-    borderRadius: 20,
-    fontSize: 14,
-    lineHeight: 1.4,
-    minHeight: 42,
-    maxHeight: 120,
-    resize: 'none',
-    background: dark ? '#0f172a' : '#f8fafc',
-    color: dark ? '#e2e8f0' : '#1e293b',
-    outline: 'none',
-    transition: 'border-color 0.15s, box-shadow 0.15s',
-    fontFamily: 'inherit',
-  }),
-  sendBtn: (dark: boolean, disabled: boolean): React.CSSProperties => ({
-    padding: '10px 20px',
-    background: disabled ? (dark ? '#334155' : '#cbd5e1') : '#475569',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 20,
-    fontWeight: 700,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    fontSize: 14,
-    transition: 'background 0.15s, opacity 0.15s',
-    opacity: disabled ? 0.9 : 1,
-    whiteSpace: 'nowrap',
-  }),
-  dropOverlay: (): React.CSSProperties => ({ position: 'absolute', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }),
-  dropContent: (): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }),
-  dropText: (): React.CSSProperties => ({ color: '#fff', fontSize: 16, fontWeight: 600 }),
-  shareEventOverlay: (): React.CSSProperties => ({ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }),
-  shareEventModal: (dark: boolean): React.CSSProperties => ({ background: dark ? '#1e293b' : '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', minWidth: 320, maxWidth: '90%', maxHeight: '70vh', overflow: 'auto', padding: 20 }),
-  boardCard: (dark: boolean): React.CSSProperties => ({
-    width: '100%',
-    maxWidth: '100%',
-    padding: 16,
-    borderRadius: 12,
-    background: dark ? '#1e293b' : '#fff',
-    border: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
-    boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.08)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-  }),
-  boardCardHeader: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    flexWrap: 'wrap',
-    borderColor: dark ? 'transparent' : 'transparent',
-  }),
-  boardCardHeaderLeft: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    minWidth: 0,
-    color: dark ? 'inherit' : 'inherit',
-  }),
-  boardCardAvatar: (dark: boolean): React.CSSProperties => ({
-    width: 40,
-    height: 40,
-    borderRadius: '50%',
-    background: dark ? '#334155' : '#e5e7eb',
-    color: dark ? '#94a3b8' : '#6b7280',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 15,
-    fontWeight: 700,
-    flexShrink: 0,
-  }),
-  boardCardAuthor: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-    minWidth: 0,
-    color: dark ? 'inherit' : 'inherit',
-  }),
-  boardCardAuthorName: (dark: boolean): React.CSSProperties => ({ fontSize: 14, fontWeight: 600, color: dark ? '#e2e8f0' : '#111827' }),
-  boardCardTime: (dark: boolean): React.CSSProperties => ({ fontSize: 12, color: dark ? '#94a3b8' : '#6b7280', flexShrink: 0 }),
-  boardCardBody: (dark: boolean): React.CSSProperties => ({
-    fontSize: 14,
-    color: dark ? '#e2e8f0' : '#374151',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    lineHeight: 1.6,
-    paddingLeft: 0,
-  }),
-  boardCardFooter: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
-    paddingTop: 8,
-    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
-    fontSize: 12,
-    color: dark ? '#94a3b8' : '#6b7280',
-  }),
-  boardCardFooterBtn: (dark: boolean): React.CSSProperties => ({
-    padding: '4px 10px',
-    border: `1px solid ${dark ? '#475569' : '#e5e7eb'}`,
-    borderRadius: 8,
-    background: dark ? '#334155' : '#f9fafb',
-    color: dark ? '#94a3b8' : '#6b7280',
-    fontSize: 12,
-    cursor: 'pointer',
-  }),
-  boardMenuBtn: (dark: boolean): React.CSSProperties => ({
-    border: 'none',
-    background: 'transparent',
-    cursor: 'pointer',
-    padding: 6,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'background 0.15s',
-    flexShrink: 0,
-    ...(dark ? {} : {}),
-  }),
-  boardCommentSection: (dark: boolean): React.CSSProperties => ({
-    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
-    paddingTop: 12,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-  }),
-  boardCommentRow: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 8,
-    padding: '4px 0',
-    borderBottom: `1px solid ${dark ? 'rgba(51,65,85,0.4)' : 'rgba(229,231,235,0.6)'}`,
-    paddingBottom: 10,
-  }),
-  boardCommentAvatar: (dark: boolean): React.CSSProperties => ({
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    background: dark ? '#334155' : '#e5e7eb',
-    color: dark ? '#94a3b8' : '#6b7280',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 11,
-    fontWeight: 700,
-    flexShrink: 0,
-  }),
-  boardCommentInputRow: (dark: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    borderTop: `1px solid ${dark ? '#334155' : '#e5e7eb'}`,
-    paddingTop: 10,
-  }),
-  boardCommentInput: (dark: boolean): React.CSSProperties => ({
-    flex: 1,
-    padding: '8px 12px',
-    border: `1px solid ${dark ? '#475569' : '#e2e8f0'}`,
-    borderRadius: 20,
-    fontSize: 13,
-    background: dark ? '#0f172a' : '#f8fafc',
-    color: dark ? '#e2e8f0' : '#1e293b',
-    outline: 'none',
-  }),
-  boardCommentSendBtn: (dark: boolean): React.CSSProperties => ({
-    padding: '6px 14px',
-    border: 'none',
-    borderRadius: 16,
-    background: dark ? '#475569' : '#3b82f6',
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    flexShrink: 0,
-  }),
-};
-
 const s = chatWindowStyles;
-
-function RightPanelMembers({ members, isDark, onInvite, canInvite = true }: { members: User[]; isDark: boolean; onInvite: () => void; canInvite?: boolean }) {
-  const safeMembers = Array.isArray(members) ? members : [];
-  return (
-    <>
-      {canInvite && (
-      <button
-        type="button"
-        onClick={onInvite}
-        style={{
-          width: '100%',
-          padding: '10px 14px',
-          borderRadius: 8,
-          border: 'none',
-          background: isDark ? '#334155' : '#f1f5f9',
-          color: isDark ? '#94a3b8' : '#475569',
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: 'pointer',
-          marginBottom: 12,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
-        </svg>
-        초대하기
-      </button>
-      )}
-      {safeMembers.length === 0 ? (
-        <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14 }}>멤버가 없습니다</p>
-      ) : (
-        safeMembers.map((m) => (
-          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, marginBottom: 4, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
-            <span style={{ width: 32, height: 32, borderRadius: '50%', background: isDark ? '#475569' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569', flexShrink: 0 }}>
-              {m.name?.trim()?.[0]?.toUpperCase() || '?'}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b' }}>{m.name}</div>
-              {m.email && <div style={{ fontSize: 12, color: isDark ? '#64748b' : '#999' }}>{m.email}</div>}
-            </div>
-          </div>
-        ))
-      )}
-    </>
-  );
-}
-
-function RightPanelPins({ roomId, isDark }: { roomId: string; isDark: boolean }) {
-  const queryClient = useQueryClient();
-  const { data } = useQuery({
-    queryKey: ['rooms', roomId, 'pins'],
-    queryFn: () => roomsApi.getPins(roomId),
-    enabled: !!roomId,
-  });
-  const pins = data?.pins ?? [];
-
-  const handleUnpin = async (messageId: string) => {
-    try {
-      await roomsApi.unpinMessage(roomId, messageId);
-      queryClient.invalidateQueries({ queryKey: ['rooms', roomId, 'pins'] });
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  if (pins.length === 0) {
-    return <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14, marginTop: 24 }}>고정된 메시지가 없습니다</p>;
-  }
-
-  return (
-    <>
-      {pins.map((p: PinnedMessageItem) => (
-        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', borderRadius: 8, marginBottom: 8, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b' }}>{p.message.sender.name}</span>
-            <button type="button" onClick={() => handleUnpin(p.message.id)} style={{ border: 'none', background: 'none', color: '#c62828', cursor: 'pointer', fontSize: 11, padding: '2px 6px', flexShrink: 0 }}>
-              해제
-            </button>
-          </div>
-          <div style={{ fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 48 }}>
-            {p.message.content}
-          </div>
-          <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>{new Date(p.message.createdAt).toLocaleString('ko-KR')}</div>
-        </div>
-      ))}
-    </>
-  );
-}
-
-// 프로토콜 있는 URL + 도메인만(naver.com, www.google.com 등) + @멘션
-const LINK_SPLIT_REGEX = /(https?:\/\/[^\s<>"']+|(?:www\.)?[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)*\.[a-zA-Z]{2,}|@\S+)/gi;
-
-function renderLink(key: number, href: string, label: string, linkColor: string): React.ReactNode {
-  const openExternal = window.electronAPI?.openExternal;
-  return (
-    <a
-      key={key}
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{ color: linkColor, textDecoration: 'underline', wordBreak: 'break-all', cursor: 'pointer' }}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (openExternal) {
-          e.preventDefault();
-          openExternal(href);
-        }
-      }}
-    >
-      {label}
-    </a>
-  );
-}
-
-function renderContentWithMentions(content: string, isDark: boolean): React.ReactNode {
-  const parts = content.split(LINK_SPLIT_REGEX);
-  const linkColor = isDark ? '#60a5fa' : '#2563eb';
-  return parts.map((part, i) => {
-    if (/^https?:\/\//i.test(part)) {
-      const href = part.replace(/[.,;:!?)]+$/, '');
-      return renderLink(i, href, part, linkColor);
-    }
-    if (
-      /^(?:www\.)?[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)*\.[a-zA-Z]{2,}$/i.test(part) &&
-      !/\.(?:pdf|jpg|jpeg|png|gif|doc|docx|xls|xlsx|zip|txt|pptx|hwp)$/i.test(part)
-    ) {
-      const href = part.replace(/[.,;:!?)]+$/, '');
-      const url = href.startsWith('http') ? href : `https://${href}`;
-      return renderLink(i, url, part, linkColor);
-    }
-    if (part.startsWith('@')) {
-      return <span key={i} style={{ color: linkColor, fontWeight: 600 }}>{part}</span>;
-    }
-    return part;
-  });
-}
 
 type ChatWindowProps = { embedded?: boolean; onOpenInNewWindow?: () => void };
 
@@ -611,7 +84,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const isCompactHeader = viewportWidth < 980;
   const summaryDismissedRef = useRef(false);
   const socketRef = useRef<Socket | null>(null);
-  const myIdRef = useRef<string | undefined>(myId);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
@@ -620,7 +92,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const prevScrollHeightRef = useRef(0);
   const prevPageCountRef = useRef(0);
   const prevMsgCountRef = useRef(0);
-  const lastMarkReadRef = useRef<number>(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const checkAtBottom = () => {
@@ -633,7 +104,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     messagesScrollRef.current?.scrollTo({ top: messagesScrollRef.current.scrollHeight, behavior: 'auto' });
   };
   const queryClient = useQueryClient();
-  myIdRef.current = myId;
 
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth);
@@ -666,6 +136,16 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     enabled: !!roomId,
     staleTime: 0,
     refetchOnMount: 'always',
+  });
+  useChatSocket({
+    token,
+    roomId,
+    embedded,
+    room,
+    myId,
+    socketRef,
+    setSocket,
+    queryClient,
   });
 
   type MessagesPage = { messages: Message[]; nextCursor: string | null; hasMore: boolean };
@@ -747,219 +227,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     return () => clearTimeout(t);
   }, [roomId, room]);
 
-  // Socket connection
-  useEffect(() => {
-    if (!token || !roomId) return;
-    if (socketRef.current?.connected) return;
-    const url = getSocketUrl();
-    const s = io(url, { path: '/socket.io', auth: { token } });
-    socketRef.current = s;
-    s.on('connect_error', (err: { message?: string }) => {
-      if (err?.message?.includes('invalid token')) {
-        try {
-          localStorage.setItem('forcedLogoutMessage', '다른 기기에서 로그인되어 로그아웃되었습니다.');
-          localStorage.removeItem('token');
-          if (typeof window !== 'undefined') navigateToLogin();
-        } catch {
-          // ignore
-        }
-      }
-    });
-    s.on('error', (payload: { code?: string; message?: string }) => {
-      console.error('[Socket error]', payload);
-    });
-    s.on('connect', () => s.emit('join_room', roomId));
-    s.on('message', (msg: Message) => {
-      if (msg.roomId !== roomId) return;
-      const withDefaults = { ...msg, readCount: msg.readCount ?? 0, reactions: msg.reactions ?? [], poll: msg.poll ?? null };
-      queryClient.setQueryData<InfiniteData<MessagesPage>>(
-        ['rooms', roomId, 'messages'],
-        (old) => {
-          if (!old?.pages?.length) return { pages: [{ messages: [withDefaults], nextCursor: null, hasMore: false }], pageParams: [undefined] };
-          const firstPage = old.pages[0];
-          if (firstPage?.messages?.some((m) => m.id === msg.id)) return old;
-          const updatedFirst = { ...firstPage, messages: [withDefaults, ...(firstPage.messages ?? [])] };
-          return { ...old, pages: [updatedFirst, ...old.pages.slice(1, 5)] };
-        }
-      );
-      // 방 목록만 갱신 (메시지 refetch 시 소켓으로 받은 새 메시지가 덮어써져 사라지는 문제 방지)
-      const uid = myIdRef.current;
-      if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
-      if (msg.senderId !== myIdRef.current) {
-        const now = Date.now();
-        if (now - lastMarkReadRef.current > 1000) {
-          lastMarkReadRef.current = now;
-          roomsApi.markRead(roomId).catch(() => {});
-        }
-        // 별도 채팅 창: 창이 백그라운드일 때 알림 표시 (Main에 소켓이 없을 수 있음)
-        if (!embedded && typeof document !== 'undefined' && document.hidden) {
-          try {
-            const snoozed = Number(localStorage.getItem('notificationsSnoozedUntil') || 0);
-            const mutedRaw = localStorage.getItem('mutedRoomIds');
-            const muted = mutedRaw ? new Set(JSON.parse(mutedRaw).map(String)) : new Set();
-            if (snoozed > Date.now() || muted.has(String(msg.roomId))) return;
-            const senderName = msg.sender?.name ?? '알 수 없음';
-            const isTopic = !!room?.isTopic;
-            const roomName = room?.name ?? '';
-            const title = isTopic && roomName ? `${roomName} 아젠다` : senderName;
-            const body = isTopic && roomName ? `${senderName}: ${msg.fileUrl && msg.fileName ? msg.fileName : msg.content}` : (msg.fileUrl && msg.fileName ? msg.fileName : msg.content);
-            const electronAPI = window.electronAPI;
-            if (electronAPI?.showNotification) {
-              (async () => {
-                try {
-                  let icon: string | null = null;
-                  let imagePreview: string | null = null;
-                  if (msg.senderId && token) {
-                    try {
-                      const base = getBaseUrl();
-                      if (electronAPI.fetchUserAvatar && base) {
-                        icon = await Promise.race([
-                          electronAPI.fetchUserAvatar(msg.senderId, base, token),
-                          new Promise<null>((r) => setTimeout(() => r(null), 250)),
-                        ]);
-                      }
-                    } catch { /* ignore */ }
-                  }
-                  if (msg.fileUrl && msg.fileMimeType?.startsWith('image/')) {
-                    try {
-                      const blob = await Promise.race([
-                        filesApi.fetchBlob(msg.id),
-                        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 400)),
-                      ]);
-                      imagePreview = await new Promise<string>((resolve, reject) => {
-                        const r = new FileReader();
-                        r.onload = () => resolve(r.result as string);
-                        r.onerror = () => reject(new Error('read failed'));
-                        r.readAsDataURL(blob);
-                      });
-                      if (imagePreview.length > 80 * 1024) imagePreview = null;
-                    } catch { /* ignore */ }
-                  }
-                  electronAPI.showNotification(title, body, msg.roomId, icon, imagePreview);
-                } catch {
-                  electronAPI.showNotification(title, body, msg.roomId);
-                }
-              })();
-            } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-              new Notification(title, { body });
-            }
-          } catch { /* ignore */ }
-        }
-      }
-    });
-    s.on('message_updated', (payload: { id: string; roomId: string; content: string; editedAt: string }) => {
-      if (payload.roomId !== roomId) return;
-      queryClient.setQueryData<InfiniteData<MessagesPage>>(
-        ['rooms', roomId, 'messages'],
-        (old) => {
-          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
-          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: (page.messages ?? []).map((m) => m.id === payload.id ? { ...m, content: payload.content, editedAt: payload.editedAt } : m) })) };
-        }
-      );
-    });
-    s.on('message_deleted', (payload: { id: string; roomId: string }) => {
-      if (payload.roomId !== roomId) return;
-      queryClient.setQueryData<InfiniteData<MessagesPage>>(
-        ['rooms', roomId, 'messages'],
-        (old) => {
-          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
-          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: (page.messages ?? []).map((m) => m.id === payload.id ? { ...m, content: '[삭제된 메시지]', deletedAt: new Date().toISOString() } : m) })) };
-        }
-      );
-    });
-    s.on('reaction_updated', (payload: { messageId: string; reactions: ReactionGroup[] }) => {
-      queryClient.setQueryData<InfiniteData<MessagesPage>>(
-        ['rooms', roomId, 'messages'],
-        (old) => {
-          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
-          return { ...old, pages: old.pages.map((page) => ({ ...page, messages: (page.messages ?? []).map((m) => m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m) })) };
-        }
-      );
-    });
-    s.on('poll_voted', (payload: { messageId?: string; id: string; question: string; isMultiple: boolean; options: Array<{ id: string; text: string; voteCount: number; voterIds: string[] }> }) => {
-      queryClient.setQueryData<InfiniteData<MessagesPage>>(
-        ['rooms', roomId, 'messages'],
-        (old) => {
-          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
-          return {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              messages: (page.messages ?? []).map((m) => {
-                if (m.poll && m.poll.id === payload.id) {
-                  return { ...m, poll: { ...m.poll, options: payload.options } };
-                }
-                return m;
-              }),
-            })),
-          };
-        }
-      );
-    });
-    s.on('message_pinned', () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms', roomId, 'pins'] });
-    });
-    s.on('message_unpinned', () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms', roomId, 'pins'] });
-    });
-    s.on('members_added', (payload: { roomId: string }) => {
-      if (payload.roomId === roomId) {
-        queryClient.refetchQueries({ queryKey: ['rooms', roomId] });
-        queryClient.refetchQueries({ queryKey: ['rooms'] });
-      }
-    });
-    s.on('member_left', () => {
-      queryClient.refetchQueries({ queryKey: ['rooms', roomId] });
-      queryClient.refetchQueries({ queryKey: ['rooms', roomId, 'messages'] });
-    });
-    const handleProjectEvent = () => {
-      queryClient.invalidateQueries({ queryKey: ['projects', roomId] });
-    };
-    s.on('project_updated', handleProjectEvent);
-    s.on('task_created', handleProjectEvent);
-    s.on('task_updated', handleProjectEvent);
-    s.on('task_moved', handleProjectEvent);
-    s.on('task_deleted', handleProjectEvent);
-    s.on('room_avatar_updated', (payload: { roomId: string }) => {
-      if (payload.roomId === roomId) {
-        queryClient.invalidateQueries({ queryKey: ['rooms', roomId] });
-        queryClient.invalidateQueries({ queryKey: ['rooms', myIdRef.current] });
-      }
-    });
-    s.on('room_read', (payload: { roomId: string; userId: string }) => {
-      if (payload.roomId !== roomId || payload.userId === myIdRef.current) return;
-      queryClient.setQueryData<InfiniteData<MessagesPage>>(
-        ['rooms', roomId, 'messages'],
-        (old) => {
-          if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
-          return {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              messages: (page.messages ?? []).map((m) =>
-                m.senderId === myIdRef.current ? { ...m, readCount: Math.max(m.readCount ?? 0, 1) } : m
-              ),
-            })),
-          };
-        }
-      );
-      queryClient.refetchQueries({ queryKey: ['rooms', roomId, 'messages'] });
-    });
-    s.on('mention', (payload: { roomId: string; senderName: string; content: string }) => {
-      window.electronAPI?.showNotification(
-        `${payload.senderName}님이 회원님을 멘션했습니다`,
-        payload.content
-      );
-    });
-    setSocket(s);
-    return () => {
-      s.removeAllListeners();
-      s.disconnect();
-      socketRef.current = null;
-      setSocket(null);
-    };
-  }, [token, roomId, queryClient]);
-
   useEffect(() => {
     if (roomId) {
       roomsApi.markRead(roomId).then(() => {
@@ -970,56 +237,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       });
     }
   }, [roomId, queryClient]);
-
-  useEffect(() => {
-    if (!roomId) return;
-    try {
-      const existing = localStorage.getItem('activeChatFocused');
-      if (existing != null && existing !== '0' && existing !== '1') {
-        localStorage.removeItem('activeChatFocused');
-        localStorage.removeItem('activeChatRoomId');
-      }
-    } catch { /* ignore */ }
-    const setActive = (focused: boolean) => {
-      try {
-        localStorage.setItem('activeChatRoomId', roomId);
-        localStorage.setItem('activeChatFocused', focused ? '1' : '0');
-      } catch {
-        // ignore
-      }
-    };
-    setActive(typeof document !== 'undefined' ? !document.hidden : true);
-    const onFocusActive = () => setActive(true);
-    const onBlur = () => setActive(false);
-    const onVisibilityActive = () => setActive(!(typeof document !== 'undefined' && document.hidden));
-    window.addEventListener('focus', onFocusActive);
-    window.addEventListener('blur', onBlur);
-    document.addEventListener('visibilitychange', onVisibilityActive);
-    const markIfVisible = () => {
-      if (typeof document !== 'undefined' && document.hidden) return;
-      roomsApi.markRead(roomId).catch(() => {});
-    };
-    const onFocusRead = () => markIfVisible();
-    const onVisibilityRead = () => markIfVisible();
-    window.addEventListener('focus', onFocusRead);
-    document.addEventListener('visibilitychange', onVisibilityRead);
-    return () => {
-      window.removeEventListener('focus', onFocusActive);
-      window.removeEventListener('blur', onBlur);
-      document.removeEventListener('visibilitychange', onVisibilityActive);
-      try {
-        const current = localStorage.getItem('activeChatRoomId');
-        if (current === roomId) {
-          localStorage.removeItem('activeChatRoomId');
-          localStorage.removeItem('activeChatFocused');
-        }
-      } catch {
-        // ignore
-      }
-      window.removeEventListener('focus', onFocusRead);
-      document.removeEventListener('visibilitychange', onVisibilityRead);
-    };
-  }, [roomId]);
+  useActiveChatPresence(roomId);
 
   // roomId 변경 시 초기 스크롤 플래그 리셋
   useEffect(() => {
@@ -1569,438 +787,44 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               이전 메시지 불러오는 중...
             </div>
           )}
-          {/* ===== 보드뷰: 루트 포스트 + 인라인 댓글 ===== */}
-          {isBoardView ? rootPosts.map((m, idx) => {
-            const elements: React.ReactNode[] = [];
-            const prevMsg = idx > 0 ? rootPosts[idx - 1] : null;
-            const curDateKey = getDateKey(m.createdAt);
-            const prevDateKey = prevMsg ? getDateKey(prevMsg.createdAt) : null;
-            if (idx === 0 || curDateKey !== prevDateKey) {
-              elements.push(
-                <div key={`date-${curDateKey}-${m.id}`} style={s.dateSeparator()}>
-                  <span style={s.dateSeparatorText()}>{formatDateLabel(new Date(m.createdAt))}</span>
-                </div>
-              );
-            }
-            if (isSystemMessage(m.content) && !m.fileUrl && m.eventTitle == null && !m.poll) {
-              elements.push(
-                <div key={m.id} style={s.systemMessageRow()}>
-                  <span style={s.systemMessageText()}>{m.content}</span>
-                </div>
-              );
-              return elements;
-            }
-            // 삭제된 포스트
-            if (m.deletedAt) {
-              elements.push(
-                <div key={m.id} style={s.boardCard(isDark)}>
-                  <div style={s.boardCardHeader(isDark)}>
-                    <div style={s.boardCardHeaderLeft(isDark)}>
-                      <span style={s.boardCardAvatar(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
-                      <div style={s.boardCardAuthor(isDark)}>
-                        <span style={s.boardCardAuthorName(isDark)}>{m.sender?.name ?? '알 수 없음'}</span>
-                        <span style={s.boardCardTime(isDark)}>{new Date(m.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ ...s.boardCardBody(isDark), opacity: 0.6, fontStyle: 'italic' }}>[삭제된 메시지]</div>
-                </div>
-              );
-              return elements;
-            }
-            const replies = repliesMap.get(m.id) || [];
-            elements.push(
-              <div
-                key={m.id}
-                id={`msg-${m.id}`}
-                style={s.boardCard(isDark)}
-                onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, message: m }); }}
-              >
-                {/* 헤더: 아바타 + 작성자 + 날짜 + ⋮ 메뉴 */}
-                <div style={s.boardCardHeader(isDark)}>
-                  <div style={s.boardCardHeaderLeft(isDark)}>
-                    <span style={s.boardCardAvatar(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
-                    <div style={s.boardCardAuthor(isDark)}>
-                      <span style={s.boardCardAuthorName(isDark)}>{m.sender?.name ?? '알 수 없음'}</span>
-                      <span style={s.boardCardTime(isDark)}>
-                        {new Date(m.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    style={s.boardMenuBtn(isDark)}
-                    onClick={(e) => { e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, message: m }); }}
-                    title="더보기"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill={isDark ? '#94a3b8' : '#6b7280'}>
-                      <circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13" r="1.5" />
-                    </svg>
-                  </button>
-                </div>
-                {(m.contextFilePath || m.contextBranch) && (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => {
-                      const str = m.contextFilePath
-                        ? m.contextFilePath + (m.contextLine ? `:${m.contextLine}` : '')
-                        : (m.contextBranch || '');
-                      if (str && navigator.clipboard?.writeText) {
-                        navigator.clipboard.writeText(str).then(() => showToast('복사되었습니다.', 'success'));
-                      }
-                    }}
-                    style={{ fontSize: 11, padding: '4px 10px', marginBottom: 6, borderRadius: 6, background: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)', color: isDark ? '#a5b4fc' : '#4f46e5', cursor: 'pointer', display: 'inline-block' }}
-                    title="클릭하여 복사"
-                  >
-                    📍 {[m.contextFilePath, m.contextLine ? `:${m.contextLine}` : null, m.contextBranch ? ` (${m.contextBranch})` : null].filter(Boolean).join('')}
-                  </div>
-                )}
-                {/* 본문 */}
-                <div style={s.boardCardBody(isDark)}>
-                  {m.poll ? (
-                    <PollCard poll={m.poll} myId={myId} isMine={m.senderId === myId} />
-                  ) : m.eventTitle != null ? (
-                    <EventCard title={m.eventTitle} startAt={m.eventStartAt!} endAt={m.eventEndAt!} description={m.eventDescription ?? undefined} isMine={m.senderId === myId} />
-                  ) : m.fileUrl ? (
-                    <FileMessage message={m} />
-                  ) : (
-                    <>
-                      {renderContentWithMentions(m.content, isDark)}
-                      {extractFirstUrl(m.content) && <LinkPreview url={extractFirstUrl(m.content)!} isDark={isDark} />}
-                    </>
-                  )}
-                  {m.editedAt && <span style={{ fontSize: 11, opacity: 0.6, marginTop: 4, display: 'block' }}>(수정됨)</span>}
-                </div>
-                {/* 푸터: 읽음 + 좋아요 반응 */}
-                <div style={s.boardCardFooter(isDark)}>
-                  {m.senderId === myId && room && (() => {
-                    const memberCount = room.members?.length ?? 0;
-                    if (memberCount <= 2) return null;
-                    const totalReaders = memberCount - 1;
-                    const readCount = m.readCount ?? 0;
-                    const unreadCount = Math.max(0, totalReaders - readCount);
-                    if (unreadCount === 0) return null;
-                    return (
-                      <span style={s.readStatusMineBoard(isDark)}>{unreadCount}</span>
-                    );
-                  })()}
-                  {m.reactions && m.reactions.length > 0 ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {m.reactions.map((r: ReactionGroup) => (
-                        <button key={r.emoji} type="button" onClick={() => handleReaction(m.id, r.emoji)} style={s.reactionBadge(isDark, myId ? r.userIds.includes(myId) : false)}>
-                          {r.emoji} {r.count}
-                        </button>
-                      ))}
-                    </span>
-                  ) : (
-                    <button type="button" style={s.boardCardFooterBtn(isDark)} onClick={() => handleReaction(m.id, '👍')}>
-                      👍 좋아요
-                    </button>
-                  )}
-                </div>
-                {/* 인라인 댓글 섹션 */}
-                {replies.length > 0 && (
-                  <div style={s.boardCommentSection(isDark)}>
-                    {replies.map((reply) => (
-                      <div
-                        key={reply.id}
-                        id={`msg-${reply.id}`}
-                        style={s.boardCommentRow(isDark)}
-                        onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, message: reply }); }}
-                      >
-                        <span style={s.boardCommentAvatar(isDark)}>{reply.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b' }}>{reply.sender?.name ?? '알 수 없음'}</span>
-                            <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>
-                              {new Date(reply.createdAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                          {reply.deletedAt ? (
-                            <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#9ca3af', fontStyle: 'italic', marginTop: 2 }}>[삭제된 댓글]</div>
-                          ) : reply.fileUrl ? (
-                            <div style={{ marginTop: 4 }}><FileMessage message={reply} /></div>
-                          ) : (
-                            <div style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#374151', lineHeight: 1.5, marginTop: 2, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                              {renderContentWithMentions(reply.content, isDark)}
-                            </div>
-                          )}
-                          {reply.reactions && reply.reactions.length > 0 && (
-                            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                              {reply.reactions.map((r: ReactionGroup) => (
-                                <button key={r.emoji} type="button" onClick={() => handleReaction(reply.id, r.emoji)} style={{ ...s.reactionBadge(isDark, myId ? r.userIds.includes(myId) : false), fontSize: 11, padding: '1px 6px' }}>
-                                  {r.emoji} {r.count}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {/* 인라인 댓글 입력 */}
-                <div style={s.boardCommentInputRow(isDark)}>
-                  <input
-                    type="text"
-                    value={boardCommentInputs[m.id] || ''}
-                    onChange={(e) => setBoardCommentInputs((prev) => ({ ...prev, [m.id]: e.target.value }))}
-                    placeholder="댓글을 입력하세요..."
-                    style={s.boardCommentInput(isDark)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        if ((e.nativeEvent as KeyboardEvent).isComposing) return;
-                        e.preventDefault();
-                        const text = (boardCommentInputs[m.id] || '').trim();
-                        if (text && socketRef.current && roomId) {
-                          socketRef.current.emit('message', { roomId, content: text, replyToId: m.id });
-                          setBoardCommentInputs((prev) => ({ ...prev, [m.id]: '' }));
-                        }
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    style={s.boardCommentSendBtn(isDark)}
-                    onClick={() => {
-                      const text = (boardCommentInputs[m.id] || '').trim();
-                      if (text && socketRef.current && roomId) {
-                        socketRef.current.emit('message', { roomId, content: text, replyToId: m.id });
-                        setBoardCommentInputs((prev) => ({ ...prev, [m.id]: '' }));
-                      }
-                    }}
-                  >
-                    전송
-                  </button>
-                </div>
-              </div>
-            );
-            return elements;
-          })
+          {isBoardView ? (
+            <BoardMessageList
+              rootPosts={rootPosts}
+              repliesMap={repliesMap}
+              isDark={isDark}
+              myId={myId}
+              room={room}
+              setContextMenu={setContextMenu}
+              showToast={showToast}
+              handleReaction={handleReaction}
+              boardCommentInputs={boardCommentInputs}
+              setBoardCommentInputs={setBoardCommentInputs}
+              socketRef={socketRef}
+              roomId={roomId}
+            />
+          )
 
           /* ===== 채팅뷰: 기존 말풍선 ===== */
-          : displayMessages.map((m, idx) => {
-            const elements: React.ReactNode[] = [];
-            const prevMsg = idx > 0 ? displayMessages[idx - 1] : null;
-            const curDateKey = getDateKey(m.createdAt);
-            const prevDateKey = prevMsg ? getDateKey(prevMsg.createdAt) : null;
-            if (idx === 0 || curDateKey !== prevDateKey) {
-              elements.push(
-                <div key={`date-${curDateKey}-${m.id}`} style={s.dateSeparator()}>
-                  <span style={s.dateSeparatorText()}>{formatDateLabel(new Date(m.createdAt))}</span>
-                </div>
-              );
-            }
-            // 첫 안 읽은 메시지 위에 "새 메시지" 구분선
-            if (m.id === firstUnreadMessageId) {
-              elements.push(
-                <div
-                  key={`unread-${m.id}`}
-                  ref={firstUnreadRef}
-                  style={s.unreadDivider(isDark)}
-                >
-                  <span style={s.unreadDividerText(isDark)}>새 메시지</span>
-                </div>
-              );
-            }
-            if (isSystemMessage(m.content) && !m.fileUrl && m.eventTitle == null && !m.poll) {
-              elements.push(
-                <div key={m.id} style={s.systemMessageRow()}>
-                  <span style={s.systemMessageText()}>{m.content}</span>
-                </div>
-              );
-              return elements;
-            }
-            if (m.deletedAt) {
-              elements.push(
-                <div key={m.id} style={{ ...s.messageRow(), ...(m.senderId === myId ? s.messageRowMine() : {}) }}>
-                  <div style={s.messageRowInner()}>
-                    {m.senderId !== myId && <div style={s.avatarWrap()} aria-hidden><span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span></div>}
-                    <div style={{ width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(m.senderId === myId ? { marginLeft: 'auto' } : {}) }}>
-                      <div style={{ ...s.messageBubble(isDark), ...(m.senderId === myId ? s.messageBubbleMine(isDark) : {}), opacity: 0.5, fontStyle: 'italic' }}>
-                        <span style={s.messageContent()}>[삭제된 메시지]</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-              return elements;
-            }
-
-            const isHovered = hoveredMsg === m.id;
-            const isHighlighted = highlightedMsgId === m.id;
-            elements.push(
-              <div
-                key={m.id}
-                id={`msg-${m.id}`}
-                style={{ ...s.messageRow(), ...(m.senderId === myId ? s.messageRowMine() : {}) }}
-                onMouseEnter={() => setHoveredMsg(m.id)}
-                onMouseLeave={() => setHoveredMsg(null)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setContextMenu({ x: e.clientX, y: e.clientY, message: m });
-                }}
-              >
-                {m.senderId !== myId && <div style={s.senderLabel(isDark)}>{m.sender.name}</div>}
-
-                {(m.contextFilePath || m.contextBranch) && (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => {
-                      const str = m.contextFilePath
-                        ? m.contextFilePath + (m.contextLine ? `:${m.contextLine}` : '')
-                        : (m.contextBranch || '');
-                      if (str && navigator.clipboard?.writeText) {
-                        navigator.clipboard.writeText(str).then(() => showToast('복사되었습니다.', 'success'));
-                      }
-                    }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click(); }}
-                    style={{
-                      fontSize: 11,
-                      padding: '4px 10px',
-                      borderRadius: 8,
-                      background: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
-                      color: isDark ? '#a5b4fc' : '#4f46e5',
-                      marginBottom: 4,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      maxWidth: '100%',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                    title="클릭하여 복사 (IDE에서 파일:라인 형식)"
-                  >
-                    📍 {[m.contextFilePath, m.contextLine ? `:${m.contextLine}` : null, m.contextBranch ? ` (${m.contextBranch})` : null].filter(Boolean).join('')}
-                  </div>
-                )}
-                {m.replyTo && (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    style={s.replyPreview(isDark, m.senderId === myId)}
-                    onClick={() => {
-                      const targetId = m.replyTo!.id;
-                      const el = document.getElementById(`msg-${targetId}`);
-                      if (el) {
-                        setHighlightedMsgId(null);
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        setTimeout(() => {
-                          setHighlightedMsgId(targetId);
-                          setTimeout(() => setHighlightedMsgId(null), 2000);
-                        }, 400);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        const targetId = m.replyTo!.id;
-                        const el = document.getElementById(`msg-${targetId}`);
-                        if (el) {
-                          setHighlightedMsgId(null);
-                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          setTimeout(() => {
-                            setHighlightedMsgId(targetId);
-                            setTimeout(() => setHighlightedMsgId(null), 2000);
-                          }, 400);
-                        }
-                      }
-                    }}
-                  >
-                    <span style={s.replyPreviewLabel(isDark)}>{m.replyTo.sender?.name}</span>
-                    <span style={s.replyPreviewContent(isDark)}>{m.replyTo.content}</span>
-                  </div>
-                )}
-
-                <div style={s.messageRowInner()}>
-                  {m.senderId !== myId && (
-                    <div style={s.avatarWrap()} aria-hidden>
-                      <span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
-                    </div>
-                  )}
-                  <div style={{ position: 'relative', width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(m.senderId === myId ? { marginLeft: 'auto' } : {}) }}>
-                    <div
-                      className={isHighlighted ? 'message-bubble-highlight' : undefined}
-                      style={{ ...s.messageBubble(isDark), ...(m.senderId === myId ? s.messageBubbleMine(isDark) : {}) }}
-                    >
-                      {m.poll ? (
-                        <PollCard poll={m.poll} myId={myId} isMine={m.senderId === myId} />
-                      ) : m.eventTitle != null ? (
-                        <EventCard title={m.eventTitle} startAt={m.eventStartAt!} endAt={m.eventEndAt!} description={m.eventDescription ?? undefined} isMine={m.senderId === myId} />
-                      ) : m.fileUrl ? (
-                        <FileMessage message={m} />
-                      ) : (
-                        <>
-                          <span style={s.messageContent()}>{renderContentWithMentions(m.content, isDark)}</span>
-                          {extractFirstUrl(m.content) && (
-                            <LinkPreview url={extractFirstUrl(m.content)!} isDark={isDark} />
-                          )}
-                        </>
-                      )}
-                      {m.editedAt && <span style={{ fontSize: 10, opacity: 0.6, marginTop: 4, display: 'block' }}>(수정됨)</span>}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                        <span style={{ ...s.metaTime(isDark), ...(m.senderId === myId ? { color: '#fff' } : {}) }}>
-                          {new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        {m.senderId === myId && room && (() => {
-                          const memberCount = room.members?.length ?? 0;
-                          if (memberCount <= 2) return null;
-                          const totalReaders = memberCount - 1;
-                          const readCount = m.readCount ?? 0;
-                          const unreadCount = Math.max(0, totalReaders - readCount);
-                          if (unreadCount === 0) return null;
-                          return <span style={s.readStatusMineBubble()}>{unreadCount}</span>;
-                        })()}
-                      </div>
-                    </div>
-                    {isHovered && !m.deletedAt && (
-                      <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        ...(m.senderId === myId
-                          ? { right: '100%', marginRight: 6 }
-                          : { left: '100%', marginLeft: 6 }),
-                        display: 'flex',
-                        gap: 2,
-                        alignItems: 'center',
-                      }}>
-                        <button type="button" onClick={() => setReplyTo(m)} style={s.hoverActionBtn(isDark)} title="답장">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10l7-7v4c8 0 11 4 11 11-2-5-5-7-11-7v4l-7-5z"/></svg>
-                        </button>
-                        <div style={{ position: 'relative' }}>
-                          <button type="button" onClick={() => setEmojiPickerMsg(emojiPickerMsg === m.id ? null : m.id)} style={s.hoverActionBtn(isDark)} title="반응">
-                            {'\uD83D\uDE0A'}
-                          </button>
-                          {emojiPickerMsg === m.id && (
-                            <EmojiPicker onSelect={(emoji) => handleReaction(m.id, emoji)} onClose={() => setEmojiPickerMsg(null)} />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {m.reactions && m.reactions.length > 0 && (
-                  <div style={s.reactionsRow(m.senderId === myId)}>
-                    {m.reactions.map((r: ReactionGroup) => (
-                      <button
-                        key={r.emoji}
-                        type="button"
-                        onClick={() => handleReaction(m.id, r.emoji)}
-                        style={s.reactionBadge(isDark, myId ? r.userIds.includes(myId) : false)}
-                      >
-                        {r.emoji} {r.count}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-            return elements;
-          })}
+          : (
+            <ChatBubbleList
+              displayMessages={displayMessages}
+              firstUnreadMessageId={firstUnreadMessageId}
+              firstUnreadRef={firstUnreadRef}
+              isDark={isDark}
+              myId={myId}
+              room={room}
+              hoveredMsg={hoveredMsg}
+              highlightedMsgId={highlightedMsgId}
+              emojiPickerMsg={emojiPickerMsg}
+              setHoveredMsg={setHoveredMsg}
+              setHighlightedMsgId={setHighlightedMsgId}
+              setContextMenu={setContextMenu}
+              showToast={showToast}
+              setReplyTo={setReplyTo}
+              setEmojiPickerMsg={setEmojiPickerMsg}
+              handleReaction={handleReaction}
+            />
+          )}
 
           {/* AI 채팅 요약 (채팅 메시지 형태) */}
           {(summaryLoading || summaryText) && (
@@ -2355,176 +1179,22 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           </div>
         </div>
 
-        {/* Thread panel */}
-        {threadOpen && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 10005, background: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'flex-end' }} onClick={() => setThreadOpen(null)}>
-            <div style={{ width: 380, height: '100%', background: isDark ? '#1e293b' : '#fff', boxShadow: isDark ? '-4px 0 20px rgba(0,0,0,0.3)' : '-4px 0 20px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-              <div style={{ padding: '16px 20px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 16, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' }}>스레드</span>
-                <UICloseButton onClick={() => setThreadOpen(null)} />
-              </div>
-              <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-                {/* Parent message */}
-                <div style={{ padding: 14, borderRadius: 12, background: isDark ? '#334155' : '#f1f5f9', marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 4 }}>{threadOpen.parent.sender?.name}</div>
-                  <div style={{ fontSize: 14, color: isDark ? '#e2e8f0' : '#1e293b', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {threadOpen.parent.content}
-                  </div>
-                  <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999', marginTop: 6 }}>
-                    {new Date(threadOpen.parent.createdAt).toLocaleString('ko-KR')}
-                  </div>
-                </div>
-                {/* Replies */}
-                <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 10 }}>
-                  답글 {(threadOpen.replies ?? []).length}개
-                </div>
-                {(threadOpen.replies ?? []).map((r) => (
-                  <div key={r.id} style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: isDark ? '#475569' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569', flexShrink: 0 }}>
-                      {r.sender?.name?.[0]?.toUpperCase() || '?'}
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b' }}>{r.sender?.name}</span>
-                        <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>{new Date(r.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                      <div style={{ fontSize: 14, color: isDark ? '#cbd5e1' : '#333', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.content}</div>
-                    </div>
-                  </div>
-                ))}
-                {(threadOpen.replies ?? []).length === 0 && (
-                  <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 13, marginTop: 20 }}>아직 답글이 없습니다</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        <ThreadPanel threadOpen={threadOpen} setThreadOpen={setThreadOpen} isDark={isDark} />
         </div>
 
-        {/* Right sidebar: icon bar (48px) + panel (280px) */}
-        <div
-          style={{
-            display: 'flex',
-            flexShrink: 0,
-            width: rightPanel !== 'none' ? RIGHT_SIDEBAR_ICON_WIDTH + RIGHT_SIDEBAR_PANEL_WIDTH : RIGHT_SIDEBAR_ICON_WIDTH,
-            borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-            background: isDark ? '#1e293b' : '#fff',
-            transition: 'width 0.2s ease',
-          }}
-        >
-          <div style={{ width: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 12, gap: 4 }}>
-            <button
-              type="button"
-              onClick={handleOpenFileDrawer}
-              title="파일함"
-              style={{
-                width: 40,
-                height: 40,
-                border: 'none',
-                background: rightPanel === 'file' ? (isDark ? '#334155' : '#f1f5f9') : 'transparent',
-                borderRadius: 8,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: rightPanel === 'file' ? (isDark ? '#60a5fa' : '#2563eb') : (isDark ? '#94a3b8' : '#64748b'),
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setRightPanel((p) => (p === 'members' ? 'none' : 'members'))}
-              title="멤버"
-              style={{
-                width: 40,
-                height: 40,
-                border: 'none',
-                background: rightPanel === 'members' ? (isDark ? '#334155' : '#f1f5f9') : 'transparent',
-                borderRadius: 8,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: rightPanel === 'members' ? (isDark ? '#60a5fa' : '#2563eb') : (isDark ? '#94a3b8' : '#64748b'),
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setRightPanel((p) => (p === 'pins' ? 'none' : 'pins'))}
-              title="고정 메시지"
-              style={{
-                width: 40,
-                height: 40,
-                border: 'none',
-                background: rightPanel === 'pins' ? (isDark ? '#334155' : '#f1f5f9') : 'transparent',
-                borderRadius: 8,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: rightPanel === 'pins' ? (isDark ? '#60a5fa' : '#2563eb') : (isDark ? '#94a3b8' : '#64748b'),
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-            </button>
-          </div>
-          {rightPanel !== 'none' && (
-            <div style={{ width: 280, display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 16px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' }}>
-                  {rightPanel === 'file' && '파일함'}
-                  {rightPanel === 'members' && '멤버'}
-                  {rightPanel === 'pins' && '고정 메시지'}
-                </span>
-                <UICloseButton
-                  aria-label="패널 닫기"
-                  size="lg"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); setRightPanel('none'); }}
-                />
-              </div>
-              <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
-                {rightPanel === 'file' && (
-                  <>
-                    {fileDrawerData.length === 0 ? (
-                      <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14, marginTop: 24 }}>공유된 파일이 없습니다</p>
-                    ) : (
-                      fileDrawerData.map((f) => (
-                        <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, marginBottom: 4, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-                          </svg>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 500, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.fileName || 'file'}</div>
-                            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>
-                              {f.sender.name} · {new Date(f.createdAt).toLocaleDateString('ko-KR')}
-                              {f.fileSize != null && ` · ${f.fileSize < 1024 * 1024 ? `${(f.fileSize / 1024).toFixed(0)}KB` : `${(f.fileSize / (1024 * 1024)).toFixed(1)}MB`}`}
-                            </div>
-                          </div>
-                          <button type="button" onClick={() => filesApi.download(f.id, f.fileName)} style={{ border: 'none', background: isDark ? '#334155' : '#f1f5f9', borderRadius: 6, padding: '6px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="다운로드">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </>
-                )}
-                {rightPanel === 'members' && <RightPanelMembers members={members} isDark={isDark} onInvite={() => setInviteOpen(true)} canInvite={canInvite} />}
-                {rightPanel === 'pins' && <RightPanelPins roomId={roomId!} isDark={isDark} />}
-              </div>
-            </div>
-          )}
-        </div>
+        <RightSidebar
+          isDark={isDark}
+          rightPanel={rightPanel}
+          setRightPanel={setRightPanel}
+          handleOpenFileDrawer={handleOpenFileDrawer}
+          fileDrawerData={fileDrawerData}
+          canInvite={canInvite}
+          setInviteOpen={setInviteOpen}
+          roomId={roomId}
+          members={members}
+          panelWidth={RIGHT_SIDEBAR_PANEL_WIDTH}
+          iconWidth={RIGHT_SIDEBAR_ICON_WIDTH}
+        />
       </div>
     </div>
   );

@@ -1,23 +1,35 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
-import { io, Socket } from 'socket.io-client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, filesApi, getSocketUrl, getBaseUrl, authApi, navigateToLogin, type Room, type Message, type OrgCompany, type OrgUser, type Event, type PublicRoom, type Folder } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, authApi, type Room, type OrgCompany, type OrgUser, type Event, type Folder } from '../api';
 import { ollamaChat, getOllamaConfig, type OllamaMessage } from '../ollama';
 import ToastProvider from '../components/ui/ToastProvider';
 import CreateGroupModal from '../components/CreateGroupModal';
 import FolderManageModal from '../components/FolderManageModal';
 import AvatarEditModal from '../components/AvatarEditModal';
-import RoomAvatar from '../components/RoomAvatar';
 import UserAvatar from '../components/UserAvatar';
-import GroupAvatar from '../components/GroupAvatar';
-import { EmaxLogo } from '../components/EmaxLogo';
 import TitleBar from '../components/TitleBar';
 import ChatWindow from './ChatWindow';
 import { getThemeTokens } from '../components/ui/themeTokens';
 import UIChevron from '../components/ui/UIChevron';
 import UICloseButton from '../components/ui/UICloseButton';
+import {
+  addMonths,
+  daysInMonth,
+  normalizeTimeRange,
+  startOfMonth,
+  toLocalInputValue,
+  toLocalDateKey,
+} from './main/utils/date';
+import { useUpdateManager } from './main/hooks/useUpdateManager';
+import { useNotificationPrefs } from './main/hooks/useNotificationPrefs';
+import { useMainSocket } from './main/hooks/useMainSocket';
+import RoomListItem from './main/components/RoomListItem';
+import LeftSidebar from './main/components/LeftSidebar';
+import TopMenuBar from './main/components/TopMenuBar';
+import SettingsPanel from './main/components/SettingsPanel';
 
 const STATUS_OPTIONS = [
   { id: '', label: '설정 안 함' },
@@ -81,50 +93,12 @@ function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
   return null;
 }
 
-function PlusIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden style={{ display: 'block', flexShrink: 0 }}>
-      <path d="M6 2.5V9.5M2.5 6H9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function openChatWindow(roomId: string) {
   if (window.electronAPI?.openChatWindow) {
     window.electronAPI.openChatWindow(roomId);
   } else {
     window.open(`${window.location.origin}/chat/${roomId}`, '_blank', 'width=480,height=680');
   }
-}
-
-function toLocalInputValue(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function toLocalDateKey(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function startOfMonth(d: Date): Date { return new Date(d.getFullYear(), d.getMonth(), 1); }
-function daysInMonth(d: Date): number { return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); }
-function addMonths(d: Date, delta: number): Date { return new Date(d.getFullYear(), d.getMonth() + delta, 1); }
-function dateKeyWithTime(dateKey: string, time: string): string { return dateKey ? `${dateKey}T${time}` : ''; }
-
-function normalizeTimeRange(dateKey: string, start?: string, end?: string) {
-  const s = start ? new Date(start) : null;
-  const e = end ? new Date(end) : null;
-  const baseStart = dateKeyWithTime(dateKey, '09:00');
-  const baseEnd = dateKeyWithTime(dateKey, '10:00');
-  if (!s || Number.isNaN(s.getTime()) || !e || Number.isNaN(e.getTime()) || e.getTime() <= s.getTime()) {
-    return { startAt: baseStart, endAt: baseEnd };
-  }
-  return { startAt: dateKeyWithTime(dateKey, toLocalInputValue(s.toISOString()).slice(11)), endAt: dateKeyWithTime(dateKey, toLocalInputValue(e.toISOString()).slice(11)) };
 }
 
 const MAIN_WINDOW_WIDTH = 1250;
@@ -184,26 +158,29 @@ export default function Main() {
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const aiMessagesEndRef = useRef<HTMLDivElement | null>(null);
-  const [mutedRoomIds, setMutedRoomIds] = useState<Set<string>>(() => {
-    try { const raw = localStorage.getItem('mutedRoomIds'); if (!raw) return new Set(); const list = JSON.parse(raw); return new Set(Array.isArray(list) ? list.map(String) : []); } catch { return new Set(); }
-  });
-  const [notificationsSnoozedUntil, setNotificationsSnoozedUntil] = useState<number>(() => {
-    try { const raw = localStorage.getItem('notificationsSnoozedUntil'); return raw ? Number(raw) : 0; } catch { return 0; }
-  });
   const showToast = useToastStore((s) => s.show);
-  const [appVersion, setAppVersion] = useState<string | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'latest'>('idle');
-  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
-  const [updateError, setUpdateError] = useState<string | null>(null);
+  const {
+    mutedRoomIds,
+    notificationsSnoozedUntil,
+    mutedRoomIdsRef,
+    notificationsSnoozedUntilRef,
+    toggleMuteRoom,
+    snoozeNotifications,
+    clearSnooze,
+  } = useNotificationPrefs(showToast);
+  const {
+    appVersion,
+    updateStatus,
+    updateVersion,
+    updateError,
+    handleCheckForUpdates,
+    handleQuitAndInstall,
+  } = useUpdateManager({ hasElectron: !!window.electronAPI, activePanel });
   const socketRef = useRef<Socket | null>(null);
   const myIdRef = useRef<string | undefined>(myId);
-  const mutedRoomIdsRef = useRef<Set<string>>(mutedRoomIds);
-  const notificationsSnoozedUntilRef = useRef<number>(notificationsSnoozedUntil);
   const statusSyncedRef = useRef(false);
   const queryClient = useQueryClient();
   myIdRef.current = myId;
-  mutedRoomIdsRef.current = mutedRoomIds;
-  notificationsSnoozedUntilRef.current = notificationsSnoozedUntil;
   const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
   const isCompactLayout = viewportWidth < 1180;
   const isNarrowLayout = viewportWidth < 980;
@@ -226,68 +203,39 @@ export default function Main() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // 앱 버전 조회 (Electron 패키징된 앱)
-  useEffect(() => {
-    if (hasElectron && activePanel === 'settings') {
-      window.electronAPI?.getAppVersion?.().then((v) => setAppVersion(v)).catch(() => {});
-    }
-  }, [hasElectron, activePanel]);
-
-  // 업데이트 다운로드 완료 시 "지금 재시작" 버튼 표시
-  useEffect(() => {
-    if (!hasElectron || !window.electronAPI?.onUpdateDownloaded) return;
-    const unsub = window.electronAPI.onUpdateDownloaded(() => setUpdateStatus('ready'));
-    return unsub;
-  }, [hasElectron]);
-
-  const handleCheckForUpdates = async () => {
-    if (!hasElectron || !window.electronAPI?.checkForUpdates) return;
-    setUpdateStatus('checking');
-    setUpdateError(null);
-    try {
-      const r = await window.electronAPI.checkForUpdates();
-      if (!r.success) {
-        setUpdateStatus('error');
-        setUpdateError(r.error || '업데이트 확인에 실패했습니다.');
-        return;
-      }
-      if (r.hasUpdate && r.version) {
-        setUpdateStatus('downloading');
-        setUpdateVersion(r.version);
-        setAppVersion(r.currentVersion ?? appVersion);
-      } else {
-        setUpdateStatus('latest');
-        setAppVersion(r.currentVersion ?? appVersion);
-      }
-    } catch (err) {
-      setUpdateStatus('error');
-      setUpdateError((err as Error)?.message || '업데이트 확인에 실패했습니다.');
-    }
-  };
-
-  const handleQuitAndInstall = () => {
-    window.electronAPI?.quitAndInstall?.();
-  };
-
   useEffect(() => {
     if (token) window.electronAPI?.windowResize?.(960, 700);
   }, [token]);
 
   // --- Queries ---
-  const { data: roomsRaw = [], isError: roomsError } = useQuery({ queryKey: ['rooms', myId], queryFn: roomsApi.list, enabled: !!myId });
-  const { data: folders = [] } = useQuery({ queryKey: ['folders'], queryFn: foldersApi.list, enabled: !!myId });
-  const allRooms = (roomsRaw as Room[]) ?? [];
+  const { data: allRooms = [], isError: roomsError } = useQuery<Room[]>({ queryKey: ['rooms', myId], queryFn: roomsApi.list, enabled: !!myId });
+  const { data: folders = [] } = useQuery<Folder[]>({ queryKey: ['folders'], queryFn: foldersApi.list, enabled: !!myId });
+  useMainSocket({
+    token,
+    queryClient,
+    myIdRef,
+    recentTopicRoomRef,
+    mutedRoomIdsRef,
+    notificationsSnoozedUntilRef,
+    setOnlineUserIds,
+    setSocketConnected,
+    setSocket,
+    socketRef,
+    allRooms,
+    socket,
+    socketConnected,
+  });
   const q = searchQuery.trim().toLowerCase();
   const filteredRooms = q ? allRooms.filter((r) => r.name?.toLowerCase().includes(q)) : allRooms;
   const topicRooms = filteredRooms.filter((r) => r.isGroup && r.isTopic);
   const chatRooms = filteredRooms.filter((r) => !r.isGroup || !r.isTopic);
 
-  const toggleFolder = (folderId: string) => setFolderOpen((prev) => ({ ...prev, [folderId]: !prev[folderId] }));
-  const folderIds = useMemo(() => new Set((folders as Folder[]).map((f) => f.id)), [folders]);
+  const toggleFolder = useCallback((folderId: string) => setFolderOpen((prev) => ({ ...prev, [folderId]: !prev[folderId] })), []);
+  const folderIds = useMemo(() => new Set(folders.map((f) => f.id)), [folders]);
   const roomsByFolder = useMemo(() => {
     const byFolder = new Map<string | null, Room[]>();
     byFolder.set(null, []);
-    for (const f of folders as Folder[]) byFolder.set(f.id, []);
+    for (const f of folders) byFolder.set(f.id, []);
     for (const r of topicRooms) {
       const key = r.folderId && folderIds.has(r.folderId) ? r.folderId : null;
       const list = byFolder.get(key)!;
@@ -300,9 +248,9 @@ export default function Main() {
   const chatUnreadCount = useMemo(() => chatRooms.reduce((sum, r) => sum + (r.unreadCount ?? 0), 0), [chatRooms]);
   const totalUnreadCount = topicUnreadCount + chatUnreadCount;
 
-  const { data: orgTreeRaw = [], isLoading: orgLoading, isError: orgError, refetch: refetchOrg } = useQuery({ queryKey: ['org', 'tree'], queryFn: orgApi.tree });
+  const { data: orgTreeRaw = [], isLoading: orgLoading, isError: orgError, refetch: refetchOrg } = useQuery<OrgCompany[]>({ queryKey: ['org', 'tree'], queryFn: orgApi.tree });
   const orgTree = useMemo(() => {
-    const tree = (orgTreeRaw as OrgCompany[]) ?? [];
+    const tree = orgTreeRaw ?? [];
     if (activePanel !== 'friends') return tree;
     return tree.map((company) => ({
       ...company,
@@ -319,7 +267,7 @@ export default function Main() {
 
   const { data: onlineData } = useQuery({ queryKey: ['org', 'online'], queryFn: orgApi.online, enabled: !!token });
   const { data: announcementData } = useQuery({ queryKey: ['announcement'], queryFn: announcementApi.get, enabled: !!token });
-  const { data: events = [] } = useQuery({ queryKey: ['events'], queryFn: eventsApi.list, enabled: !!token });
+  const { data: events = [] } = useQuery<Event[]>({ queryKey: ['events'], queryFn: eventsApi.list, enabled: !!token });
   const { data: bookmarks = [] } = useQuery({ queryKey: ['bookmarks'], queryFn: bookmarksApi.list, enabled: !!token && activePanel === 'bookmark' });
   const { data: mentions = [] } = useQuery({ queryKey: ['mentions'], queryFn: mentionsApi.list, enabled: !!token && activePanel === 'mention' });
   const { data: unreadMentionCount } = useQuery({ queryKey: ['mentions', 'unread-count'], queryFn: mentionsApi.unreadCount, enabled: !!token, refetchInterval: 30000 });
@@ -327,7 +275,7 @@ export default function Main() {
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, Event[]>();
-    (events as Event[]).forEach((ev) => { const key = toLocalDateKey(ev.startAt); if (key) { const list = map.get(key) || []; list.push(ev); map.set(key, list); } });
+    events.forEach((ev) => { const key = toLocalDateKey(ev.startAt); if (key) { const list = map.get(key) || []; list.push(ev); map.set(key, list); } });
     return map;
   }, [events]);
 
@@ -358,166 +306,6 @@ export default function Main() {
     }
   }, [token, totalUnreadCount]);
 
-  // Socket
-  useEffect(() => {
-    if (!token) return;
-    if (socketRef.current?.connected) return;
-    const url = getSocketUrl();
-    const s = io(url, { path: '/socket.io', auth: { token } });
-    socketRef.current = s;
-    s.on('connect_error', (err: { message?: string }) => {
-      if (err?.message?.includes('invalid token')) {
-        try { localStorage.setItem('forcedLogoutMessage', '다른 기기에서 로그인되어 로그아웃되었습니다.'); localStorage.removeItem('token'); if (typeof window !== 'undefined') navigateToLogin(); } catch { /* ignore */ }
-      }
-    });
-    s.on('connect', () => { setSocketConnected(true); if (myIdRef.current) setOnlineUserIds((prev) => new Set([...prev, String(myIdRef.current)])); });
-    s.on('disconnect', () => { setSocketConnected(false); });
-    s.on('message', (msg: Message) => {
-      const withReadCount = { ...msg, readCount: msg.readCount ?? 0 };
-      queryClient.setQueryData<InfiniteData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>>(['rooms', msg.roomId, 'messages'], (old) => {
-        if (!old?.pages?.length) return { pages: [{ messages: [withReadCount], nextCursor: null, hasMore: false }], pageParams: [undefined] };
-        const firstPage = old.pages[0];
-        if (firstPage?.messages?.some((m) => m.id === msg.id)) return old;
-        const updatedFirst = { ...firstPage, messages: [withReadCount, ...(firstPage.messages ?? [])] };
-        return { ...old, pages: [updatedFirst, ...old.pages.slice(1, 5)] };
-      });
-      (async () => {
-        const myId = myIdRef.current;
-        if (!myId) return;
-        await queryClient.refetchQueries({ queryKey: ['rooms', myId] });
-        const rooms = queryClient.getQueryData<Room[]>(['rooms', myId]) ?? [];
-        const recent = recentTopicRoomRef.current;
-        const fixed =
-          recent && recent.id === msg.roomId && Date.now() - recent.at < 5000
-            ? rooms.map((r) => (r.id === recent.id ? { ...r, isTopic: true, isGroup: true } : r))
-            : rooms;
-        if (fixed !== rooms) queryClient.setQueryData(['rooms', myId], fixed);
-        if (recent?.id === msg.roomId) recentTopicRoomRef.current = null;
-      })();
-      if (msg.senderId !== myIdRef.current) {
-        if (notificationsSnoozedUntilRef.current > Date.now()) return;
-        if (mutedRoomIdsRef.current.has(String(msg.roomId))) return;
-        try {
-          const activeRoomId = localStorage.getItem('activeChatRoomId');
-          const activeFocused = localStorage.getItem('activeChatFocused');
-          if (activeFocused != null && activeFocused !== '0' && activeFocused !== '1') {
-            localStorage.removeItem('activeChatFocused');
-            localStorage.removeItem('activeChatRoomId');
-          } else if (activeRoomId === msg.roomId && activeFocused === '1') return;
-        } catch { /* ignore */ }
-        const senderName = msg.sender?.name ?? '알 수 없음';
-        const rooms = queryClient.getQueryData<Room[]>(['rooms', myIdRef.current]) ?? [];
-        const room = rooms.find((r) => r.id === msg.roomId);
-        const isTopic = !!room?.isTopic;
-        const roomName = room?.name ?? '';
-        const title = isTopic && roomName ? `${roomName} 아젠다` : senderName;
-        const body = isTopic && roomName ? `${senderName}: ${msg.fileUrl && msg.fileName ? msg.fileName : msg.content}` : (msg.fileUrl && msg.fileName ? msg.fileName : msg.content);
-        const electronAPI = window.electronAPI;
-        if (electronAPI?.showNotification) {
-          (async () => {
-            let icon: string | null = null;
-            let imagePreview: string | null = null;
-            const senderId = msg.senderId;
-            if (senderId && token) {
-              try {
-                const base = getBaseUrl();
-                if (electronAPI.fetchUserAvatar && base) {
-                  icon = await Promise.race([
-                    electronAPI.fetchUserAvatar(senderId, base, token),
-                    new Promise<null>((r) => setTimeout(() => r(null), 250)),
-                  ]);
-                }
-              } catch { /* ignore */ }
-            }
-            if (msg.fileUrl && msg.fileMimeType?.startsWith('image/')) {
-              try {
-                const blob = await Promise.race([
-                  filesApi.fetchBlob(msg.id),
-                  new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 400)),
-                ]);
-                imagePreview = await new Promise<string>((resolve, reject) => {
-                  const r = new FileReader();
-                  r.onload = () => resolve(r.result as string);
-                  r.onerror = () => reject(new Error('read failed'));
-                  r.readAsDataURL(blob);
-                });
-                if (imagePreview.length > 80 * 1024) imagePreview = null;
-              } catch { /* ignore */ }
-            }
-            try {
-              electronAPI.showNotification(title, body, msg.roomId, icon, imagePreview);
-            } catch {
-              electronAPI.showNotification(title, body, msg.roomId);
-            }
-          })();
-        } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          if (typeof document !== 'undefined' && document.hidden) new Notification(title, { body });
-        }
-      }
-    });
-    s.on('room_read', (payload: { roomId: string; userId: string }) => {
-      const uid = myIdRef.current;
-      if (payload.userId === uid) {
-        if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
-        return;
-      }
-      queryClient.setQueryData<InfiniteData<{ messages: Message[]; nextCursor: string | null; hasMore: boolean }>>(['rooms', payload.roomId, 'messages'], (old) => {
-        if (!old?.pages?.length) return old ?? { pages: [], pageParams: [] };
-        return { ...old, pages: old.pages.map((p) => ({ ...p, messages: (p.messages ?? []).map((m) => m.senderId === myIdRef.current ? { ...m, readCount: Math.max(m.readCount ?? 0, 1) } : m) })) };
-      });
-      if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
-    });
-    s.on('room_avatar_updated', () => {
-      const uid = myIdRef.current;
-      if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
-    });
-    s.on('members_added', () => {
-      const uid = myIdRef.current;
-      if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
-    });
-    s.on('online_list', (payload: { userIds?: string[] }) => { setOnlineUserIds(new Set((payload.userIds || []).map((id) => String(id)))); });
-    s.on('user_online', (payload: { userId?: string; userName?: string | null }) => {
-      if (payload.userId) setOnlineUserIds((prev) => new Set([...prev, String(payload.userId)]));
-      if (payload.userId && String(payload.userId) !== String(myIdRef.current)) {
-        const name = payload.userName?.trim() || '누군가';
-        const title = 'EMAX';
-        const body = `${name}님이 로그인했습니다.`;
-        if (window.electronAPI?.showNotification) {
-          window.electronAPI.showNotification(title, body);
-        } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
-          new Notification(title, { body });
-        }
-      }
-    });
-    s.on('user_offline', (payload: { userId?: string }) => { if (payload.userId) setOnlineUserIds((prev) => { const next = new Set(prev); next.delete(String(payload.userId)); return next; }); });
-    s.on('connect', () => { s.emit('get_online_list'); });
-    s.on('user_status_changed', () => { queryClient.invalidateQueries({ queryKey: ['org'] }); });
-    s.on('member_left', () => { queryClient.refetchQueries({ queryKey: ['rooms'] }); });
-    setSocket(s);
-    return () => { s.removeAllListeners(); s.disconnect(); socketRef.current = null; setSocket(null); setSocketConnected(false); };
-  }, [token, queryClient]);
-
-  useEffect(() => { if (!socket || !socketConnected || !allRooms.length) return; allRooms.forEach((r) => socket.emit('join_room', r.id)); }, [socket, socketConnected, allRooms]);
-
-  // Snooze timer
-  useEffect(() => {
-    if (!notificationsSnoozedUntil) return;
-    const remaining = notificationsSnoozedUntil - Date.now();
-    if (remaining <= 0) return;
-    const t = setTimeout(() => {
-      setNotificationsSnoozedUntil(0);
-      try { localStorage.removeItem('notificationsSnoozedUntil'); } catch { /* ignore */ }
-      showToast('알림 일시 중지가 해제되었습니다', 'info');
-      try {
-        const title = 'EMAX'; const body = '알림 일시 중지가 해제되었습니다';
-        if (window.electronAPI?.showNotification) {
-          window.electronAPI.showNotification(title, body);
-        } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') { new Notification(title, { body }); }
-      } catch { /* ignore */ }
-    }, remaining);
-    return () => clearTimeout(t);
-  }, [notificationsSnoozedUntil, showToast]);
-
   // 알림 클릭 시 해당 채팅방으로 이동
   useEffect(() => {
     if (!window.electronAPI?.onNavigateToRoom) return;
@@ -529,335 +317,127 @@ export default function Main() {
   }, [navigate]);
 
   // --- Handlers ---
-  const toggleSection = (key: 'topic' | 'chat') => setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleSection = useCallback((key: 'topic' | 'chat') => setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] })), []);
   const toggleTree = (key: string) => setTreeOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   const handleToggleFavorite = async (room: Room) => { try { await roomsApi.toggleFavorite(room.id, !room.isFavorite); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
-  const handleToggleMuteRoom = (roomId: string) => { setMutedRoomIds((prev) => { const next = new Set(prev); if (next.has(roomId)) next.delete(roomId); else next.add(roomId); try { localStorage.setItem('mutedRoomIds', JSON.stringify(Array.from(next))); } catch { /* ignore */ } return next; }); setRoomContextMenu(null); };
-  const snoozeNotifications = (minutes: number) => { const until = Date.now() + minutes * 60 * 1000; setNotificationsSnoozedUntil(until); try { localStorage.setItem('notificationsSnoozedUntil', String(until)); } catch { /* ignore */ } };
-  const clearSnooze = () => { setNotificationsSnoozedUntil(0); try { localStorage.removeItem('notificationsSnoozedUntil'); } catch { /* ignore */ } };
+  const handleToggleMuteRoom = (roomId: string) => { toggleMuteRoom(roomId); setRoomContextMenu(null); };
   const handleLeaveRoom = async (roomId: string) => { if (!confirm('채팅방을 나가시겠습니까?')) { setRoomContextMenu(null); return; } try { await roomsApi.leave(roomId); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
   const handleSetStatus = async (msg: string) => { try { await usersApi.updateStatus(msg); setStatusInput(msg); queryClient.invalidateQueries({ queryKey: ['org'] }); } catch (err) { console.error(err); } };
+  const handleSelectAvatarFile = useCallback((file: File) => setAvatarEditFile(file), []);
+  const handleDeleteAvatar = useCallback(async () => {
+    try {
+      await usersApi.deleteAvatar();
+      const { user: u } = await authApi.me();
+      if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['org'] });
+    } catch (err) {
+      console.error(err);
+      alert('프로필 사진 삭제에 실패했습니다.');
+    }
+  }, [queryClient]);
+  const handleSaveAnnouncement = useCallback(async () => {
+    setAnnouncementSaving(true);
+    try {
+      await announcementApi.put(announcementEdit);
+      queryClient.invalidateQueries({ queryKey: ['announcement'] });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAnnouncementSaving(false);
+    }
+  }, [announcementEdit, queryClient]);
+  const handleTestNotification = useCallback(() => {
+    window.electronAPI?.showNotification('EMAX', '알림 테스트입니다.');
+  }, []);
+  const handleLogout = useCallback(() => {
+    queryClient.removeQueries({ queryKey: ['rooms'] });
+    queryClient.removeQueries({ queryKey: ['org'] });
+    logout();
+  }, [logout, queryClient]);
+  const statusLabel = useMemo(() => STATUS_OPTIONS.find((o) => o.id === statusInput)?.label || statusInput, [statusInput]);
+  const showStatusBadge = useMemo(() => !!statusInput && STATUS_OPTIONS.some((o) => o.id === statusInput), [statusInput]);
+  const handleOpenRoom = useCallback((room: Room) => {
+    setActivePanel('none');
+    navigate(`/room/${room.id}`, room.viewMode ? { state: { viewMode: room.viewMode } } : undefined);
+  }, [navigate]);
+  const handleRoomContextMenu = useCallback((e: React.MouseEvent<HTMLLIElement>, room: Room) => {
+    e.preventDefault();
+    setRoomContextMenu({ x: e.clientX, y: e.clientY, room });
+  }, []);
+  const handleJoinPublicRoom = useCallback(async (publicRoomId: string) => {
+    try {
+      await roomsApi.join(publicRoomId);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['rooms', 'public'] });
+      setActivePanel('none');
+      navigate(`/room/${publicRoomId}`);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [navigate, queryClient]);
+  const handleNavigateHome = useCallback(() => {
+    setActivePanel('none');
+    navigate('/');
+  }, [navigate]);
 
   // --- Room item renderer ---
-  const renderRoomItem = (r: Room) => (
-    <li
+  const renderRoomItem = useCallback((r: Room) => (
+    <RoomListItem
       key={r.id}
-      role="button"
-      tabIndex={0}
-      onClick={() => { setActivePanel('none'); navigate(`/room/${r.id}`, r.viewMode ? { state: { viewMode: r.viewMode } } : undefined); }}
-      onKeyDown={(e) => e.key === 'Enter' && (setActivePanel('none'), navigate(`/room/${r.id}`, r.viewMode ? { state: { viewMode: r.viewMode } } : undefined))}
-      onContextMenu={(e) => { e.preventDefault(); setRoomContextMenu({ x: e.clientX, y: e.clientY, room: r }); }}
-      style={st.roomItem}
-    >
-      {r.isFavorite && (
-        <span style={st.roomFavoriteIcon} aria-label="즐겨찾기">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-          </svg>
-        </span>
-      )}
-      <div style={st.roomAvatar} aria-hidden>
-        {r.isGroup && !r.isTopic && Array.isArray(r.members) && r.members.length > 0 ? (
-          <GroupAvatar
-            members={r.members.map((m) => ({
-              id: m.id ?? (m as { user?: { id: string } }).user?.id ?? '',
-              name: m.name ?? (m as { user?: { name: string } }).user?.name,
-              avatarUrl: (m as { avatarUrl?: string }).avatarUrl,
-            }))}
-            myId={myId}
-            size={32}
-          />
-        ) : !r.isGroup && Array.isArray(r.members) && r.members.length > 0 ? (
-          (() => {
-            const members = r.members as { id?: string; userId?: string; user?: { id: string; name: string; email: string }; name?: string; avatarUrl?: string }[];
-            const other = members.find((m) => (m.id ?? m.user?.id) !== myId) ?? members[0];
-            const otherId = other?.id ?? (other as { user?: { id: string } })?.user?.id;
-            const otherName = other?.name ?? (other as { user?: { name: string } })?.user?.name;
-            const hasUserAvatar = !!((other as { avatarUrl?: string })?.avatarUrl);
-            return hasUserAvatar ? (
-              <UserAvatar
-                userId={otherId || ''}
-                name={otherName || r.name || ''}
-                avatarUrlPath={(other as { avatarUrl?: string }).avatarUrl}
-                imgStyle={st.roomAvatarImg}
-                initialStyle={st.roomAvatarInitial}
-              />
-            ) : (
-              <RoomAvatar
-                roomId={r.id}
-                name={r.name || otherName || ''}
-                initials={null}
-                hasAvatar={false}
-                avatarUrlPath={null}
-                imgStyle={st.roomAvatarImg}
-                initialStyle={st.roomAvatarInitial}
-              />
-            );
-          })()
-        ) : (
-          <RoomAvatar
-            roomId={r.id}
-            name={r.name || ''}
-            initials={r.initials}
-            hasAvatar={!!r.avatarUrl}
-            avatarUrlPath={r.avatarUrl}
-            imgStyle={st.roomAvatarImg}
-            initialStyle={st.roomAvatarInitial}
-          />
-        )}
-      </div>
-      <div style={st.roomInfo}>
-        <div style={st.roomName}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 0', minWidth: 0 }}>{r.name}</span>
-          {r.isGroup && r.isTopic && r.viewMode && (
-            <span style={st.roomViewModeBadge} title={r.viewMode === 'board' ? '보드뷰: 게시글 기반' : '챗뷰: 메시지 기반'}>
-              {r.viewMode === 'board' ? '보드뷰' : '챗뷰'}
-            </span>
-          )}
-        </div>
-        <div style={st.roomPreview}>{r.lastMessage ? r.lastMessage.content : ''}</div>
-      </div>
-      <div style={st.roomMeta}>
-        {r.lastMessage && <span style={st.roomTime}>{new Date(r.lastMessage.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>}
-        {mutedRoomIds.has(r.id) && <span style={st.roomMuted} title="알림 꺼짐">음소거</span>}
-        {(r.unreadCount ?? 0) > 0 && <span style={st.roomUnreadBadge}>{r.unreadCount! > 99 ? '99+' : r.unreadCount}</span>}
-      </div>
-    </li>
-  );
+      room={r}
+      st={st}
+      myId={myId}
+      mutedRoomIds={mutedRoomIds}
+      onOpenRoom={handleOpenRoom}
+      onContextMenu={handleRoomContextMenu}
+    />
+  ), [st, myId, mutedRoomIds, handleOpenRoom, handleRoomContextMenu]);
 
   return (
     <div style={st.appWrap}>
       {hasElectron && <TitleBar title="EMAX" isDark={isDark} />}
       <div style={st.layout}>
-        {/* ===== LEFT SIDEBAR ===== */}
-        <div style={st.sidebar}>
-          {/* Sidebar Header */}
-          <div style={st.sidebarHeader}>
-            <button
-              type="button"
-              onClick={() => { setActivePanel('none'); navigate('/'); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: 'transparent', padding: 0, margin: 0, cursor: 'pointer' }}
-              title="대시보드로 이동"
-            >
-              <EmaxLogo variant={isDark ? 'light' : 'accent'} size="sm" />
-            </button>
-          </div>
-
-          {/* Profile */}
-          <div style={st.profileSection}>
-            <div style={{ position: 'relative' as const, flexShrink: 0 }}>
-              <div style={st.profileAvatar}>
-                {user?.avatarUrl ? (
-                  <UserAvatar userId={user.id} name={user.name || ''} avatarUrlPath={user.avatarUrl} imgStyle={st.profileAvatarImg} initialStyle={st.profileInitial} />
-                ) : (
-                  <span style={st.profileInitial}>{user?.name?.trim()[0]?.toUpperCase() || '?'}</span>
-                )}
-              </div>
-              {statusInput && STATUS_OPTIONS.find(o => o.id === statusInput) && (
-                <span style={{ position: 'absolute' as const, top: -2, right: -2, display: 'block', borderRadius: '50%', border: `1.5px solid ${isDark ? '#1e293b' : '#f1f5f9'}`, lineHeight: 0 }}>
-                  <StatusIcon status={statusInput} size={13} />
-                </span>
-              )}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={st.profileName}>{user?.name || '사용자'}</div>
-              {statusInput && <div style={st.profileStatus}>{STATUS_OPTIONS.find(o => o.id === statusInput)?.label || statusInput}</div>}
-            </div>
-          </div>
-
-          {/* Search */}
-          <div style={st.searchWrap}>
-            <input
-              type="text"
-              placeholder="대화방 검색"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={st.searchInput}
-            />
-            {searchQuery.trim().length > 0 && (
-              <UICloseButton
-                size="sm"
-                variant="subtle"
-                onClick={() => setSearchQuery('')}
-                style={st.searchClearBtn}
-                aria-label="검색어 지우기"
-                title="검색어 지우기"
-              />
-            )}
-          </div>
-
-          {/* Scrollable sections */}
-          <div style={st.sidebarContent}>
-            {/* TOPIC Section - JANDI 스타일 폴더 구조 */}
-            <div>
-              <button type="button" style={st.sectionHeader} onClick={() => toggleSection('topic')}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={st.sectionChevron}><UIChevron open={sectionOpen.topic} size={11} color={isDark ? '#94a3b8' : '#64748b'} /></span>
-                  <span style={st.sectionTitle}>아젠다</span>
-                  <span style={st.sectionCount}>{topicRooms.length}개</span>
-                  {topicUnreadCount > 0 && <span style={st.sectionUnreadBadge}>{topicUnreadCount > 99 ? '99+' : topicUnreadCount}</span>}
-                </span>
-                <span style={{ display: 'flex', gap: 4 }}>
-                  <span
-                    style={st.sectionTextBtn}
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); setShowFolderManageModal(true); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setShowFolderManageModal(true); } }}
-                    title="폴더 관리"
-                  >폴더</span>
-                  <span
-                    style={st.sectionAddBtn}
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); setCreateGroupFor('topic'); setShowCreateGroupModal(true); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setCreateGroupFor('topic'); setShowCreateGroupModal(true); } }}
-                    title="아젠다 만들기"
-                  ><PlusIcon /></span>
-                </span>
-              </button>
-              {sectionOpen.topic && (
-                <>
-                  {roomsError ? (
-                    <div style={{ padding: '8px 16px', fontSize: 12, color: '#c62828' }}>목록을 불러올 수 없습니다</div>
-                  ) : topicRooms.length === 0 && ((folders as Folder[])?.length ?? 0) === 0 ? (
-                    <div style={{ padding: '8px 16px', fontSize: 12, color: isDark ? '#64748b' : '#9ca3af' }}>아젠다가 없습니다</div>
-                  ) : (
-                    <div style={{ paddingLeft: 4 }}>
-                      {((folders as Folder[]) ?? []).map((f) => {
-                        const rooms = roomsByFolder.get(f.id) ?? [];
-                        const isOpen = folderOpen[f.id] !== false;
-                        const folderUnread = rooms.reduce((s, r) => s + (r.unreadCount ?? 0), 0);
-                        return (
-                          <div key={f.id}>
-                            <button
-                              type="button"
-                              style={st.folderHeader}
-                              onClick={() => toggleFolder(f.id)}
-                            >
-                              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <UIChevron open={isOpen} size={10} color={isDark ? '#94a3b8' : '#64748b'} />
-                              </span>
-                              <span>{f.name}</span>
-                              <span style={{ fontSize: 11, opacity: 0.8 }}>({rooms.length})</span>
-                              {folderUnread > 0 && <span style={st.sectionUnreadBadge}>{folderUnread > 99 ? '99+' : folderUnread}</span>}
-                            </button>
-                            {isOpen && <ul style={st.roomList}>{rooms.map(renderRoomItem)}</ul>}
-                          </div>
-                        );
-                      })}
-                      {(roomsByFolder.get(null) ?? []).length > 0 && (
-                        <div>
-                          <div style={{ padding: '6px 12px', fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>미분류</div>
-                          <ul style={st.roomList}>{(roomsByFolder.get(null) ?? []).map(renderRoomItem)}</ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {/* Public rooms in topic section */}
-                  {(Array.isArray(publicRooms) ? publicRooms : []).filter((pr: PublicRoom) => !allRooms.some((r) => r.id === pr.id)).length > 0 && (
-                    <div style={{ padding: '4px 16px 8px' }}>
-                      <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af', marginBottom: 4 }}>공개 채널</div>
-                      {(Array.isArray(publicRooms) ? publicRooms : []).filter((pr: PublicRoom) => !allRooms.some((r) => r.id === pr.id)).map((pr) => (
-                        <div key={pr.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
-                          <span style={{ color: isDark ? '#94a3b8' : '#6b7280' }}>{pr.name}</span>
-                          <button
-                            type="button"
-                            style={{ border: 'none', background: isDark ? '#475569' : '#e5e7eb', color: isDark ? '#e2e8f0' : '#333', fontSize: 11, padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}
-                            onClick={async () => { try { await roomsApi.join(pr.id); queryClient.invalidateQueries({ queryKey: ['rooms'] }); queryClient.invalidateQueries({ queryKey: ['rooms', 'public'] }); setActivePanel('none'); navigate(`/room/${pr.id}`); } catch (err) { console.error(err); } }}
-                          >참가</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* CHAT Section */}
-            <div style={{ borderTop: `2px solid ${isDark ? '#334155' : '#e2e8f0'}`, marginTop: 4 }}>
-              <button type="button" style={st.sectionHeader} onClick={() => toggleSection('chat')}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={st.sectionChevron}><UIChevron open={sectionOpen.chat} size={11} color={isDark ? '#94a3b8' : '#64748b'} /></span>
-                  <span style={st.sectionTitle}>채팅</span>
-                  <span style={st.sectionCount}>{chatRooms.length}개</span>
-                  {chatUnreadCount > 0 && <span style={st.sectionUnreadBadge}>{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</span>}
-                </span>
-                <span
-                  style={st.sectionAddBtn}
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); setCreateGroupFor('chat'); setShowCreateGroupModal(true); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setCreateGroupFor('chat'); setShowCreateGroupModal(true); } }}
-                  title="1:1 채팅 만들기"
-                ><PlusIcon /></span>
-              </button>
-              {sectionOpen.chat && (
-                chatRooms.length === 0 ? (
-                  <div style={{ padding: '8px 16px', fontSize: 12, color: isDark ? '#64748b' : '#9ca3af' }}>채팅이 없습니다</div>
-                ) : (
-                  <ul style={st.roomList}>{chatRooms.map(renderRoomItem)}</ul>
-                )
-              )}
-            </div>
-
-          </div>
-        </div>
+        <LeftSidebar
+          st={st}
+          isDark={isDark}
+          user={user}
+          statusInput={statusInput}
+          statusLabel={statusLabel}
+          showStatusBadge={showStatusBadge}
+          statusBadge={<StatusIcon status={statusInput} size={13} />}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onNavigateHome={handleNavigateHome}
+          roomsError={roomsError}
+          folders={folders}
+          topicRooms={topicRooms}
+          chatRooms={chatRooms}
+          topicUnreadCount={topicUnreadCount}
+          chatUnreadCount={chatUnreadCount}
+          sectionOpen={sectionOpen}
+          roomsByFolder={roomsByFolder}
+          folderOpen={folderOpen}
+          publicRooms={publicRooms}
+          allRooms={allRooms}
+          toggleSection={toggleSection}
+          toggleFolder={toggleFolder}
+          setShowFolderManageModal={setShowFolderManageModal}
+          setCreateGroupFor={setCreateGroupFor}
+          setShowCreateGroupModal={setShowCreateGroupModal}
+          renderRoomItem={renderRoomItem}
+          onJoinPublicRoom={handleJoinPublicRoom}
+        />
 
         {/* ===== RIGHT SIDE ===== */}
         <div style={st.rightSide}>
-          {/* Top Menu Bar */}
-          <div style={st.menuBar}>
-            <div style={st.menuBarLeft} />
-            <div style={st.menuBarRight}>
-              {/* Mention */}
-              <button
-                type="button"
-                style={{ ...st.menuBtn, ...(activePanel === 'mention' ? st.menuBtnActive : {}), position: 'relative' as const }}
-                onClick={() => setActivePanel(activePanel === 'mention' ? 'none' : 'mention')}
-                title="멘션"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="4" /><path d="M16 8v5a3 3 0 006 0v-1a10 10 0 10-3.92 7.94" />
-                </svg>
-                {(unreadMentionCount?.count ?? 0) > 0 && (
-                  <span style={st.menuBadge}>{unreadMentionCount!.count > 9 ? '9+' : unreadMentionCount!.count}</span>
-                )}
-              </button>
-              {/* Bookmark */}
-              <button type="button" style={{ ...st.menuBtn, ...(activePanel === 'bookmark' ? st.menuBtnActive : {}) }} onClick={() => setActivePanel(activePanel === 'bookmark' ? 'none' : 'bookmark')} title="북마크">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
-                </svg>
-              </button>
-              {/* Friends */}
-              <button type="button" style={{ ...st.menuBtn, ...(activePanel === 'friends' ? st.menuBtnActive : {}) }} onClick={() => setActivePanel(activePanel === 'friends' ? 'none' : 'friends')} title="멤버">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </button>
-              {/* Schedule */}
-              <button type="button" style={{ ...st.menuBtn, ...(activePanel === 'schedule' ? st.menuBtnActive : {}) }} onClick={() => setActivePanel(activePanel === 'schedule' ? 'none' : 'schedule')} title="일정">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-              </button>
-              {/* AI Chat */}
-              <button type="button" style={{ ...st.menuBtn, ...(activePanel === 'ai' ? st.menuBtnActive : {}) }} onClick={() => setActivePanel(activePanel === 'ai' ? 'none' : 'ai')} title="AI 채팅">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
-                </svg>
-              </button>
-              {/* Settings */}
-              <button type="button" style={{ ...st.menuBtn, ...(activePanel === 'settings' ? st.menuBtnActive : {}), position: 'relative' as const }} onClick={() => setActivePanel(activePanel === 'settings' ? 'none' : 'settings')} title="설정">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.7.1 1.41.1 2.11 0H21a2 2 0 0 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z" />
-                </svg>
-                {notificationsSnoozedUntil > Date.now() && <span style={{ position: 'absolute' as const, top: 4, right: 4, width: 6, height: 6, borderRadius: 999, background: '#f59e0b' }} />}
-              </button>
-            </div>
-          </div>
+          <TopMenuBar
+            st={st}
+            activePanel={activePanel}
+            setActivePanel={setActivePanel}
+            unreadMentionCount={unreadMentionCount?.count ?? 0}
+            notificationsSnoozedUntil={notificationsSnoozedUntil}
+          />
 
           {/* Content Area */}
           <div style={st.contentArea}>
@@ -1259,119 +839,38 @@ export default function Main() {
 
             {/* SETTINGS PANEL */}
             {activePanel === 'settings' && (
-              <div style={panelWrapStyle(760)}>
-                <div style={st.panelHeader}><h3 style={st.panelTitle}>설정</h3></div>
-                <div style={{ ...st.panelBody, padding: isNarrowLayout ? 14 : 24, display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
-                  {/* 프로필 영역 - 상단 배치, 크게 표시 */}
-                  <div style={{ padding: '20px 16px', borderRadius: 12, background: isDark ? '#334155' : '#f0f4ff', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 16 }}>
-                    <div style={{ width: 96, height: 96, borderRadius: 16, background: isDark ? '#475569' : '#e2e8f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {user?.avatarUrl ? <UserAvatar userId={user.id} name={user.name || ''} avatarUrlPath={user.avatarUrl} imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16 }} initialStyle={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }} /> : <span style={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}>{user?.name?.trim()[0]?.toUpperCase() || '?'}</span>}
-                    </div>
-                    <div style={{ textAlign: 'center' as const }}>
-                      <div style={{ fontSize: 16, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b', marginBottom: 4 }}>{user?.name || '사용자'}</div>
-                      <div style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>{user?.email}</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
-                      <label style={{ padding: '10px 18px', borderRadius: 10, background: isDark ? '#475569' : '#171717', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                        사진 변경
-                        <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) setAvatarEditFile(f); e.target.value = ''; }} />
-                      </label>
-                      {user?.avatarUrl && (
-                        <button type="button" onClick={async () => { try { await usersApi.deleteAvatar(); const { user: u } = await authApi.me(); if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token); queryClient.invalidateQueries({ queryKey: ['rooms'] }); queryClient.invalidateQueries({ queryKey: ['org'] }); } catch (err) { console.error(err); alert('프로필 사진 삭제에 실패했습니다.'); } }} style={{ padding: '10px 18px', borderRadius: 10, border: `1px solid ${isDark ? '#64748b' : '#e2e8f0'}`, background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 13, cursor: 'pointer' }}>
-                          사진 삭제
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {notificationsSnoozedUntil > Date.now() && <div style={{ padding: '6px 10px', borderRadius: 999, background: isDark ? '#171717' : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' }}>알림 일시 중지 중</div>}
-                  <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>알림 일시 중지</div>
-                    {notificationsSnoozedUntil > Date.now() ? (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8, fontSize: 12, color: isDark ? '#64748b' : '#666' }}>
-                        <span>해제: {new Date(notificationsSnoozedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-                        <button type="button" style={st.formBtn} onClick={clearSnooze}>해제</button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-                        <button type="button" style={st.formBtn} onClick={() => snoozeNotifications(10)}>10분</button>
-                        <button type="button" style={st.formBtn} onClick={() => snoozeNotifications(60)}>1시간</button>
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10, padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: isDark ? '#e2e8f0' : '#333' }}>다크 모드</span>
-                    <button type="button" onClick={toggleDark} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: isDark ? '#171717' : '#e5e7eb', cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
-                      <span style={{ position: 'absolute' as const, top: 3, left: isDark ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-                    </button>
-                  </div>
-                  <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>업데이트</h4>
-                    {hasElectron ? (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
-                        <span style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#666' }}>
-                          {appVersion ? `현재 버전 v${appVersion}` : '버전 확인 중...'}
-                          {updateStatus === 'downloading' && updateVersion && ` · 새 버전 v${updateVersion} 다운로드 중`}
-                          {updateStatus === 'latest' && ' · 최신 버전입니다'}
-                          {updateStatus === 'error' && updateError && ` · ${updateError}`}
-                        </span>
-                        {updateStatus !== 'ready' ? (
-                          <button type="button" style={st.formBtn} disabled={updateStatus === 'checking'} onClick={handleCheckForUpdates}>
-                            {updateStatus === 'checking' ? '확인 중...' : '업데이트 확인'}
-                          </button>
-                        ) : (
-                          <button type="button" style={{ ...st.formBtn, background: '#16a34a', color: '#fff', fontWeight: 600 }} onClick={handleQuitAndInstall}>
-                            지금 재시작하여 업데이트
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <p style={{ margin: 0, fontSize: 13, color: isDark ? '#94a3b8' : '#666' }}>업데이트 확인은 데스크톱 앱(.dmg / .exe)에서만 가능합니다.</p>
-                    )}
-                  </div>
-                  <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
-                    <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>상태</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
-                      {STATUS_OPTIONS.map((opt) => {
-                        const isSelected = statusInput === opt.id;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => handleSetStatus(opt.id)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 10,
-                              padding: '8px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                              background: isSelected ? (isDark ? 'rgba(23,23,23,0.12)' : 'rgba(23,23,23,0.06)') : 'transparent',
-                              width: '100%', textAlign: 'left' as const,
-                            }}
-                          >
-                            <span style={{
-                              width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                              border: `2px solid ${isSelected ? '#171717' : (isDark ? '#64748b' : '#d1d5db')}`,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}>
-                              {isSelected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#171717', display: 'block' }} />}
-                            </span>
-                            {opt.id ? <StatusIcon status={opt.id} size={18} /> : <span style={{ width: 18, height: 18, display: 'block' }} />}
-                            <span style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#374151', fontWeight: isSelected ? 600 : 400 }}>{opt.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px 12px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', color: isDark ? '#94a3b8' : '#334155', fontSize: 13 }}>알림 상태: {notificationStatus}</div>
-                  {user?.isAdmin && (
-                    <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
-                      <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>공지 등록</h4>
-                      <textarea value={announcementEdit} onChange={(e) => setAnnouncementEdit(e.target.value)} placeholder="공지 내용을 입력하세요." style={{ width: '100%', padding: 12, border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, fontSize: 14, lineHeight: 1.5, resize: 'vertical' as const, marginBottom: 10, boxSizing: 'border-box' as const, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#333' }} rows={3} />
-                      <button type="button" style={st.formBtn} disabled={announcementSaving} onClick={async () => { setAnnouncementSaving(true); try { await announcementApi.put(announcementEdit); queryClient.invalidateQueries({ queryKey: ['announcement'] }); } catch (err) { console.error(err); } finally { setAnnouncementSaving(false); } }}>{announcementSaving ? '저장 중...' : '저장'}</button>
-                    </div>
-                  )}
-                  {hasElectron && <button type="button" style={st.settingsBtn} onClick={() => window.electronAPI?.showNotification('EMAX', '알림 테스트입니다.')}>알림 테스트</button>}
-                  {!hasElectron && <button type="button" style={st.settingsBtn} onClick={requestNotificationPermission}>알림 권한 요청</button>}
-                  <button type="button" style={{ ...st.settingsBtn, color: '#c62828', fontWeight: 600 }} onClick={() => { queryClient.removeQueries({ queryKey: ['rooms'] }); queryClient.removeQueries({ queryKey: ['org'] }); logout(); }}>로그아웃</button>
-                </div>
-              </div>
+              <SettingsPanel
+                st={st}
+                panelWrapStyle={panelWrapStyle}
+                isDark={isDark}
+                isNarrowLayout={isNarrowLayout}
+                user={user}
+                notificationsSnoozedUntil={notificationsSnoozedUntil}
+                snoozeNotifications={snoozeNotifications}
+                clearSnooze={clearSnooze}
+                toggleDark={toggleDark}
+                hasElectron={hasElectron}
+                appVersion={appVersion}
+                updateStatus={updateStatus}
+                updateVersion={updateVersion}
+                updateError={updateError}
+                handleCheckForUpdates={handleCheckForUpdates}
+                handleQuitAndInstall={handleQuitAndInstall}
+                statusInput={statusInput}
+                statusOptions={STATUS_OPTIONS}
+                renderStatusIcon={(status, size = 18) => <StatusIcon status={status} size={size} />}
+                handleSetStatus={handleSetStatus}
+                notificationStatus={notificationStatus}
+                announcementEdit={announcementEdit}
+                setAnnouncementEdit={setAnnouncementEdit}
+                announcementSaving={announcementSaving}
+                onSaveAnnouncement={handleSaveAnnouncement}
+                onSelectAvatarFile={handleSelectAvatarFile}
+                onDeleteAvatar={handleDeleteAvatar}
+                onTestNotification={handleTestNotification}
+                onRequestNotificationPermission={requestNotificationPermission}
+                onLogout={handleLogout}
+              />
             )}
               </>
             )}
