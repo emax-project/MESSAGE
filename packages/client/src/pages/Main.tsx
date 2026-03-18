@@ -1,35 +1,29 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
 import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, authApi, type Room, type OrgCompany, type OrgUser, type Event, type Folder } from '../api';
-import { ollamaChat, getOllamaConfig, type OllamaMessage } from '../ollama';
+import { getOllamaConfig, type OllamaMessage } from '../ollama';
 import ToastProvider from '../components/ui/ToastProvider';
-import CreateGroupModal from '../components/CreateGroupModal';
-import FolderManageModal from '../components/FolderManageModal';
-import AvatarEditModal from '../components/AvatarEditModal';
-import UserAvatar from '../components/UserAvatar';
 import TitleBar from '../components/TitleBar';
-import ChatWindow from './ChatWindow';
 import { getThemeTokens } from '../components/ui/themeTokens';
-import UIChevron from '../components/ui/UIChevron';
-import UICloseButton from '../components/ui/UICloseButton';
 import {
-  addMonths,
-  daysInMonth,
   normalizeTimeRange,
   startOfMonth,
-  toLocalInputValue,
   toLocalDateKey,
 } from './main/utils/date';
 import { useUpdateManager } from './main/hooks/useUpdateManager';
 import { useNotificationPrefs } from './main/hooks/useNotificationPrefs';
 import { useMainSocket } from './main/hooks/useMainSocket';
+import { useMainContentActions } from './main/hooks/useMainContentActions';
 import RoomListItem from './main/components/RoomListItem';
 import LeftSidebar from './main/components/LeftSidebar';
 import TopMenuBar from './main/components/TopMenuBar';
-import SettingsPanel from './main/components/SettingsPanel';
+import { type MentionItem } from './main/components/MentionPanel';
+import { type BookmarkItem } from './main/components/BookmarkPanel';
+import RightContentRouter from './main/components/RightContentRouter';
+import MainOverlays from './main/components/MainOverlays';
 
 const STATUS_OPTIONS = [
   { id: '', label: '설정 안 함' },
@@ -109,14 +103,14 @@ export default function Main() {
   const navigate = useNavigate();
   const token = useAuthStore((s) => s.token);
 
-  // Electron: 로그인 후 메인 화면 진입 시 창 넓이 확대 (로그인 화면은 기존 960x700 유지)
+  // Electron: 메인 화면에서는 메인 창 크기를 일관되게 유지한다.
   useEffect(() => {
-    if (!window.electronAPI?.windowResize) return;
+    if (!token || !window.electronAPI?.windowResize) return;
     const resize = () => window.electronAPI!.windowResize(MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT);
     resize();
     const t = setTimeout(resize, 300);
     return () => clearTimeout(t);
-  }, []);
+  }, [token]);
   const user = useAuthStore((s) => s.user);
   const myId = user?.id;
   const myEmail = user?.email;
@@ -157,7 +151,6 @@ export default function Main() {
   const [aiMessages, setAiMessages] = useState<OllamaMessage[]>([]);
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const aiMessagesEndRef = useRef<HTMLDivElement | null>(null);
   const showToast = useToastStore((s) => s.show);
   const {
     mutedRoomIds,
@@ -203,10 +196,6 @@ export default function Main() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  useEffect(() => {
-    if (token) window.electronAPI?.windowResize?.(960, 700);
-  }, [token]);
-
   // --- Queries ---
   const { data: allRooms = [], isError: roomsError } = useQuery<Room[]>({ queryKey: ['rooms', myId], queryFn: roomsApi.list, enabled: !!myId });
   const { data: folders = [] } = useQuery<Folder[]>({ queryKey: ['folders'], queryFn: foldersApi.list, enabled: !!myId });
@@ -225,10 +214,15 @@ export default function Main() {
     socket,
     socketConnected,
   });
-  const q = searchQuery.trim().toLowerCase();
-  const filteredRooms = q ? allRooms.filter((r) => r.name?.toLowerCase().includes(q)) : allRooms;
-  const topicRooms = filteredRooms.filter((r) => r.isGroup && r.isTopic);
-  const chatRooms = filteredRooms.filter((r) => !r.isGroup || !r.isTopic);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const q = useMemo(() => deferredSearchQuery.trim().toLowerCase(), [deferredSearchQuery]);
+  const { topicRooms, chatRooms } = useMemo(() => {
+    const filtered = q ? allRooms.filter((r) => r.name?.toLowerCase().includes(q)) : allRooms;
+    return {
+      topicRooms: filtered.filter((r) => r.isGroup && r.isTopic),
+      chatRooms: filtered.filter((r) => !r.isGroup || !r.isTopic),
+    };
+  }, [allRooms, q]);
 
   const toggleFolder = useCallback((folderId: string) => setFolderOpen((prev) => ({ ...prev, [folderId]: !prev[folderId] })), []);
   const folderIds = useMemo(() => new Set(folders.map((f) => f.id)), [folders]);
@@ -284,9 +278,19 @@ export default function Main() {
   useEffect(() => { if (onlineData?.userIds) setOnlineUserIds(new Set(onlineData.userIds.map((id) => String(id)))); }, [onlineData?.userIds]);
   useEffect(() => { if (announcementData?.content?.trim()) setShowAnnouncementModal(true); }, [announcementData?.content]);
   useEffect(() => { if (announcementData?.content !== undefined) setAnnouncementEdit(announcementData.content ?? ''); }, [announcementData?.content]);
-  useEffect(() => { aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [aiMessages, aiLoading]);
   useEffect(() => { if (!contextMenu) return; const close = () => setContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [contextMenu]);
   useEffect(() => { if (!roomContextMenu) return; const close = () => setRoomContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [roomContextMenu]);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (contextMenu) setContextMenu(null);
+      if (roomContextMenu) setRoomContextMenu(null);
+      if (profileModalUser) setProfileModalUser(null);
+      if (showAnnouncementModal) setShowAnnouncementModal(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [contextMenu, roomContextMenu, profileModalUser, showAnnouncementModal]);
   useEffect(() => { if (statusSyncedRef.current || !myId) return; for (const company of (Array.isArray(orgTreeRaw) ? orgTreeRaw : [])) { for (const dept of (company.departments ?? [])) { const me = (dept.users ?? []).find((u) => String(u.id) === String(myId)); if (me) { setStatusInput(me.statusMessage || ''); statusSyncedRef.current = true; return; } } } }, [orgTreeRaw, myId]);
 
   // 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 카톡처럼 N 표시
@@ -380,6 +384,92 @@ export default function Main() {
     setActivePanel('none');
     navigate('/');
   }, [navigate]);
+  const handleSelectMention = useCallback(async (m: MentionItem) => {
+    if (!m.readAt) {
+      try {
+        await mentionsApi.markRead(m.id);
+        queryClient.invalidateQueries({ queryKey: ['mentions'] });
+        queryClient.invalidateQueries({ queryKey: ['mentions', 'unread-count'] });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    if (m.message?.room?.id) {
+      setActivePanel('none');
+      navigate(`/room/${m.message.room.id}`);
+    }
+  }, [navigate, queryClient]);
+  const handleSelectBookmark = useCallback((b: BookmarkItem) => {
+    if (!b.message?.room?.id) return;
+    setActivePanel('none');
+    navigate(`/room/${b.message.room.id}`);
+  }, [navigate]);
+  const handleRemoveBookmark = useCallback(async (b: BookmarkItem) => {
+    try {
+      await bookmarksApi.remove(b.messageId);
+      queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+    } catch (err) {
+      console.error(err);
+    }
+  }, [queryClient]);
+  const hasStatusIcon = useCallback((status?: string | null) => !!status && STATUS_OPTIONS.some((o) => o.id === status), []);
+  const handleToggleOnlineOnly = useCallback(() => {
+    setShowOnlineOnly((v) => !v);
+  }, []);
+  const handleOpenDirectMessage = useCallback(async (userId: string) => {
+    try {
+      const room = await roomsApi.create(userId);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      setActivePanel('none');
+      navigate(`/room/${room.id}`);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [navigate, queryClient]);
+  const handleUserContextMenu = useCallback((e: React.MouseEvent<HTMLButtonElement>, userInfo: OrgUser) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, user: userInfo });
+  }, []);
+  const handleTopicCreated = useCallback((id: string) => {
+    recentTopicRoomRef.current = { id, at: Date.now() };
+  }, []);
+  const handleGroupCreated = useCallback((roomId: string, viewMode?: 'chat' | 'board', opts?: { skipRoomsInvalidate?: boolean }) => {
+    if (!opts?.skipRoomsInvalidate) queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    setActivePanel('none');
+    navigate(`/room/${roomId}`, viewMode != null ? { state: { viewMode } } : undefined);
+  }, [navigate, queryClient]);
+  const handleConfirmAvatar = useCallback(async (croppedFile: File) => {
+    await usersApi.uploadAvatar(croppedFile);
+    const { user: u } = await authApi.me();
+    if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
+    queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    queryClient.invalidateQueries({ queryKey: ['org'] });
+  }, [queryClient]);
+  const {
+    handleEditEvent,
+    handleCancelEventEdit,
+    handleUpdateEvent,
+    handleCreateEvent,
+    handleDeleteEvent,
+    handleResetAi,
+    handleSubmitAi,
+    handleOpenChatInNewWindow,
+  } = useMainContentActions({
+    queryClient,
+    selectedDate,
+    setEditingEventId,
+    setEventForm,
+    editingEventId,
+    eventForm,
+    aiInput,
+    aiLoading,
+    aiMessages,
+    setAiInput,
+    setAiMessages,
+    setAiLoading,
+    navigate,
+    openChatWindow,
+  });
 
   // --- Room item renderer ---
   const renderRoomItem = useCallback((r: Room) => (
@@ -441,513 +531,126 @@ export default function Main() {
 
           {/* Content Area */}
           <div style={st.contentArea}>
-            {selectedRoomId && activePanel === 'none' ? (
-              <ChatWindow key={selectedRoomId} embedded onOpenInNewWindow={() => { openChatWindow(selectedRoomId); navigate('/'); }} />
-            ) : (
-              <>
-                {activePanel === 'none' && (
-                  <div style={st.emptyState}>
-                    <div style={st.emptyIcon}>
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                      </svg>
-                    </div>
-                    <p style={st.emptyText}>채팅방을 선택하세요</p>
-                    <p style={st.emptyHint}>왼쪽 아젠다 또는 채팅에서 대화를 시작하세요</p>
-                  </div>
-                )}
-
-            {/* MENTION PANEL */}
-            {activePanel === 'mention' && (
-              <div style={panelWrapStyle(760)}>
-                <div style={st.panelHeader}><h3 style={st.panelTitle}>멘션</h3></div>
-                <div style={st.panelBody}>
-                  {(Array.isArray(mentions) ? mentions : []).length === 0 ? (
-                    <div style={st.panelEmpty}>대화에서 @멘션 되면 여기에 표시됩니다</div>
-                  ) : (
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                      {(Array.isArray(mentions) ? mentions : []).map((m) => (
-                        <li
-                          key={m.id}
-                          style={{ ...st.panelItem, background: !m.readAt ? (isDark ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.04)') : 'transparent' }}
-                          role="button" tabIndex={0}
-                          onClick={async () => {
-                            if (!m.readAt) { try { await mentionsApi.markRead(m.id); queryClient.invalidateQueries({ queryKey: ['mentions'] }); queryClient.invalidateQueries({ queryKey: ['mentions', 'unread-count'] }); } catch (err) { console.error(err); } }
-                            if (m.message?.room?.id) { setActivePanel('none'); navigate(`/room/${m.message.room.id}`); }
-                          }}
-                        >
-                          {!m.readAt && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#171717', flexShrink: 0 }} />}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                              <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>{m.message?.sender?.name || '알 수 없음'}</span>
-                              <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>{m.message?.room?.name || ''}</span>
-                            </div>
-                            <div style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.message?.content || ''}</div>
-                            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af', marginTop: 2 }}>{m.message?.createdAt ? new Date(m.message.createdAt).toLocaleString('ko-KR') : ''}</div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* BOOKMARK PANEL */}
-            {activePanel === 'bookmark' && (
-              <div style={panelWrapStyle(760)}>
-                <div style={st.panelHeader}><h3 style={st.panelTitle}>북마크</h3></div>
-                <div style={st.panelBody}>
-                  {(Array.isArray(bookmarks) ? bookmarks : []).length === 0 ? (
-                    <div style={st.panelEmpty}>채팅에서 메시지를 북마크하세요</div>
-                  ) : (
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                      {(Array.isArray(bookmarks) ? bookmarks : []).map((b) => (
-                        <li
-                          key={b.id} style={st.panelItem} role="button" tabIndex={0}
-                          onClick={() => b.message?.room?.id && (setActivePanel('none'), navigate(`/room/${b.message.room.id}`))}
-                        >
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                              <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>{b.message?.sender?.name || '알 수 없음'}</span>
-                              <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>{b.message?.room?.name || ''}</span>
-                            </div>
-                            <div style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {b.message?.fileUrl ? `[파일] ${b.message.fileName || '파일'}` : (b.message?.content || '')}
-                            </div>
-                            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af', marginTop: 2 }}>{b.message?.createdAt ? new Date(b.message.createdAt).toLocaleString('ko-KR') : ''}</div>
-                          </div>
-                          <UICloseButton
-                            size="sm"
-                            title="북마크 해제"
-                            aria-label="북마크 해제"
-                            style={{ color: isDark ? '#64748b' : '#9ca3af' }}
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
-                                await bookmarksApi.remove(b.messageId);
-                                queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-                              } catch (err) {
-                                console.error(err);
-                              }
-                            }}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* FRIENDS PANEL */}
-            {activePanel === 'friends' && (
-              <div style={panelWrapStyle(820)}>
-                <div style={st.panelHeader}>
-                  <h3 style={st.panelTitle}>멤버</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'flex-end' as const, width: isNarrowLayout ? '100%' : 'auto' }}>
-                    <input type="text" placeholder="이름 검색" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ padding: '5px 10px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 6, fontSize: 12, background: isDark ? '#334155' : '#f5f5f5', color: isDark ? '#e2e8f0' : '#333', outline: 'none', width: isNarrowLayout ? '100%' : 140, minWidth: 0, boxSizing: 'border-box' as const }} />
-                    <button type="button" role="switch" aria-checked={showOnlineOnly} onClick={() => setShowOnlineOnly((v) => !v)} style={{ ...st.onlineFilterBtn, ...(showOnlineOnly ? st.onlineFilterBtnActive : {}) }}>
-                      <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />온라인만
-                    </button>
-                  </div>
-                </div>
-                <div style={st.panelBody}>
-                  {orgLoading ? (<p style={{ color: isDark ? '#94a3b8' : '#888', fontSize: 13, padding: 16 }}>로딩 중...</p>) : orgError ? (
-                    <div style={{ padding: 20, textAlign: 'center' as const }}>
-                      <p style={{ color: '#c62828', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>조직 데이터를 불러올 수 없습니다</p>
-                      <button type="button" onClick={() => refetchOrg()} style={{ padding: '8px 16px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>다시 시도</button>
-                    </div>
-                  ) : orgTree.length === 0 ? (<p style={{ color: isDark ? '#94a3b8' : '#888', fontSize: 13, padding: 16 }}>표시할 조직이 없습니다.</p>) : (
-                    <div style={{ padding: '8px 12px' }}>
-                      {orgTree.map((company: OrgCompany) => {
-                        const companyKey = `company-${company.id}`;
-                        const companyOpen = treeOpen[companyKey] !== false;
-                        return (
-                          <div key={company.id} style={{ marginBottom: 6 }}>
-                            <button type="button" style={st.treeNode} onClick={() => toggleTree(companyKey)}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <UIChevron open={companyOpen} size={9} color={isDark ? '#64748b' : '#9ca3af'} />
-                              </span>
-                              <span style={{ fontWeight: 600, fontSize: 13, color: isDark ? '#f1f5f9' : '#111827' }}>{company.name}</span>
-                            </button>
-                            {companyOpen && company.departments.map((dept) => {
-                              const deptKey = `dept-${dept.id}`;
-                              const deptOpen = treeOpen[deptKey] !== false;
-                              return (
-                                <div key={dept.id} style={{ marginLeft: 14, marginTop: 2 }}>
-                                  <button type="button" style={st.treeNode} onClick={() => toggleTree(deptKey)}>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                      <UIChevron open={deptOpen} size={9} color={isDark ? '#64748b' : '#9ca3af'} />
-                                    </span>
-                                    <span style={{ fontWeight: 500, fontSize: 13, color: isDark ? '#94a3b8' : '#6b7280' }}>{dept.name}</span>
-                                  </button>
-                                  {deptOpen && (
-                                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: 2 }}>
-                                      {dept.users.map((u) => {
-                                        const isOnline = onlineUserIds.has(String(u.id)) || (String(u.id) === String(myId) && !!socket?.connected);
-                                        return (
-                                          <li key={u.id} style={{ marginBottom: 1 }}>
-                                            <button
-                                              type="button"
-                                              style={{ ...st.treeUserBtn, ...(!isOnline ? { opacity: 0.7, color: isDark ? '#64748b' : '#9ca3af' } : {}) }}
-                                              onClick={async () => { try { const room = await roomsApi.create(u.id); queryClient.invalidateQueries({ queryKey: ['rooms'] }); setActivePanel('none'); navigate(`/room/${room.id}`); } catch (err) { console.error(err); } }}
-                                              onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, user: u }); }}
-                                            >
-                                              <div style={{ position: 'relative' as const, width: 28, height: 28, flexShrink: 0 }}>
-                                                <div style={{ width: 28, height: 28, borderRadius: 8, background: isDark ? '#475569' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#6b7280', overflow: 'hidden' }}>
-                                                  <UserAvatar userId={u.id} name={u.name} avatarUrlPath={u.avatarUrl} imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} initialStyle={{ fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#6b7280' }} />
-                                                </div>
-                                                {u.statusMessage && STATUS_OPTIONS.find(o => o.id === u.statusMessage) ? (
-                                                  <span style={{ position: 'absolute' as const, top: -2, right: -2, display: 'block', borderRadius: '50%', border: `1.5px solid ${isDark ? '#1e293b' : '#fff'}`, lineHeight: 0 }}>
-                                                    <StatusIcon status={u.statusMessage} size={11} />
-                                                  </span>
-                                                ) : isOnline ? (
-                                                  <span style={{ position: 'absolute' as const, top: -1, right: -1, width: 8, height: 8, borderRadius: '50%', background: '#22c55e', border: `1.5px solid ${isDark ? '#1e293b' : '#fff'}`, display: 'block' }} title="온라인" />
-                                                ) : null}
-                                              </div>
-                                              <div style={{ flex: 1, minWidth: 0 }}>
-                                                <span style={{ color: isDark ? '#cbd5e1' : '#374151', fontWeight: 500, fontSize: 13 }}>{u.name}</span>
-                                                {u.statusMessage && <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.statusMessage}</div>}
-                                              </div>
-                                              {(String(u.id) === String(myId) || u.email === myEmail) && <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>(나)</span>}
-                                            </button>
-                                          </li>
-                                        );
-                                      })}
-                                    </ul>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* SCHEDULE PANEL */}
-            {activePanel === 'schedule' && (
-              <div style={panelWrapStyle(900)}>
-                <div style={st.panelHeader}><h3 style={st.panelTitle}>일정</h3></div>
-                <div style={{ ...st.panelBody, padding: isNarrowLayout ? 14 : 24 }}>
-                  {/* Calendar */}
-                  <div style={{ border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, borderRadius: 14, padding: isNarrowLayout ? 10 : 14, background: isDark ? '#1e293b' : '#fff', marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <button type="button" style={{ width: 30, height: 30, border: 'none', background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 9, cursor: 'pointer', fontSize: 12, fontWeight: 700 }} onClick={() => setCalendarMonth((m) => addMonths(m, -1))}>◀</button>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: isDark ? '#f1f5f9' : '#111827', letterSpacing: '-0.01em' }}>{calendarMonth.getFullYear()}년 {calendarMonth.getMonth() + 1}월</div>
-                      <button type="button" style={{ width: 30, height: 30, border: 'none', background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 9, cursor: 'pointer', fontSize: 12, fontWeight: 700 }} onClick={() => setCalendarMonth((m) => addMonths(m, 1))}>▶</button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
-                      {['일', '월', '화', '수', '목', '금', '토'].map((d, idx) => (
-                        <div key={d} style={{ textAlign: 'center' as const, fontSize: 11, fontWeight: 700, color: idx === 0 ? '#ef4444' : idx === 6 ? '#3b82f6' : (isDark ? '#94a3b8' : '#64748b'), padding: '4px 0 3px' }}>{d}</div>
-                      ))}
-                      {(() => {
-                        const start = startOfMonth(calendarMonth);
-                        const firstDow = start.getDay();
-                        const totalDays = daysInMonth(calendarMonth);
-                        const cells = [];
-                        for (let i = 0; i < firstDow; i++) cells.push(<div key={`e-${i}`} style={{ height: isNarrowLayout ? 42 : 48 }} />);
-                        for (let day = 1; day <= totalDays; day++) {
-                          const key = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                          const list = eventsByDate.get(key) || [];
-                          const isSelected = key === selectedDate;
-                          const isToday = key === toLocalDateKey(new Date().toISOString());
-                          cells.push(
-                            <button type="button" key={key} onClick={() => setSelectedDate(key)} style={{
-                              minHeight: isNarrowLayout ? 42 : 48,
-                              borderRadius: 10,
-                              border: `1px solid ${isSelected ? '#9a58a8' : (isDark ? '#334155' : '#e9eef5')}`,
-                              background: isSelected ? (isDark ? '#7c3d89' : '#9a58a8') : (isDark ? '#0f172a' : '#f8fafc'),
-                              color: isSelected ? '#fff' : (isDark ? '#e2e8f0' : '#333'),
-                              display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2, cursor: 'pointer', fontSize: 12,
-                              ...(isToday && !isSelected ? { boxShadow: 'inset 0 0 0 1.5px rgba(154,88,168,0.75)' } : {}),
-                            }}>
-                              <span style={{ fontSize: 12, fontWeight: 700, lineHeight: 1 }}>{day}</span>
-                              {list.length > 0 && <span style={{ minWidth: 14, height: 14, fontSize: 9, lineHeight: '14px', fontWeight: 700, background: isSelected ? 'rgba(255,255,255,0.24)' : (isDark ? '#171717' : '#0f172a'), color: '#fff', borderRadius: 999, padding: '0 4px' }}>{list.length}</span>}
-                            </button>
-                          );
-                        }
-                        return cells;
-                      })()}
-                    </div>
-                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' as const }}>
-                      <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', background: isDark ? 'rgba(148,163,184,0.12)' : '#f1f5f9', padding: '4px 10px', borderRadius: 999 }}>선택: {selectedDate}</span>
-                      <button type="button" style={{ border: `1px solid ${isDark ? '#475569' : '#dbe3ee'}`, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }} onClick={() => { const key = toLocalDateKey(new Date().toISOString()); if (key) { setSelectedDate(key); setCalendarMonth(startOfMonth(new Date())); } }}>오늘로 이동</button>
-                    </div>
-                  </div>
-                  {/* Event form */}
-                  <div style={{ marginBottom: 16, border: `1px solid ${isDark ? '#334155' : '#e5e7eb'}`, borderRadius: 14, padding: isNarrowLayout ? 12 : 16, background: isDark ? '#0f172a' : '#fff' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: isDark ? '#cbd5e1' : '#475569', marginBottom: 10 }}>
-                      {editingEventId ? '일정 수정' : '새 일정 추가'}
-                    </div>
-                    <input type="text" placeholder="제목" value={eventForm.title} onChange={(e) => setEventForm((f) => ({ ...f, title: e.target.value }))} style={st.formInput} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' as const }}>
-                      <input type="datetime-local" value={eventForm.startAt} onChange={(e) => setEventForm((f) => ({ ...f, startAt: e.target.value }))} style={{ ...st.formInput, marginBottom: 0, flex: '1 1 180px', minWidth: 0 }} />
-                      <span style={{ color: isDark ? '#94a3b8' : '#888' }}>~</span>
-                      <input type="datetime-local" value={eventForm.endAt} onChange={(e) => setEventForm((f) => ({ ...f, endAt: e.target.value }))} style={{ ...st.formInput, marginBottom: 0, flex: '1 1 180px', minWidth: 0 }} />
-                    </div>
-                    <input type="text" placeholder="설명 (선택)" value={eventForm.description} onChange={(e) => setEventForm((f) => ({ ...f, description: e.target.value }))} style={st.formInput} />
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' as const }}>
-                      {editingEventId ? (
-                        <>
-                          <button type="button" style={st.formBtn} onClick={async () => {
-                            if (!editingEventId || !eventForm.title.trim() || !eventForm.startAt || !eventForm.endAt) return;
-                            try { await eventsApi.update(editingEventId, { title: eventForm.title.trim(), startAt: eventForm.startAt, endAt: eventForm.endAt, description: eventForm.description.trim() || undefined }); queryClient.invalidateQueries({ queryKey: ['events'] }); setEditingEventId(null); const n = normalizeTimeRange(selectedDate, eventForm.startAt, eventForm.endAt); setEventForm({ title: '', startAt: n.startAt, endAt: n.endAt, description: '' }); } catch (err) { console.error(err); }
-                          }}>수정</button>
-                          <button type="button" style={st.formBtnCancel} onClick={() => { setEditingEventId(null); setEventForm({ title: '', startAt: '', endAt: '', description: '' }); }}>취소</button>
-                        </>
-                      ) : (
-                        <button type="button" style={st.formBtn} onClick={async () => {
-                          if (!eventForm.title.trim() || !eventForm.startAt || !eventForm.endAt) return;
-                          try { await eventsApi.create({ title: eventForm.title.trim(), startAt: eventForm.startAt, endAt: eventForm.endAt, description: eventForm.description.trim() || undefined }); queryClient.invalidateQueries({ queryKey: ['events'] }); const n = normalizeTimeRange(selectedDate, eventForm.startAt, eventForm.endAt); setEventForm({ title: '', startAt: n.startAt, endAt: n.endAt, description: '' }); } catch (err) { console.error(err); }
-                        }}>추가</button>
-                      )}
-                    </div>
-                  </div>
-                  {/* Event list */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 2px' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? '#f1f5f9' : '#111827' }}>선택한 날짜 일정</span>
-                    <span style={{ fontSize: 12, color: isDark ? '#64748b' : '#888' }}>{(eventsByDate.get(selectedDate) || []).length}건</span>
-                  </div>
-                  <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                    {((eventsByDate.get(selectedDate) || []) as Event[]).map((ev) => (
-                      <li key={ev.id} style={{ padding: isNarrowLayout ? '11px 10px' : '12px 14px', border: `1px solid ${isDark ? '#334155' : '#e5e7eb'}`, borderRadius: 12, background: isDark ? '#1e293b' : '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' as const, marginBottom: 8 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <strong style={{ display: 'block', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333', marginBottom: 4 }}>{ev.title}</strong>
-                          <span style={{ display: 'block', fontSize: 12, color: isDark ? '#94a3b8' : '#888', marginBottom: 4, lineHeight: 1.45 }}>{new Date(ev.startAt).toLocaleString('ko-KR')} ~ {new Date(ev.endAt).toLocaleString('ko-KR')}</span>
-                          {ev.description && <span style={{ display: 'block', fontSize: 13, color: isDark ? '#64748b' : '#666' }}>{ev.description}</span>}
-                        </div>
-                        <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' as const }}>
-                          <button type="button" style={st.formBtn} onClick={() => { setEditingEventId(ev.id); setEventForm({ title: ev.title, startAt: toLocalInputValue(ev.startAt), endAt: toLocalInputValue(ev.endAt), description: ev.description ?? '' }); }}>수정</button>
-                          <button type="button" style={{ ...st.formBtnCancel, color: '#c62828' }} onClick={async () => { try { await eventsApi.delete(ev.id); queryClient.invalidateQueries({ queryKey: ['events'] }); } catch (err) { console.error(err); } }}>삭제</button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  {(eventsByDate.get(selectedDate) || []).length === 0 && (
-                    <p style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13, margin: 0, padding: '14px 12px', borderRadius: 10, background: isDark ? 'rgba(148,163,184,0.08)' : '#f8fafc' }}>
-                      선택한 날짜에 일정이 없습니다.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* AI CHAT PANEL */}
-            {activePanel === 'ai' && (
-              <div style={panelWrapStyle(820)}>
-                <div style={st.panelHeader}>
-                  <h3 style={st.panelTitle}>AI 채팅</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'flex-end' as const }}>
-                    <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>{getOllamaConfig().model}</span>
-                    {aiMessages.length > 0 && (
-                      <button type="button" style={{ padding: '4px 10px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 6, background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11, cursor: 'pointer' }} onClick={() => setAiMessages([])}>대화 초기화</button>
-                    )}
-                  </div>
-                </div>
-                <div style={{ ...st.panelBody, display: 'flex', flexDirection: 'column', padding: 0 }}>
-                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16 }}>
-                    {aiMessages.length === 0 && (
-                      <div style={{ textAlign: 'center', padding: 32, color: isDark ? '#64748b' : '#9ca3af', fontSize: 13 }}>
-                        <p style={{ margin: '0 0 8px' }}>Ollama와 대화를 시작하세요</p>
-                        <p style={{ margin: 0, fontSize: 12 }}>메시지를 입력하고 전송하세요</p>
-                      </div>
-                    )}
-                    {aiMessages.map((m, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          padding: '10px 14px',
-                          marginBottom: 8,
-                          borderRadius: 12,
-                          maxWidth: '90%',
-                          alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                          background: m.role === 'user' ? (isDark ? '#475569' : '#e5e7eb') : (isDark ? '#334155' : '#f1f5f9'),
-                          color: isDark ? '#e2e8f0' : '#333',
-                          fontSize: 14,
-                          lineHeight: 1.5,
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                        }}
-                      >
-                        {m.role === 'user' && <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', display: 'block', marginBottom: 4 }}>나</span>}
-                        {m.role === 'assistant' && <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', display: 'block', marginBottom: 4 }}>AI</span>}
-                        {m.content}
-                      </div>
-                    ))}
-                    {aiLoading && (
-                      <div style={{ padding: '10px 14px', marginBottom: 8, borderRadius: 12, maxWidth: '90%', alignSelf: 'flex-start', background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#94a3b8' : '#64748b', fontSize: 13 }}>
-                        <span style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>AI</span>
-                        <span>생각 중...</span>
-                      </div>
-                    )}
-                    <div ref={aiMessagesEndRef} />
-                  </div>
-                  <div style={{ flexShrink: 0, padding: 12, borderTop: `1px solid ${isDark ? '#334155' : '#e5e7eb'}` }}>
-                    <form
-                      onSubmit={async (e) => {
-                        e.preventDefault();
-                        const text = aiInput.trim();
-                        if (!text || aiLoading) return;
-                        setAiInput('');
-                        const userMsg: OllamaMessage = { role: 'user', content: text };
-                        setAiMessages((prev) => [...prev, userMsg]);
-                        setAiLoading(true);
-                        try {
-                          const reply = await ollamaChat([...aiMessages, userMsg]);
-                          setAiMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
-                        } catch (err) {
-                          setAiMessages((prev) => [...prev, { role: 'assistant', content: `오류: ${(err as Error).message}` }]);
-                        } finally {
-                          setAiLoading(false);
-                          aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                      style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}
-                    >
-                      <textarea
-                        value={aiInput}
-                        onChange={(e) => setAiInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLTextAreaElement).form?.requestSubmit(); } }}
-                        placeholder="메시지 입력..."
-                        rows={2}
-                        style={{
-                          flex: 1,
-                          padding: '10px 14px',
-                          border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`,
-                          borderRadius: 10,
-                          fontSize: 14,
-                          background: isDark ? '#1e293b' : '#fff',
-                          color: isDark ? '#e2e8f0' : '#333',
-                          outline: 'none',
-                          resize: 'none',
-                          fontFamily: 'inherit',
-                        }}
-                      />
-                      <button type="submit" disabled={aiLoading || !aiInput.trim()} style={{ ...st.formBtn, alignSelf: 'flex-end', padding: '10px 16px' }}>
-                        {aiLoading ? '대기...' : '전송'}
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* SETTINGS PANEL */}
-            {activePanel === 'settings' && (
-              <SettingsPanel
-                st={st}
-                panelWrapStyle={panelWrapStyle}
-                isDark={isDark}
-                isNarrowLayout={isNarrowLayout}
-                user={user}
-                notificationsSnoozedUntil={notificationsSnoozedUntil}
-                snoozeNotifications={snoozeNotifications}
-                clearSnooze={clearSnooze}
-                toggleDark={toggleDark}
-                hasElectron={hasElectron}
-                appVersion={appVersion}
-                updateStatus={updateStatus}
-                updateVersion={updateVersion}
-                updateError={updateError}
-                handleCheckForUpdates={handleCheckForUpdates}
-                handleQuitAndInstall={handleQuitAndInstall}
-                statusInput={statusInput}
-                statusOptions={STATUS_OPTIONS}
-                renderStatusIcon={(status, size = 18) => <StatusIcon status={status} size={size} />}
-                handleSetStatus={handleSetStatus}
-                notificationStatus={notificationStatus}
-                announcementEdit={announcementEdit}
-                setAnnouncementEdit={setAnnouncementEdit}
-                announcementSaving={announcementSaving}
-                onSaveAnnouncement={handleSaveAnnouncement}
-                onSelectAvatarFile={handleSelectAvatarFile}
-                onDeleteAvatar={handleDeleteAvatar}
-                onTestNotification={handleTestNotification}
-                onRequestNotificationPermission={requestNotificationPermission}
-                onLogout={handleLogout}
-              />
-            )}
-              </>
-            )}
+            <RightContentRouter
+              st={st}
+              isDark={isDark}
+              isNarrowLayout={isNarrowLayout}
+              activePanel={activePanel}
+              selectedRoomId={selectedRoomId}
+              panelWrapStyle={panelWrapStyle}
+              onOpenInNewWindow={handleOpenChatInNewWindow}
+              mentions={Array.isArray(mentions) ? mentions : []}
+              onSelectMention={handleSelectMention}
+              bookmarks={Array.isArray(bookmarks) ? bookmarks : []}
+              onSelectBookmark={handleSelectBookmark}
+              onRemoveBookmark={handleRemoveBookmark}
+              friendsProps={{
+                searchQuery,
+                showOnlineOnly,
+                orgLoading,
+                orgError,
+                orgTree,
+                treeOpen,
+                onlineUserIds,
+                myId,
+                myEmail,
+                socketConnected: !!socket?.connected,
+                onSearchQueryChange: setSearchQuery,
+                onToggleOnlineOnly: handleToggleOnlineOnly,
+                onRetryOrg: () => { void refetchOrg(); },
+                onToggleTree: toggleTree,
+                onOpenDirectMessage: handleOpenDirectMessage,
+                onUserContextMenu: handleUserContextMenu,
+                hasStatusIcon,
+                renderStatusIcon: (status, size = 11) => <StatusIcon status={status} size={size} />,
+              }}
+              scheduleProps={{
+                calendarMonth,
+                selectedDate,
+                eventsByDate,
+                eventForm,
+                editingEventId,
+                setCalendarMonth,
+                setSelectedDate,
+                setEventForm,
+                onUpdateEvent: handleUpdateEvent,
+                onCreateEvent: handleCreateEvent,
+                onCancelEdit: handleCancelEventEdit,
+                onEditEvent: handleEditEvent,
+                onDeleteEvent: handleDeleteEvent,
+              }}
+              aiProps={{
+                modelName: getOllamaConfig().model,
+                aiMessages,
+                aiInput,
+                aiLoading,
+                setAiInput,
+                onSubmitAi: handleSubmitAi,
+                onResetAi: handleResetAi,
+              }}
+              settingsProps={{
+                notificationsSnoozedUntil,
+                snoozeNotifications,
+                clearSnooze,
+                toggleDark,
+                hasElectron,
+                appVersion,
+                updateStatus,
+                updateVersion,
+                updateError,
+                handleCheckForUpdates,
+                handleQuitAndInstall,
+                statusInput,
+                statusOptions: STATUS_OPTIONS,
+                renderStatusIcon: (status, size = 18) => <StatusIcon status={status} size={size} />,
+                handleSetStatus,
+                notificationStatus,
+                announcementEdit,
+                setAnnouncementEdit,
+                announcementSaving,
+                onSaveAnnouncement: handleSaveAnnouncement,
+                onSelectAvatarFile: handleSelectAvatarFile,
+                onDeleteAvatar: handleDeleteAvatar,
+                onTestNotification: handleTestNotification,
+                onRequestNotificationPermission: requestNotificationPermission,
+                onLogout: handleLogout,
+                user,
+              }}
+            />
           </div>
         </div>
       </div>
 
       {/* ===== MODALS ===== */}
-      {showAnnouncementModal && announcementData?.content?.trim() && (
-        <div style={st.overlay} onClick={() => setShowAnnouncementModal(false)}>
-          <div style={st.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>공지</h3>
-            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 14, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#555', marginBottom: 16 }}>{announcementData.content}</div>
-            <button type="button" style={{ ...st.formBtn, width: '100%' }} onClick={() => setShowAnnouncementModal(false)}>확인</button>
-          </div>
-        </div>
-      )}
-
-      {showCreateGroupModal && <CreateGroupModal mode={createGroupFor} onClose={() => setShowCreateGroupModal(false)} onTopicCreated={(id) => { recentTopicRoomRef.current = { id, at: Date.now() }; }} onCreated={(roomId, viewMode, opts) => { if (!opts?.skipRoomsInvalidate) queryClient.invalidateQueries({ queryKey: ['rooms'] }); setActivePanel('none'); navigate(`/room/${roomId}`, viewMode != null ? { state: { viewMode } } : undefined); }} />}
-
-      {avatarEditFile && (
-        <AvatarEditModal
-          file={avatarEditFile}
-          onClose={() => setAvatarEditFile(null)}
-          onConfirm={async (croppedFile) => {
-            await usersApi.uploadAvatar(croppedFile);
-            const { user: u } = await authApi.me();
-            if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
-            queryClient.invalidateQueries({ queryKey: ['rooms'] });
-            queryClient.invalidateQueries({ queryKey: ['org'] });
-          }}
-        />
-      )}
-
-      {showFolderManageModal && <FolderManageModal topicRooms={topicRooms} onClose={() => setShowFolderManageModal(false)} />}
-
-      {contextMenu && (() => {
-        const estH = 50;
-        const top = contextMenu.y + estH > window.innerHeight - 8 ? contextMenu.y - estH : contextMenu.y;
-        const left = Math.min(Math.max(contextMenu.x, 8), window.innerWidth - 130);
-        return (
-          <div style={{ ...st.ctxMenu, left, top }} onClick={(e) => e.stopPropagation()}>
-            <button type="button" style={st.ctxMenuItem} onClick={() => { setProfileModalUser(contextMenu.user); setContextMenu(null); }}>프로필 보기</button>
-          </div>
-        );
-      })()}
-
-      {roomContextMenu && (() => {
-        const estH = 180;
-        const top = roomContextMenu.y + estH > window.innerHeight - 8 ? roomContextMenu.y - estH : roomContextMenu.y;
-        const left = Math.min(Math.max(roomContextMenu.x, 8), window.innerWidth - 210);
-        return (
-        <div style={{ ...st.ctxMenu, left, top }} onClick={(e) => e.stopPropagation()}>
-          <button type="button" style={st.ctxMenuItem} onClick={() => handleToggleFavorite(roomContextMenu.room)}>{roomContextMenu.room.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}</button>
-          <button type="button" style={st.ctxMenuItem} onClick={() => handleToggleMuteRoom(roomContextMenu.room.id)}>{mutedRoomIds.has(roomContextMenu.room.id) ? '알림 켜기' : '알림 끄기'}</button>
-          {roomContextMenu.room.isGroup && roomContextMenu.room.isTopic && (
-            <button type="button" style={st.ctxMenuItem} onClick={() => { setShowFolderManageModal(true); setRoomContextMenu(null); }}>폴더로 이동</button>
-          )}
-          <button type="button" style={{ ...st.ctxMenuItem, color: '#c62828' }} onClick={() => handleLeaveRoom(roomContextMenu.room.id)}>나가기</button>
-        </div>
-        );
-      })()}
-
-      {profileModalUser && (
-        <div style={st.overlay} onClick={() => setProfileModalUser(null)}>
-          <div style={st.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>사용자 프로필</h3>
-              <UICloseButton onClick={() => setProfileModalUser(null)} />
-            </div>
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>이름</strong> {profileModalUser.name}</p>
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>이메일</strong> {profileModalUser.email}</p>
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>상태</strong> {onlineUserIds.has(String(profileModalUser.id)) ? <span style={{ color: '#4caf50', fontWeight: 600 }}>● 온라인</span> : <span style={{ color: isDark ? '#64748b' : '#999' }}>○ 오프라인</span>}</p>
-            {profileModalUser.statusMessage && <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>상태 메시지</strong> {profileModalUser.statusMessage}</p>}
-          </div>
-        </div>
-      )}
+      <MainOverlays
+        st={st}
+        isDark={isDark}
+        showAnnouncementModal={showAnnouncementModal}
+        announcementContent={announcementData?.content ?? undefined}
+        setShowAnnouncementModal={setShowAnnouncementModal}
+        showCreateGroupModal={showCreateGroupModal}
+        createGroupFor={createGroupFor}
+        setShowCreateGroupModal={setShowCreateGroupModal}
+        onTopicCreated={handleTopicCreated}
+        onGroupCreated={handleGroupCreated}
+        avatarEditFile={avatarEditFile}
+        setAvatarEditFile={setAvatarEditFile}
+        onConfirmAvatar={handleConfirmAvatar}
+        showFolderManageModal={showFolderManageModal}
+        setShowFolderManageModal={setShowFolderManageModal}
+        topicRooms={topicRooms}
+        contextMenu={contextMenu}
+        setContextMenu={setContextMenu}
+        setProfileModalUser={setProfileModalUser}
+        roomContextMenu={roomContextMenu}
+        setRoomContextMenu={setRoomContextMenu}
+        mutedRoomIds={mutedRoomIds}
+        onToggleFavorite={handleToggleFavorite}
+        onToggleMuteRoom={handleToggleMuteRoom}
+        onLeaveRoom={handleLeaveRoom}
+        profileModalUser={profileModalUser}
+        onlineUserIds={onlineUserIds}
+      />
 
       <ToastProvider />
     </div>

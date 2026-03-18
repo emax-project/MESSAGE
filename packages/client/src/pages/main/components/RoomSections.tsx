@@ -1,5 +1,5 @@
-import { memo } from 'react';
-import type { CSSProperties, Dispatch, KeyboardEvent, SetStateAction } from 'react';
+import { memo, useMemo } from 'react';
+import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import type { Folder, PublicRoom, Room } from '../../../api';
 import UIChevron from '../../../components/ui/UIChevron';
 
@@ -59,17 +59,14 @@ function RoomSections({
   renderRoomItem,
   onJoinPublicRoom,
 }: RoomSectionsProps) {
-  const joinablePublicRooms = (Array.isArray(publicRooms) ? publicRooms : []).filter((pr) => !allRooms.some((r) => r.id === pr.id));
+  const joinablePublicRooms = useMemo(() => {
+    const roomIds = new Set(allRooms.map((r) => r.id));
+    return (Array.isArray(publicRooms) ? publicRooms : []).filter((pr) => !roomIds.has(pr.id));
+  }, [publicRooms, allRooms]);
 
   const openCreateModal = (mode: CreateGroupFor) => {
     setCreateGroupFor(mode);
     setShowCreateGroupModal(true);
-  };
-
-  const onFolderKeyDown = (e: KeyboardEvent<HTMLSpanElement>) => {
-    if (e.key !== 'Enter') return;
-    e.stopPropagation();
-    setShowFolderManageModal(true);
   };
 
   return (
@@ -84,22 +81,19 @@ function RoomSections({
             {topicUnreadCount > 0 && <span style={st.sectionUnreadBadge}>{topicUnreadCount > 99 ? '99+' : topicUnreadCount}</span>}
           </span>
           <span style={{ display: 'flex', gap: 4 }}>
-            <span
+            <button
+              type="button"
               style={st.sectionTextBtn}
-              role="button"
-              tabIndex={0}
               onClick={(e) => { e.stopPropagation(); setShowFolderManageModal(true); }}
-              onKeyDown={onFolderKeyDown}
               title="폴더 관리"
-            >폴더</span>
-            <span
+            >폴더</button>
+            <button
+              type="button"
               style={st.sectionAddBtn}
-              role="button"
-              tabIndex={0}
               onClick={(e) => { e.stopPropagation(); openCreateModal('topic'); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); openCreateModal('topic'); } }}
               title="아젠다 만들기"
-            ><PlusIcon /></span>
+              aria-label="아젠다 만들기"
+            ><PlusIcon /></button>
           </span>
         </button>
         {sectionOpen.topic && (
@@ -168,14 +162,13 @@ function RoomSections({
             <span style={st.sectionCount}>{chatRooms.length}개</span>
             {chatUnreadCount > 0 && <span style={st.sectionUnreadBadge}>{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</span>}
           </span>
-          <span
+          <button
+            type="button"
             style={st.sectionAddBtn}
-            role="button"
-            tabIndex={0}
             onClick={(e) => { e.stopPropagation(); openCreateModal('chat'); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); openCreateModal('chat'); } }}
             title="1:1 채팅 만들기"
-          ><PlusIcon /></span>
+            aria-label="1:1 채팅 만들기"
+          ><PlusIcon /></button>
         </button>
         {sectionOpen.chat && (
           chatRooms.length === 0 ? (

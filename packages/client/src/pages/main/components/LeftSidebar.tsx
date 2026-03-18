@@ -75,6 +75,7 @@ function LeftSidebar({
         <input
           type="text"
           placeholder="대화방 검색"
+          aria-label="대화방 검색"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={st.searchInput}
