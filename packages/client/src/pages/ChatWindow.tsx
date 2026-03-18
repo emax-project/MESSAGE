@@ -58,12 +58,35 @@ const chatWindowStyles = {
     return { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: t.bgBase, position: 'relative' };
   },
   loading: (dark: boolean): React.CSSProperties => ({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: getThemeTokens(dark).textMuted, fontSize: 16 }),
-  chatHeader: (dark: boolean): React.CSSProperties => {
+  chatHeader: (dark: boolean, compact = false): React.CSSProperties => {
     const t = getThemeTokens(dark);
-    return { padding: '0 20px', height: 56, minHeight: 56, borderBottom: `1px solid ${t.border}`, background: t.bgSurface, boxShadow: dark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 };
+    return {
+      padding: compact ? '8px 12px' : '0 20px',
+      minHeight: 56,
+      borderBottom: `1px solid ${t.border}`,
+      background: t.bgSurface,
+      boxShadow: dark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: compact ? 8 : 12,
+      flexWrap: compact ? 'wrap' : 'nowrap',
+    };
   },
   chatHeaderName: (dark: boolean): React.CSSProperties => ({ fontSize: 16, fontWeight: 700, color: getThemeTokens(dark).textStrong, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }),
-  headerIconBtn: (dark: boolean): React.CSSProperties => ({ width: 34, height: 34, borderRadius: 8, border: 'none', background: dark ? '#334155' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }),
+  headerIconBtn: (dark: boolean, compact = false): React.CSSProperties => ({
+    width: compact ? 32 : 34,
+    height: compact ? 32 : 34,
+    borderRadius: 8,
+    border: 'none',
+    background: dark ? '#334155' : '#fff',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    transition: 'background 0.15s'
+  }),
   messages: (dark: boolean): React.CSSProperties => ({ flex: 1, overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, background: getThemeTokens(dark).bgBase }),
   scrollToBottomBtn: (dark: boolean): React.CSSProperties => ({
     position: 'absolute',
@@ -584,6 +607,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const [boardCommentInputs, setBoardCommentInputs] = useState<Record<string, string>>({});
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryText, setSummaryText] = useState('');
+  const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
+  const isCompactHeader = viewportWidth < 980;
   const summaryDismissedRef = useRef(false);
   const socketRef = useRef<Socket | null>(null);
   const myIdRef = useRef<string | undefined>(myId);
@@ -609,6 +634,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   };
   const queryClient = useQueryClient();
   myIdRef.current = myId;
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const { data: roomsList = [] } = useQuery({
     queryKey: ['rooms', myId],
@@ -1402,32 +1433,32 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             </div>
           </div>
         )}
-        <header style={s.chatHeader(isDark)}>
+        <header style={s.chatHeader(isDark, isCompactHeader)}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', minWidth: 0 }}>
             <span style={s.chatHeaderName(isDark)}>{room.name}</span>
             {isBoardView && (
               <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b', padding: '2px 8px', borderRadius: 6, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', flexShrink: 0 }}>보드뷰</span>
             )}
           </span>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: isCompactHeader ? 'wrap' : 'nowrap', justifyContent: 'flex-end', marginLeft: 'auto' }}>
             {embedded && onOpenInNewWindow && (
-              <button type="button" style={s.headerIconBtn(isDark)} onClick={onOpenInNewWindow} title="새 창으로 열기">
+              <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={onOpenInNewWindow} title="새 창으로 열기">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
               </button>
             )}
-            <button type="button" style={s.headerIconBtn(isDark)} onClick={() => setSearchOpen(!searchOpen)} title="검색">
+            <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={() => setSearchOpen(!searchOpen)} title="검색">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
               </svg>
             </button>
-            <button type="button" style={s.headerIconBtn(isDark)} onClick={handleSummarize} title="채팅 요약" disabled={summaryLoading}>
+            <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={handleSummarize} title="채팅 요약" disabled={summaryLoading}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
               </svg>
             </button>
-            <button type="button" style={s.headerIconBtn(isDark)} onClick={() => {
+            <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={() => {
               if (window.electronAPI?.openKanbanWindow) {
                 window.electronAPI.openKanbanWindow(roomId!);
               } else {
@@ -1439,14 +1470,14 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               </svg>
             </button>
             {isCreator && (
-              <button type="button" style={s.headerIconBtn(isDark)} onClick={() => setSettingsOpen(true)} title="방 설정">
+              <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={() => setSettingsOpen(true)} title="방 설정">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
                 </svg>
               </button>
             )}
             {canInvite && (
-            <button type="button" style={s.headerIconBtn(isDark)} onClick={() => setInviteOpen(true)} title="멤버 초대">
+            <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={() => setInviteOpen(true)} title="멤버 초대">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
               </svg>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../api';
 import { useAuthStore, useThemeStore } from '../store';
 import TitleBar from '../components/TitleBar';
+import { EmaxLogo } from '../components/EmaxLogo';
 import UIButton from '../components/ui/UIButton';
 import UITextInput from '../components/ui/UITextInput';
 import { getThemeTokens } from '../components/ui/themeTokens';
@@ -45,9 +46,8 @@ export default function Register() {
       <div style={s.body}>
         <div style={s.card}>
           <div style={s.logoWrap}>
-            <div style={s.logo}>E</div>
+            <EmaxLogo variant={isDark ? 'light' : 'accent'} size="lg" />
           </div>
-          <h1 style={s.title}>EMAX</h1>
           <p style={s.subtitle}>새 계정 만들기</p>
           <form onSubmit={handleSubmit} style={s.form}>
             <div style={s.fieldGroup}>
@@ -131,26 +131,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       border: `1px solid ${t.border}`,
     },
     logoWrap: {
-      marginBottom: 16,
-    },
-    logo: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
-      background: '#475569',
-      color: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 22,
-      fontWeight: 800,
-      letterSpacing: '-0.02em',
-    },
-    title: {
-      margin: '0 0 4px',
-      fontSize: 22,
-      fontWeight: 700,
-      color: t.textStrong,
+      marginBottom: 18,
     },
     subtitle: {
       margin: '0 0 28px',

@@ -12,6 +12,7 @@ import AvatarEditModal from '../components/AvatarEditModal';
 import RoomAvatar from '../components/RoomAvatar';
 import UserAvatar from '../components/UserAvatar';
 import GroupAvatar from '../components/GroupAvatar';
+import { EmaxLogo } from '../components/EmaxLogo';
 import TitleBar from '../components/TitleBar';
 import ChatWindow from './ChatWindow';
 import { getThemeTokens } from '../components/ui/themeTokens';
@@ -203,12 +204,27 @@ export default function Main() {
   myIdRef.current = myId;
   mutedRoomIdsRef.current = mutedRoomIds;
   notificationsSnoozedUntilRef.current = notificationsSnoozedUntil;
-  const st = useMemo(() => getStyles(isDark), [isDark]);
+  const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
+  const isCompactLayout = viewportWidth < 1180;
+  const isNarrowLayout = viewportWidth < 980;
+  const st = useMemo(() => getStyles(isDark, isCompactLayout, isNarrowLayout), [isDark, isCompactLayout, isNarrowLayout]);
+  const panelWrapStyle = (maxWidth: number) => ({
+    ...st.panelWrap,
+    width: '100%',
+    maxWidth: isNarrowLayout ? '100%' : maxWidth,
+    margin: '0 auto',
+  });
 
   const notificationStatus = typeof Notification === 'undefined' ? '지원되지 않음' : Notification.permission === 'granted' ? '허용됨' : Notification.permission === 'denied' ? '차단됨' : '미정';
   const requestNotificationPermission = async () => { if (typeof Notification !== 'undefined' && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch { /* ignore */ } } };
 
   const hasElectron = !!window.electronAPI;
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // 앱 버전 조회 (Electron 패키징된 앱)
   useEffect(() => {
@@ -618,20 +634,7 @@ export default function Main() {
           {/* Sidebar Header */}
           <div style={st.sidebarHeader}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={st.logoBox}>
-                <img
-                  src={`${import.meta.env.BASE_URL}emax-logo.png?v=5`}
-                  alt="EMAX"
-                  style={{
-                    width: 32,
-                    height: 32,
-                    objectFit: 'contain',
-                    display: 'block',
-                    background: 'transparent',
-                  }}
-                />
-              </div>
-              <span style={st.brandName}>EMAX</span>
+              <EmaxLogo variant={isDark ? 'light' : 'accent'} size="sm" />
             </div>
           </div>
 
@@ -897,7 +900,7 @@ export default function Main() {
 
             {/* MENTION PANEL */}
             {activePanel === 'mention' && (
-              <div style={st.panelWrap}>
+              <div style={panelWrapStyle(760)}>
                 <div style={st.panelHeader}><h3 style={st.panelTitle}>멘션</h3></div>
                 <div style={st.panelBody}>
                   {(Array.isArray(mentions) ? mentions : []).length === 0 ? (
@@ -933,7 +936,7 @@ export default function Main() {
 
             {/* BOOKMARK PANEL */}
             {activePanel === 'bookmark' && (
-              <div style={st.panelWrap}>
+              <div style={panelWrapStyle(760)}>
                 <div style={st.panelHeader}><h3 style={st.panelTitle}>북마크</h3></div>
                 <div style={st.panelBody}>
                   {(Array.isArray(bookmarks) ? bookmarks : []).length === 0 ? (
@@ -980,11 +983,11 @@ export default function Main() {
 
             {/* FRIENDS PANEL */}
             {activePanel === 'friends' && (
-              <div style={st.panelWrap}>
+              <div style={panelWrapStyle(820)}>
                 <div style={st.panelHeader}>
                   <h3 style={st.panelTitle}>멤버</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input type="text" placeholder="이름 검색" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ padding: '5px 10px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 6, fontSize: 12, background: isDark ? '#334155' : '#f5f5f5', color: isDark ? '#e2e8f0' : '#333', outline: 'none', width: 140 }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'flex-end' as const, width: isNarrowLayout ? '100%' : 'auto' }}>
+                    <input type="text" placeholder="이름 검색" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ padding: '5px 10px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 6, fontSize: 12, background: isDark ? '#334155' : '#f5f5f5', color: isDark ? '#e2e8f0' : '#333', outline: 'none', width: isNarrowLayout ? '100%' : 140, minWidth: 0, boxSizing: 'border-box' as const }} />
                     <button type="button" role="switch" aria-checked={showOnlineOnly} onClick={() => setShowOnlineOnly((v) => !v)} style={{ ...st.onlineFilterBtn, ...(showOnlineOnly ? st.onlineFilterBtnActive : {}) }}>
                       <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />온라인만
                     </button>
@@ -1069,24 +1072,26 @@ export default function Main() {
 
             {/* SCHEDULE PANEL */}
             {activePanel === 'schedule' && (
-              <div style={st.panelWrap}>
+              <div style={panelWrapStyle(900)}>
                 <div style={st.panelHeader}><h3 style={st.panelTitle}>일정</h3></div>
-                <div style={{ ...st.panelBody, padding: 24 }}>
+                <div style={{ ...st.panelBody, padding: isNarrowLayout ? 14 : 24 }}>
                   {/* Calendar */}
-                  <div style={{ border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 12, padding: 12, background: isDark ? '#1e293b' : '#fff', marginBottom: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <button type="button" style={{ border: 'none', background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }} onClick={() => setCalendarMonth((m) => addMonths(m, -1))}>◀</button>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#f1f5f9' : '#111827' }}>{calendarMonth.getFullYear()}년 {calendarMonth.getMonth() + 1}월</div>
-                      <button type="button" style={{ border: 'none', background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }} onClick={() => setCalendarMonth((m) => addMonths(m, 1))}>▶</button>
+                  <div style={{ border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, borderRadius: 14, padding: isNarrowLayout ? 10 : 14, background: isDark ? '#1e293b' : '#fff', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <button type="button" style={{ width: 30, height: 30, border: 'none', background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 9, cursor: 'pointer', fontSize: 12, fontWeight: 700 }} onClick={() => setCalendarMonth((m) => addMonths(m, -1))}>◀</button>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: isDark ? '#f1f5f9' : '#111827', letterSpacing: '-0.01em' }}>{calendarMonth.getFullYear()}년 {calendarMonth.getMonth() + 1}월</div>
+                      <button type="button" style={{ width: 30, height: 30, border: 'none', background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 9, cursor: 'pointer', fontSize: 12, fontWeight: 700 }} onClick={() => setCalendarMonth((m) => addMonths(m, 1))}>▶</button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-                      {['일', '월', '화', '수', '목', '금', '토'].map((d) => (<div key={d} style={{ textAlign: 'center' as const, fontSize: 11, color: isDark ? '#64748b' : '#888', padding: '3px 0' }}>{d}</div>))}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
+                      {['일', '월', '화', '수', '목', '금', '토'].map((d, idx) => (
+                        <div key={d} style={{ textAlign: 'center' as const, fontSize: 11, fontWeight: 700, color: idx === 0 ? '#ef4444' : idx === 6 ? '#3b82f6' : (isDark ? '#94a3b8' : '#64748b'), padding: '4px 0 3px' }}>{d}</div>
+                      ))}
                       {(() => {
                         const start = startOfMonth(calendarMonth);
                         const firstDow = start.getDay();
                         const totalDays = daysInMonth(calendarMonth);
                         const cells = [];
-                        for (let i = 0; i < firstDow; i++) cells.push(<div key={`e-${i}`} style={{ height: 36 }} />);
+                        for (let i = 0; i < firstDow; i++) cells.push(<div key={`e-${i}`} style={{ height: isNarrowLayout ? 42 : 48 }} />);
                         for (let day = 1; day <= totalDays; day++) {
                           const key = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                           const list = eventsByDate.get(key) || [];
@@ -1094,35 +1099,40 @@ export default function Main() {
                           const isToday = key === toLocalDateKey(new Date().toISOString());
                           cells.push(
                             <button type="button" key={key} onClick={() => setSelectedDate(key)} style={{
-                              height: 36, borderRadius: 8, border: `1px solid ${isDark ? '#334155' : '#eef2f7'}`,
-                              background: isSelected ? '#475569' : (isDark ? '#1e293b' : '#f8fafc'),
+                              minHeight: isNarrowLayout ? 42 : 48,
+                              borderRadius: 10,
+                              border: `1px solid ${isSelected ? '#9a58a8' : (isDark ? '#334155' : '#e9eef5')}`,
+                              background: isSelected ? (isDark ? '#7c3d89' : '#9a58a8') : (isDark ? '#0f172a' : '#f8fafc'),
                               color: isSelected ? '#fff' : (isDark ? '#e2e8f0' : '#333'),
-                              display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 1, cursor: 'pointer', fontSize: 12,
-                              ...(isToday ? { boxShadow: 'inset 0 0 0 2px #94a3b8' } : {}),
+                              display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2, cursor: 'pointer', fontSize: 12,
+                              ...(isToday && !isSelected ? { boxShadow: 'inset 0 0 0 1.5px rgba(154,88,168,0.75)' } : {}),
                             }}>
-                              <span style={{ fontSize: 12, fontWeight: 700 }}>{day}</span>
-                              {list.length > 0 && <span style={{ fontSize: 8, fontWeight: 700, background: isDark ? '#171717' : '#0f172a', color: '#fff', borderRadius: 8, padding: '0px 3px' }}>{list.length}</span>}
+                              <span style={{ fontSize: 12, fontWeight: 700, lineHeight: 1 }}>{day}</span>
+                              {list.length > 0 && <span style={{ minWidth: 14, height: 14, fontSize: 9, lineHeight: '14px', fontWeight: 700, background: isSelected ? 'rgba(255,255,255,0.24)' : (isDark ? '#171717' : '#0f172a'), color: '#fff', borderRadius: 999, padding: '0 4px' }}>{list.length}</span>}
                             </button>
                           );
                         }
                         return cells;
                       })()}
                     </div>
-                    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#888' }}>선택: {selectedDate}</span>
-                      <button type="button" style={{ border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '3px 8px', fontSize: 11, cursor: 'pointer' }} onClick={() => { const key = toLocalDateKey(new Date().toISOString()); if (key) { setSelectedDate(key); setCalendarMonth(startOfMonth(new Date())); } }}>오늘</button>
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' as const }}>
+                      <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', background: isDark ? 'rgba(148,163,184,0.12)' : '#f1f5f9', padding: '4px 10px', borderRadius: 999 }}>선택: {selectedDate}</span>
+                      <button type="button" style={{ border: `1px solid ${isDark ? '#475569' : '#dbe3ee'}`, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }} onClick={() => { const key = toLocalDateKey(new Date().toISOString()); if (key) { setSelectedDate(key); setCalendarMonth(startOfMonth(new Date())); } }}>오늘로 이동</button>
                     </div>
                   </div>
                   {/* Event form */}
-                  <div style={{ marginBottom: 20 }}>
+                  <div style={{ marginBottom: 16, border: `1px solid ${isDark ? '#334155' : '#e5e7eb'}`, borderRadius: 14, padding: isNarrowLayout ? 12 : 16, background: isDark ? '#0f172a' : '#fff' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isDark ? '#cbd5e1' : '#475569', marginBottom: 10 }}>
+                      {editingEventId ? '일정 수정' : '새 일정 추가'}
+                    </div>
                     <input type="text" placeholder="제목" value={eventForm.title} onChange={(e) => setEventForm((f) => ({ ...f, title: e.target.value }))} style={st.formInput} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <input type="datetime-local" value={eventForm.startAt} onChange={(e) => setEventForm((f) => ({ ...f, startAt: e.target.value }))} style={st.formInput} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' as const }}>
+                      <input type="datetime-local" value={eventForm.startAt} onChange={(e) => setEventForm((f) => ({ ...f, startAt: e.target.value }))} style={{ ...st.formInput, marginBottom: 0, flex: '1 1 180px', minWidth: 0 }} />
                       <span style={{ color: isDark ? '#94a3b8' : '#888' }}>~</span>
-                      <input type="datetime-local" value={eventForm.endAt} onChange={(e) => setEventForm((f) => ({ ...f, endAt: e.target.value }))} style={st.formInput} />
+                      <input type="datetime-local" value={eventForm.endAt} onChange={(e) => setEventForm((f) => ({ ...f, endAt: e.target.value }))} style={{ ...st.formInput, marginBottom: 0, flex: '1 1 180px', minWidth: 0 }} />
                     </div>
                     <input type="text" placeholder="설명 (선택)" value={eventForm.description} onChange={(e) => setEventForm((f) => ({ ...f, description: e.target.value }))} style={st.formInput} />
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' as const }}>
                       {editingEventId ? (
                         <>
                           <button type="button" style={st.formBtn} onClick={async () => {
@@ -1140,36 +1150,40 @@ export default function Main() {
                     </div>
                   </div>
                   {/* Event list */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 2px' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? '#f1f5f9' : '#111827' }}>선택한 날짜 일정</span>
                     <span style={{ fontSize: 12, color: isDark ? '#64748b' : '#888' }}>{(eventsByDate.get(selectedDate) || []).length}건</span>
                   </div>
                   <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                     {((eventsByDate.get(selectedDate) || []) as Event[]).map((ev) => (
-                      <li key={ev.id} style={{ padding: 12, borderBottom: `1px solid ${isDark ? '#334155' : '#f0f0f0'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <li key={ev.id} style={{ padding: isNarrowLayout ? '11px 10px' : '12px 14px', border: `1px solid ${isDark ? '#334155' : '#e5e7eb'}`, borderRadius: 12, background: isDark ? '#1e293b' : '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' as const, marginBottom: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <strong style={{ display: 'block', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333', marginBottom: 4 }}>{ev.title}</strong>
-                          <span style={{ display: 'block', fontSize: 12, color: isDark ? '#94a3b8' : '#888', marginBottom: 4 }}>{new Date(ev.startAt).toLocaleString('ko-KR')} ~ {new Date(ev.endAt).toLocaleString('ko-KR')}</span>
+                          <span style={{ display: 'block', fontSize: 12, color: isDark ? '#94a3b8' : '#888', marginBottom: 4, lineHeight: 1.45 }}>{new Date(ev.startAt).toLocaleString('ko-KR')} ~ {new Date(ev.endAt).toLocaleString('ko-KR')}</span>
                           {ev.description && <span style={{ display: 'block', fontSize: 13, color: isDark ? '#64748b' : '#666' }}>{ev.description}</span>}
                         </div>
-                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' as const }}>
                           <button type="button" style={st.formBtn} onClick={() => { setEditingEventId(ev.id); setEventForm({ title: ev.title, startAt: toLocalInputValue(ev.startAt), endAt: toLocalInputValue(ev.endAt), description: ev.description ?? '' }); }}>수정</button>
                           <button type="button" style={{ ...st.formBtnCancel, color: '#c62828' }} onClick={async () => { try { await eventsApi.delete(ev.id); queryClient.invalidateQueries({ queryKey: ['events'] }); } catch (err) { console.error(err); } }}>삭제</button>
                         </div>
                       </li>
                     ))}
                   </ul>
-                  {(eventsByDate.get(selectedDate) || []).length === 0 && <p style={{ color: isDark ? '#94a3b8' : '#888', fontSize: 13 }}>선택한 날짜에 일정이 없습니다.</p>}
+                  {(eventsByDate.get(selectedDate) || []).length === 0 && (
+                    <p style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13, margin: 0, padding: '14px 12px', borderRadius: 10, background: isDark ? 'rgba(148,163,184,0.08)' : '#f8fafc' }}>
+                      선택한 날짜에 일정이 없습니다.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
 
             {/* AI CHAT PANEL */}
             {activePanel === 'ai' && (
-              <div style={st.panelWrap}>
+              <div style={panelWrapStyle(820)}>
                 <div style={st.panelHeader}>
                   <h3 style={st.panelTitle}>AI 채팅</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'flex-end' as const }}>
                     <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>{getOllamaConfig().model}</span>
                     {aiMessages.length > 0 && (
                       <button type="button" style={{ padding: '4px 10px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 6, background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11, cursor: 'pointer' }} onClick={() => setAiMessages([])}>대화 초기화</button>
@@ -1266,9 +1280,9 @@ export default function Main() {
 
             {/* SETTINGS PANEL */}
             {activePanel === 'settings' && (
-              <div style={st.panelWrap}>
+              <div style={panelWrapStyle(760)}>
                 <div style={st.panelHeader}><h3 style={st.panelTitle}>설정</h3></div>
-                <div style={{ ...st.panelBody, padding: 24, display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+                <div style={{ ...st.panelBody, padding: isNarrowLayout ? 14 : 24, display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
                   {/* 프로필 영역 - 상단 배치, 크게 표시 */}
                   <div style={{ padding: '20px 16px', borderRadius: 12, background: isDark ? '#334155' : '#f0f4ff', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 16 }}>
                     <div style={{ width: 96, height: 96, borderRadius: 16, background: isDark ? '#475569' : '#e2e8f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1294,18 +1308,18 @@ export default function Main() {
                   <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>알림 일시 중지</div>
                     {notificationsSnoozedUntil > Date.now() ? (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: isDark ? '#64748b' : '#666' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8, fontSize: 12, color: isDark ? '#64748b' : '#666' }}>
                         <span>해제: {new Date(notificationsSnoozedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
                         <button type="button" style={st.formBtn} onClick={clearSnooze}>해제</button>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                         <button type="button" style={st.formBtn} onClick={() => snoozeNotifications(10)}>10분</button>
                         <button type="button" style={st.formBtn} onClick={() => snoozeNotifications(60)}>1시간</button>
                       </div>
                     )}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10, padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
                     <span style={{ fontSize: 14, fontWeight: 500, color: isDark ? '#e2e8f0' : '#333' }}>다크 모드</span>
                     <button type="button" onClick={toggleDark} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: isDark ? '#171717' : '#e5e7eb', cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
                       <span style={{ position: 'absolute' as const, top: 3, left: isDark ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
@@ -1462,7 +1476,7 @@ export default function Main() {
   );
 }
 
-function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
+function getStyles(isDark: boolean, isCompactLayout: boolean, isNarrowLayout: boolean): Record<string, React.CSSProperties> {
   const t = getThemeTokens(isDark);
   const bg = t.bgBase;
   const sidebarBg = t.bgSurface;
@@ -1479,11 +1493,8 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     layout: { display: 'flex', flex: 1, flexDirection: 'row', minHeight: 0, minWidth: 0 },
 
     /* Sidebar */
-    sidebar: { width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', background: sidebarBg, borderRight: `1px solid ${border}` },
-    sidebarHeader: { flexShrink: 0, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: `1px solid ${border}`, background: sidebarBg },
-    logoBox: { width: 36, height: 36, borderRadius: 8, background: isDark ? sidebarBg : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
-    logoText: { fontSize: 14, fontWeight: 800, color: '#fff' },
-    brandName: { fontSize: 15, fontWeight: 700, color: textStrong },
+    sidebar: { width: isNarrowLayout ? 232 : 260, flexShrink: 0, display: 'flex', flexDirection: 'column', background: sidebarBg, borderRight: `1px solid ${border}` },
+    sidebarHeader: { flexShrink: 0, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isNarrowLayout ? '0 10px' : '0 16px', borderBottom: `1px solid ${border}`, background: sidebarBg },
     profileSection: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: `1px solid ${border}` },
     profileAvatar: { width: 34, height: 34, borderRadius: 10, background: isDark ? '#475569' : '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
     profileAvatarImg: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 },
@@ -1527,9 +1538,9 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
 
     /* Right side */
     rightSide: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: contentBg },
-    menuBar: { flexShrink: 0, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: `1px solid ${border}`, background: sidebarBg },
-    menuBarLeft: {},
-    menuBarRight: { display: 'flex', alignItems: 'center', gap: 4 },
+    menuBar: { flexShrink: 0, minHeight: 46, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isNarrowLayout ? '6px 10px' : '0 16px', borderBottom: `1px solid ${border}`, background: sidebarBg, gap: 8 },
+    menuBarLeft: { flex: 1, minWidth: 0 },
+    menuBarRight: { display: 'flex', alignItems: 'center', gap: 4, flexWrap: isCompactLayout ? 'wrap' as const : 'nowrap' as const, justifyContent: 'flex-end' as const },
     menuBtn: { width: 34, height: 34, padding: 0, border: 'none', borderRadius: 8, background: 'transparent', color: isDark ? '#94a3b8' : '#666', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     menuBtnActive: { background: isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb', color: isDark ? '#fff' : '#333' },
     menuBadge: { position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: t.primary, color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -1542,8 +1553,8 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     emptyHint: { fontSize: 13, color: sub, margin: 0 },
 
     /* Panels */
-    panelWrap: { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, maxWidth: 420 },
-    panelHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: `1px solid ${border}`, flexWrap: 'wrap' as const, gap: 8 },
+    panelWrap: { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, width: '100%', maxWidth: isCompactLayout ? '100%' : 420 },
+    panelHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isNarrowLayout ? '12px 14px' : '14px 20px', borderBottom: `1px solid ${border}`, flexWrap: 'wrap' as const, gap: 8 },
     panelTitle: { margin: 0, fontSize: 16, fontWeight: 700, color: textStrong },
     panelBody: { flex: 1, minHeight: 0, overflow: 'auto' },
     panelEmpty: { padding: 32, textAlign: 'center' as const, fontSize: 14, color: sub },
@@ -1553,7 +1564,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     formInput: { width: '100%', padding: '8px 12px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, fontSize: 13, marginBottom: 8, boxSizing: 'border-box' as const, background: isDark ? '#334155' : '#fff', color: text, outline: 'none' },
     formBtn: { padding: '8px 16px', border: 'none', borderRadius: 8, background: t.gradientPrimary, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
     formBtnCancel: { padding: '8px 16px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, background: isDark ? '#1e293b' : '#fff', color: muted, fontSize: 13, cursor: 'pointer' },
-    settingsBtn: { padding: '12px 16px', border: 'none', borderRadius: 10, background: isDark ? '#334155' : '#f0f0f0', color: text, cursor: 'pointer', fontSize: 14, textAlign: 'left' as const },
+    settingsBtn: { width: '100%', padding: '12px 16px', border: 'none', borderRadius: 10, background: isDark ? '#334155' : '#f0f0f0', color: text, cursor: 'pointer', fontSize: 14, textAlign: 'left' as const },
 
     /* Online filter */
     onlineFilterBtn: { display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '4px 8px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 16, background: 'transparent', color: isDark ? '#94a3b8' : '#6b7280', fontSize: 11, cursor: 'pointer', outline: 'none' },
