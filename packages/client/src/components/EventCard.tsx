@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { eventsApi } from '../api';
 import { useThemeStore } from '../store';
+import UIButton from './ui/UIButton';
+import { getThemeTokens } from './ui/themeTokens';
 
 type Props = {
   title: string;
@@ -72,14 +74,9 @@ export default function EventCard({ title, startAt, endAt, description, isMine }
       {description && <div style={st.desc}>{description}</div>}
       {!isMine && (
         <>
-          <button
-            type="button"
-            style={st.addBtn}
-            onClick={handleAdd}
-            disabled={adding || added}
-          >
+          <UIButton type="button" style={st.addBtn as React.CSSProperties} onClick={handleAdd} disabled={adding || added}>
             {added ? '추가됨' : adding ? '추가 중...' : '내 일정에 추가'}
-          </button>
+          </UIButton>
           {error && <div style={st.error}>{error}</div>}
         </>
       )}
@@ -88,6 +85,7 @@ export default function EventCard({ title, startAt, endAt, description, isMine }
 }
 
 function getEventStyles(isDark: boolean, isMine: boolean): Record<string, React.CSSProperties> {
+  const t = getThemeTokens(isDark);
   return {
     card: isMine
       ? { width: '100%', boxSizing: 'border-box' as const, padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }
@@ -98,12 +96,11 @@ function getEventStyles(isDark: boolean, isMine: boolean): Record<string, React.
     addBtn: {
       marginTop: 8,
       padding: '6px 10px',
-      border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`,
+      border: `1px solid ${t.border}`,
       borderRadius: 6,
-      background: isDark ? '#334155' : '#fff',
-      color: isDark ? '#e2e8f0' : 'inherit',
+      background: t.bgSurface,
+      color: t.text,
       fontSize: 12,
-      cursor: 'pointer',
     },
     error: { marginTop: 6, fontSize: 12, color: isDark ? '#f87171' : '#dc2626' },
   };

@@ -20,6 +20,7 @@ import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
 import LinkPreview, { extractFirstUrl } from '../components/LinkPreview';
 import ContextAttachModal, { type MessageContext } from '../components/ContextAttachModal';
+import { getThemeTokens } from '../components/ui/themeTokens';
 
 const MAX_DROP_SIZE = 2 * 1024 * 1024 * 1024;
 const EDIT_LIMIT_MS = 5 * 60 * 1000;
@@ -47,13 +48,22 @@ function canEditOrDelete(msg: Message, myId?: string): boolean {
 
 // Style functions for dark mode support (must be before components that use them)
 const chatWindowStyles = {
-  appWrap: (dark: boolean): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: dark ? '#0f172a' : '#fff' }),
-  layout: (dark: boolean): React.CSSProperties => ({ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: dark ? '#0f172a' : '#fafafa', position: 'relative' }),
-  loading: (dark: boolean): React.CSSProperties => ({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: dark ? '#94a3b8' : '#5a6b7a', fontSize: 16 }),
-  chatHeader: (dark: boolean): React.CSSProperties => ({ padding: '0 20px', height: 56, minHeight: 56, borderBottom: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, background: dark ? '#1e293b' : '#fff', boxShadow: dark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }),
-  chatHeaderName: (dark: boolean): React.CSSProperties => ({ fontSize: 16, fontWeight: 700, color: dark ? '#f1f5f9' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }),
+  appWrap: (dark: boolean): React.CSSProperties => {
+    const t = getThemeTokens(dark);
+    return { display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: t.bgBase };
+  },
+  layout: (dark: boolean): React.CSSProperties => {
+    const t = getThemeTokens(dark);
+    return { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: t.bgBase, position: 'relative' };
+  },
+  loading: (dark: boolean): React.CSSProperties => ({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: getThemeTokens(dark).textMuted, fontSize: 16 }),
+  chatHeader: (dark: boolean): React.CSSProperties => {
+    const t = getThemeTokens(dark);
+    return { padding: '0 20px', height: 56, minHeight: 56, borderBottom: `1px solid ${t.border}`, background: t.bgSurface, boxShadow: dark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 };
+  },
+  chatHeaderName: (dark: boolean): React.CSSProperties => ({ fontSize: 16, fontWeight: 700, color: getThemeTokens(dark).textStrong, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }),
   headerIconBtn: (dark: boolean): React.CSSProperties => ({ width: 34, height: 34, borderRadius: 8, border: 'none', background: dark ? '#334155' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }),
-  messages: (dark: boolean): React.CSSProperties => ({ flex: 1, overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, background: dark ? '#0f172a' : '#fafafa' }),
+  messages: (dark: boolean): React.CSSProperties => ({ flex: 1, overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, background: getThemeTokens(dark).bgBase }),
   scrollToBottomBtn: (dark: boolean): React.CSSProperties => ({
     position: 'absolute',
     bottom: 16,
@@ -138,9 +148,9 @@ const chatWindowStyles = {
   hoverActionBtn: (dark: boolean): React.CSSProperties => ({ width: 28, height: 28, borderRadius: '50%', border: 'none', background: dark ? '#475569' : '#f0f0f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: dark ? '#94a3b8' : '#555', padding: 0 }),
   ctxMenu: (dark: boolean): React.CSSProperties => ({ position: 'fixed', zIndex: 10000, minWidth: 120, padding: 4, background: dark ? '#334155' : '#fff', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', border: `1px solid ${dark ? '#475569' : '#eee'}` }),
   ctxMenuItem: (dark: boolean): React.CSSProperties => ({ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: 'none', borderRadius: 6, fontSize: 13, color: dark ? '#e2e8f0' : '#333', textAlign: 'left', cursor: 'pointer' }),
-  searchBar: (dark: boolean): React.CSSProperties => ({ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#fff' }),
-  searchInput: (dark: boolean): React.CSSProperties => ({ flex: 1, padding: '8px 12px', border: `1px solid ${dark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, fontSize: 13, background: dark ? '#334155' : '#f5f5f5', color: dark ? '#e2e8f0' : '#333', outline: 'none' }),
-  searchBtn: (_dark: boolean): React.CSSProperties => ({ padding: '8px 14px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 13, cursor: 'pointer' }),
+  searchBar: (dark: boolean): React.CSSProperties => ({ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: `1px solid ${getThemeTokens(dark).border}`, background: getThemeTokens(dark).bgSurface }),
+  searchInput: (dark: boolean): React.CSSProperties => ({ flex: 1, padding: '8px 12px', border: `1px solid ${getThemeTokens(dark).border}`, borderRadius: 8, fontSize: 13, background: getThemeTokens(dark).bgMuted, color: getThemeTokens(dark).text, outline: 'none' }),
+  searchBtn: (dark: boolean): React.CSSProperties => ({ padding: '8px 14px', border: 'none', borderRadius: 8, background: getThemeTokens(dark).primary, color: '#fff', fontSize: 13, cursor: 'pointer' }),
   searchCloseBtn: (dark: boolean): React.CSSProperties => ({ padding: '8px 10px', border: 'none', borderRadius: 8, background: dark ? '#334155' : '#f0f0f0', color: dark ? '#94a3b8' : '#666', cursor: 'pointer', fontSize: 14 }),
   searchResults: (dark: boolean): React.CSSProperties => ({ maxHeight: 200, overflow: 'auto', borderBottom: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#fff' }),
   searchResultItem: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderBottom: `1px solid ${dark ? '#334155' : '#f0f0f0'}`, fontSize: 13 }),
@@ -150,8 +160,8 @@ const chatWindowStyles = {
     display: 'flex',
     gap: 10,
     alignItems: 'center',
-    background: dark ? '#1e293b' : '#fff',
-    borderTop: `1px solid ${dark ? '#334155' : '#e2e8f0'}`,
+    background: getThemeTokens(dark).bgSurface,
+    borderTop: `1px solid ${getThemeTokens(dark).border}`,
   }),
   inputRowLeft: (): React.CSSProperties => ({
     display: 'flex',
@@ -236,18 +246,20 @@ const chatWindowStyles = {
     flexDirection: 'column',
     gap: 12,
   }),
-  boardCardHeader: (_dark: boolean): React.CSSProperties => ({
+  boardCardHeader: (dark: boolean): React.CSSProperties => ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
     flexWrap: 'wrap',
+    borderColor: dark ? 'transparent' : 'transparent',
   }),
-  boardCardHeaderLeft: (_dark: boolean): React.CSSProperties => ({
+  boardCardHeaderLeft: (dark: boolean): React.CSSProperties => ({
     display: 'flex',
     alignItems: 'center',
     gap: 10,
     minWidth: 0,
+    color: dark ? 'inherit' : 'inherit',
   }),
   boardCardAvatar: (dark: boolean): React.CSSProperties => ({
     width: 40,
@@ -262,11 +274,12 @@ const chatWindowStyles = {
     fontWeight: 700,
     flexShrink: 0,
   }),
-  boardCardAuthor: (_dark: boolean): React.CSSProperties => ({
+  boardCardAuthor: (dark: boolean): React.CSSProperties => ({
     display: 'flex',
     flexDirection: 'column',
     gap: 2,
     minWidth: 0,
+    color: dark ? 'inherit' : 'inherit',
   }),
   boardCardAuthorName: (dark: boolean): React.CSSProperties => ({ fontSize: 14, fontWeight: 600, color: dark ? '#e2e8f0' : '#111827' }),
   boardCardTime: (dark: boolean): React.CSSProperties => ({ fontSize: 12, color: dark ? '#94a3b8' : '#6b7280', flexShrink: 0 }),
@@ -743,7 +756,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             const roomName = room?.name ?? '';
             const title = isTopic && roomName ? `${roomName} 아젠다` : senderName;
             const body = isTopic && roomName ? `${senderName}: ${msg.fileUrl && msg.fileName ? msg.fileName : msg.content}` : (msg.fileUrl && msg.fileName ? msg.fileName : msg.content);
-            if (window.electronAPI?.showNotification) {
+            const electronAPI = window.electronAPI;
+            if (electronAPI?.showNotification) {
               (async () => {
                 try {
                   let icon: string | null = null;
@@ -751,9 +765,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                   if (msg.senderId && token) {
                     try {
                       const base = getBaseUrl();
-                      if (window.electronAPI.fetchUserAvatar && base) {
+                      if (electronAPI.fetchUserAvatar && base) {
                         icon = await Promise.race([
-                          window.electronAPI.fetchUserAvatar(msg.senderId, base, token),
+                          electronAPI.fetchUserAvatar(msg.senderId, base, token),
                           new Promise<null>((r) => setTimeout(() => r(null), 250)),
                         ]);
                       }
@@ -774,9 +788,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                       if (imagePreview.length > 80 * 1024) imagePreview = null;
                     } catch { /* ignore */ }
                   }
-                  window.electronAPI.showNotification(title, body, msg.roomId, icon, imagePreview);
+                  electronAPI.showNotification(title, body, msg.roomId, icon, imagePreview);
                 } catch {
-                  window.electronAPI.showNotification(title, body, msg.roomId);
+                  electronAPI.showNotification(title, body, msg.roomId);
                 }
               })();
             } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {

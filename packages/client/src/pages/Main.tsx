@@ -14,6 +14,8 @@ import UserAvatar from '../components/UserAvatar';
 import GroupAvatar from '../components/GroupAvatar';
 import TitleBar from '../components/TitleBar';
 import ChatWindow from './ChatWindow';
+import { getThemeTokens } from '../components/ui/themeTokens';
+import UIChevron from '../components/ui/UIChevron';
 
 const STATUS_OPTIONS = [
   { id: '', label: '설정 안 함' },
@@ -457,11 +459,11 @@ export default function Main() {
       });
       if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
     });
-    s.on('room_avatar_updated', (_payload: { roomId: string }) => {
+    s.on('room_avatar_updated', () => {
       const uid = myIdRef.current;
       if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
     });
-    s.on('members_added', (_payload: { roomId: string }) => {
+    s.on('members_added', () => {
       const uid = myIdRef.current;
       if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
     });
@@ -681,7 +683,7 @@ export default function Main() {
             <div>
               <button type="button" style={st.sectionHeader} onClick={() => toggleSection('topic')}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={st.sectionChevron}>{sectionOpen.topic ? '▼' : '▶'}</span>
+                  <span style={st.sectionChevron}><UIChevron open={sectionOpen.topic} size={11} color={isDark ? '#94a3b8' : '#64748b'} /></span>
                   <span style={st.sectionTitle}>아젠다</span>
                   <span style={st.sectionCount}>{topicRooms.length}개</span>
                   {topicUnreadCount > 0 && <span style={st.sectionUnreadBadge}>새 메시지 {topicUnreadCount > 99 ? '99+' : topicUnreadCount}개</span>}
@@ -724,7 +726,9 @@ export default function Main() {
                               style={st.folderHeader}
                               onClick={() => toggleFolder(f.id)}
                             >
-                              <span style={{ fontSize: 10 }}>{isOpen ? '▼' : '▶'}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <UIChevron open={isOpen} size={10} color={isDark ? '#94a3b8' : '#64748b'} />
+                              </span>
                               <FolderIcon size={14} />
                               <span>{f.name}</span>
                               <span style={{ fontSize: 11, opacity: 0.8 }}>({rooms.length})</span>
@@ -766,7 +770,7 @@ export default function Main() {
             <div style={{ borderTop: `2px solid ${isDark ? '#334155' : '#e2e8f0'}`, marginTop: 4 }}>
               <button type="button" style={st.sectionHeader} onClick={() => toggleSection('chat')}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={st.sectionChevron}>{sectionOpen.chat ? '▼' : '▶'}</span>
+                  <span style={st.sectionChevron}><UIChevron open={sectionOpen.chat} size={11} color={isDark ? '#94a3b8' : '#64748b'} /></span>
                   <span style={st.sectionTitle}>채팅</span>
                   <span style={st.sectionCount}>{chatRooms.length}개</span>
                   {chatUnreadCount > 0 && <span style={st.sectionUnreadBadge}>새 메시지 {chatUnreadCount > 99 ? '99+' : chatUnreadCount}개</span>}
@@ -793,7 +797,7 @@ export default function Main() {
             <div>
               <button type="button" style={st.sectionHeader} onClick={() => toggleSection('app')}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={st.sectionChevron}>{sectionOpen.app ? '▼' : '▶'}</span>
+                  <span style={st.sectionChevron}><UIChevron open={sectionOpen.app} size={11} color={isDark ? '#94a3b8' : '#64748b'} /></span>
                   <span style={st.sectionTitle}>앱</span>
                 </span>
               </button>
@@ -994,7 +998,9 @@ export default function Main() {
                         return (
                           <div key={company.id} style={{ marginBottom: 6 }}>
                             <button type="button" style={st.treeNode} onClick={() => toggleTree(companyKey)}>
-                              <span style={{ fontSize: 9, color: isDark ? '#64748b' : '#9ca3af', flexShrink: 0 }}>{companyOpen ? '▼' : '▶'}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <UIChevron open={companyOpen} size={9} color={isDark ? '#64748b' : '#9ca3af'} />
+                              </span>
                               <span style={{ fontWeight: 600, fontSize: 13, color: isDark ? '#f1f5f9' : '#111827' }}>{company.name}</span>
                             </button>
                             {companyOpen && company.departments.map((dept) => {
@@ -1003,7 +1009,9 @@ export default function Main() {
                               return (
                                 <div key={dept.id} style={{ marginLeft: 14, marginTop: 2 }}>
                                   <button type="button" style={st.treeNode} onClick={() => toggleTree(deptKey)}>
-                                    <span style={{ fontSize: 9, color: isDark ? '#64748b' : '#9ca3af', flexShrink: 0 }}>{deptOpen ? '▼' : '▶'}</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                      <UIChevron open={deptOpen} size={9} color={isDark ? '#64748b' : '#9ca3af'} />
+                                    </span>
                                     <span style={{ fontWeight: 500, fontSize: 13, color: isDark ? '#94a3b8' : '#6b7280' }}>{dept.name}</span>
                                   </button>
                                   {deptOpen && (
@@ -1449,15 +1457,16 @@ export default function Main() {
 }
 
 function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  const bg = isDark ? '#0f172a' : '#fff';
-  const sidebarBg = isDark ? '#1e293b' : '#f8fafc';
-  const contentBg = isDark ? '#0f172a' : '#fff';
-  const text = isDark ? '#e2e8f0' : '#333';
-  const textStrong = isDark ? '#f1f5f9' : '#111827';
-  const sub = isDark ? '#94a3b8' : '#888';
-  const muted = isDark ? '#64748b' : '#666';
-  const border = isDark ? '#334155' : '#e5e7eb';
-  const inputBg = isDark ? '#334155' : '#f5f5f5';
+  const t = getThemeTokens(isDark);
+  const bg = t.bgBase;
+  const sidebarBg = t.bgSurface;
+  const contentBg = t.bgBase;
+  const text = t.text;
+  const textStrong = t.textStrong;
+  const sub = t.textMuted;
+  const muted = t.textMuted;
+  const border = t.border;
+  const inputBg = t.bgMuted;
 
   return {
     appWrap: { display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', minWidth: 0, overflow: 'hidden', background: bg },
@@ -1482,7 +1491,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
 
     /* Sections */
     sectionHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '7px 12px', border: 'none', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', cursor: 'pointer', textAlign: 'left' as const },
-    sectionChevron: { fontSize: 9, color: muted },
+    sectionChevron: { width: 12, height: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: muted },
     sectionTitle: { fontSize: 13, fontWeight: 700, color: textStrong },
     sectionCount: { fontSize: 11, color: muted },
     sectionUnreadBadge: { fontSize: 10, color: '#e53935', fontWeight: 600 },

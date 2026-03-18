@@ -4,6 +4,7 @@ import { usersApi, roomsApi, foldersApi, type User, type Folder, type Room } fro
 import { useAuthStore, useThemeStore } from '../store';
 import UserAvatar from './UserAvatar';
 import AvatarEditModal from './AvatarEditModal';
+import { getThemeTokens } from './ui/themeTokens';
 
 type Props = {
   mode: 'topic' | 'chat';
@@ -159,7 +160,8 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
           });
         }
         onTopicCreated?.(room.id);
-        onCreated(room.id, viewModeToUse, { skipRoomsInvalidate: true });
+        const normalizedViewMode: 'chat' | 'board' = viewModeToUse === 'board' ? 'board' : 'chat';
+        onCreated(room.id, normalizedViewMode, { skipRoomsInvalidate: true });
       } else {
         const ids = Array.from(selected);
         if (ids.length === 0) { setLoading(false); return; }
@@ -564,11 +566,12 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
 }
 
 function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  const border = isDark ? '#334155' : '#e2e8f0';
-  const text = isDark ? '#e2e8f0' : '#1e293b';
-  const sub = isDark ? '#94a3b8' : '#64748b';
-  const muted = isDark ? '#64748b' : '#9ca3af';
-  const inputBg = isDark ? '#334155' : '#f8fafc';
+  const t = getThemeTokens(isDark);
+  const border = t.border;
+  const text = t.text;
+  const sub = t.textMuted;
+  const muted = t.textMuted;
+  const inputBg = t.bgMuted;
   const accent = '#171717';
 
   return {
@@ -582,7 +585,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       justifyContent: 'center',
     },
     modal: {
-      background: isDark ? '#1e293b' : '#fff',
+      background: t.bgSurface,
       borderRadius: 12,
       boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.15)',
       border: `1px solid ${border}`,
@@ -600,7 +603,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       borderBottom: `1px solid ${border}`,
       flexShrink: 0,
     },
-    title: { margin: 0, fontSize: 18, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' },
+    title: { margin: 0, fontSize: 18, fontWeight: 600, color: t.textStrong },
     closeBtn: {
       border: 'none',
       background: 'none',

@@ -6,6 +6,7 @@ import UIButton from './ui/UIButton';
 import UITextInput from './ui/UITextInput';
 import UIModal from './ui/UIModal';
 import ModalFooter from './ui/ModalFooter';
+import UIChevron from './ui/UIChevron';
 
 type Props = {
   roomId: string;
@@ -13,18 +14,6 @@ type Props = {
   onClose: () => void;
   onInvited: (newRoomId: string) => void;
 };
-
-function TreeChevron({ open }: { open: boolean }) {
-  return open ? (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-      <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ) : (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-      <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 export default function InviteModal({ roomId, currentMemberIds, onClose, onInvited }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -215,7 +204,7 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                           style={st.companyToggle}
                           onClick={() => toggleCompany(company.id)}
                         >
-                          <span style={st.chevron}><TreeChevron open={companyOpen} /></span>
+                          <span style={st.chevron}><UIChevron open={companyOpen} /></span>
                           <span style={st.companyName}>{company.name}</span>
                         </button>
                         {companyOpen && visibleDepts.map((dept) => {
@@ -243,7 +232,7 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                                   style={st.deptToggle}
                                   onClick={() => toggleDepartmentOpen(deptKey)}
                                 >
-                                  <span style={st.chevron}><TreeChevron open={deptOpen} /></span>
+                                  <span style={st.chevron}><UIChevron open={deptOpen} /></span>
                                   <span style={st.deptName}>{dept.name}</span>
                                 </button>
                                 <span style={st.deptSelect}>

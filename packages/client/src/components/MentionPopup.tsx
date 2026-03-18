@@ -1,5 +1,6 @@
 import { useThemeStore } from '../store';
 import type { User } from '../api';
+import { getThemeTokens } from './ui/themeTokens';
 
 type Props = {
   members: User[];
@@ -16,10 +17,11 @@ export default function MentionPopup({ members, query, onSelect }: Props) {
 
   if (filtered.length === 0) return null;
 
-  const bg = isDark ? '#334155' : '#fff';
-  const textColor = isDark ? '#e2e8f0' : '#333';
-  const borderColor = isDark ? '#475569' : '#e5e7eb';
-  const hoverBg = isDark ? '#475569' : '#f5f5f5';
+  const t = getThemeTokens(isDark);
+  const bg = t.bgSurface;
+  const textColor = t.text;
+  const borderColor = t.border;
+  const hoverBg = t.bgMuted;
 
   return (
     <div

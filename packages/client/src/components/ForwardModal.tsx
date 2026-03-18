@@ -16,7 +16,6 @@ export default function ForwardModal({ onClose, onSelect }: Props) {
     queryFn: roomsApi.list,
   });
 
-  const bg = isDark ? '#1e293b' : '#fff';
   const textColor = isDark ? '#e2e8f0' : '#333';
   const subColor = isDark ? '#94a3b8' : '#888';
   const hoverBg = isDark ? '#334155' : '#f5f5f5';

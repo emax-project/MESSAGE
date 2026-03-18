@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectsApi, type Project, type TaskItem, type User } from '../api';
 import { useThemeStore } from '../store';
 import TaskDetailModal from './TaskDetailModal';
+import TitleBar from './TitleBar';
+import { getThemeTokens } from './ui/themeTokens';
 
 type Props = {
   roomId: string;
@@ -51,12 +53,13 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
   const [zoom, setZoom] = useState<'day' | 'week'>('day');
   const timelineRef = useRef<HTMLDivElement>(null);
 
-  const bg = isDark ? '#0f172a' : '#f1f5f9';
+  const t = getThemeTokens(isDark);
+  const bg = t.bgBase;
   const headerBg = isDark ? '#1e293b' : '#475569';
-  const panelBg = isDark ? '#1e293b' : '#fff';
-  const text = isDark ? '#e2e8f0' : '#333';
-  const sub = isDark ? '#94a3b8' : '#666';
-  const border = isDark ? '#334155' : '#e5e7eb';
+  const panelBg = t.bgSurface;
+  const text = t.text;
+  const sub = t.textMuted;
+  const border = t.border;
   const gridLine = isDark ? '#1e293b' : '#f0f0f0';
   const todayColor = '#ef4444';
 
@@ -91,7 +94,7 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
   }, [boards, tasks]);
 
   // Calculate timeline range
-  const { minDate, maxDate, totalDays } = useMemo(() => {
+  const { minDate, totalDays } = useMemo(() => {
     const today = startOfDay(new Date());
     let min = addDays(today, -7);
     let max = addDays(today, 30);
@@ -176,14 +179,7 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
     <div style={{ width: '100%', height: '100vh', background: bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Electron title bar */}
       {hasElectron && (
-        <div style={{ flexShrink: 0, height: 38, minHeight: 38, display: 'flex', alignItems: 'center', paddingLeft: 12, paddingRight: 12, gap: 8, background: isDark ? '#1e293b' : '#fff', borderBottom: `1px solid ${isDark ? '#334155' : '#eee'}`, WebkitAppRegion: 'drag' as const }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, WebkitAppRegion: 'no-drag' as const }}>
-            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => window.electronAPI?.windowClose()} aria-label="닫기" />
-            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => window.electronAPI?.windowMinimize()} aria-label="최소화" />
-            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => window.electronAPI?.windowMaximize()} aria-label="최대화" />
-          </div>
-          <span style={{ flex: 1, textAlign: 'center', fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333', pointerEvents: 'none' }}>간트 차트</span>
-        </div>
+        <TitleBar title="간트 차트" isDark={isDark} />
       )}
 
       {/* Header bar */}

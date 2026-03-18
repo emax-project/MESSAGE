@@ -1,5 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useThemeStore } from '../store';
+import UIModal from './ui/UIModal';
+import UIButton from './ui/UIButton';
+import ModalFooter from './ui/ModalFooter';
+import { getThemeTokens } from './ui/themeTokens';
 
 const VIEW_SIZE = 200;
 const CROP_SIZE = 256;
@@ -94,36 +98,12 @@ export default function AvatarEditModal({ file, onClose, onConfirm }: Props) {
     }
   }, [position, scale, file.name, onConfirm, onClose]);
 
-  const bg = isDark ? '#1e293b' : '#f8fafc';
-  const border = isDark ? '#334155' : '#e2e8f0';
-  const text = isDark ? '#e2e8f0' : '#1e293b';
-  const muted = isDark ? '#94a3b8' : '#64748b';
+  const t = getThemeTokens(isDark);
+  const border = t.border;
+  const muted = t.textMuted;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10005,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: bg,
-          borderRadius: 16,
-          padding: 24,
-          maxWidth: 360,
-          width: '90%',
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600, color: text }}>프로필 사진 편집</h3>
+    <UIModal onClose={onClose} title="프로필 사진 편집" width={360} zIndex={10005}>
         <p style={{ margin: '0 0 16px', fontSize: 13, color: muted }}>드래그하여 위치를 조정하고, 스크롤로 확대/축소할 수 있습니다.</p>
         <div
           style={{
@@ -165,15 +145,14 @@ export default function AvatarEditModal({ file, onClose, onConfirm }: Props) {
           )}
         </div>
         {error && <p style={{ margin: '0 0 12px', fontSize: 13, color: '#ef4444' }}>{error}</p>}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} style={{ padding: '10px 18px', borderRadius: 10, border: `1px solid ${border}`, background: 'transparent', color: text, fontSize: 14, cursor: 'pointer' }}>
+        <ModalFooter bordered={false} marginTop={8}>
+          <UIButton type="button" onClick={onClose} style={{ border: `1px solid ${border}` }}>
             취소
-          </button>
-          <button type="button" onClick={cropAndUpload} disabled={saving} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: '#171717', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
+          </UIButton>
+          <UIButton type="button" variant="primary" onClick={cropAndUpload} disabled={saving}>
             {saving ? '적용 중...' : '적용'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </UIButton>
+        </ModalFooter>
+    </UIModal>
   );
 }

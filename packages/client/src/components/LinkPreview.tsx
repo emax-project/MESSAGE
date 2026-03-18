@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { linkPreviewApi } from '../api';
-import type { LinkPreviewData } from '../api';
 
 const URL_REGEX = /https?:\/\/[^\s<>"']+/i;
 
@@ -97,7 +96,7 @@ export default function LinkPreview({ url, isDark }: Props) {
       {data.imageUrl && (
         <div style={styles.imageWrap}>
           <img
-            src={imageSrc}
+            src={imageSrc || undefined}
             alt=""
             style={styles.image}
             loading="lazy"

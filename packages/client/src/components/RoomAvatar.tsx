@@ -67,11 +67,11 @@ export default function RoomAvatar({ roomId, name, initials, hasAvatar, avatarUr
 
   // directImgSrc 사용 시 img로 바로 표시 (인증 쿠키/헤더가 포함된 요청은 fetch 필요)
   if (hasAvatar && directImgSrc && !imgSrc && !error) {
-    return <img src={directImgSrc} alt="" style={imgStyle} onError={() => setError(true)} />;
+    return <img src={directImgSrc} alt="" style={{ ...style, ...imgStyle }} onError={() => setError(true)} />;
   }
   if (hasAvatar && imgSrc && !error) {
-    return <img src={imgSrc} alt="" style={imgStyle} />;
+    return <img src={imgSrc} alt="" style={{ ...style, ...imgStyle }} />;
   }
   const displayText = (initials?.trim().slice(0, 2) || (name?.trim().slice(0, 2) || '?')).toUpperCase();
-  return <span style={initialStyle}>{displayText}</span>;
+  return <span style={{ ...style, ...initialStyle }}>{displayText}</span>;
 }

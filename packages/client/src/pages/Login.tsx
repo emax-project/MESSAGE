@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authApi, getBaseUrl, setBaseUrl } from '../api';
 import { useAuthStore, useThemeStore } from '../store';
 import TitleBar from '../components/TitleBar';
+import UIButton from '../components/ui/UIButton';
+import UITextInput from '../components/ui/UITextInput';
+import { getThemeTokens } from '../components/ui/themeTokens';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -56,49 +59,46 @@ export default function Login() {
           <form onSubmit={handleSubmit} style={s.form}>
             <div style={s.fieldGroup}>
               <label style={s.label}>이메일</label>
-              <input
+              <UITextInput
                 type="email"
                 placeholder="name@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={s.input}
+                style={s.input as React.CSSProperties}
                 autoComplete="email"
               />
             </div>
             <div style={s.fieldGroup}>
               <label style={s.label}>비밀번호</label>
-              <input
+              <UITextInput
                 type="password"
                 placeholder="비밀번호 입력"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={s.input}
+                style={s.input as React.CSSProperties}
                 autoComplete="current-password"
               />
             </div>
             {isElectron && (
               <div style={s.fieldGroup}>
                 <label style={s.label}>서버 주소</label>
-                <input
+                <UITextInput
                   type="url"
                   placeholder="http://203.254.98.92:3001"
                   value={serverUrl}
                   onChange={(e) => setServerUrl(e.target.value)}
-                  style={s.input}
+                  style={s.input as React.CSSProperties}
                   onBlur={() => { if (serverUrl.trim()) setBaseUrl(serverUrl.trim()); }}
                 />
                 <p style={s.hint}>예: http://203.254.98.92:3001</p>
               </div>
             )}
             {error && <p style={s.error}>{error}</p>}
-            <button type="submit" disabled={loading} style={{
-              ...s.button,
-              ...(loading ? { opacity: 0.7, cursor: 'not-allowed' } : {}),
-            }}>
+            <UIButton type="submit" disabled={loading} variant="primary" style={s.button as React.CSSProperties}>
               {loading ? '로그인 중...' : '로그인'}
-            </button>
+            </UIButton>
           </form>
           <p style={s.footer}>
             계정이 없으신가요? <Link to="/register" style={s.link}>회원가입</Link>
@@ -110,13 +110,14 @@ export default function Login() {
 }
 
 function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
+  const t = getThemeTokens(isDark);
   return {
     container: {
       width: '100%',
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      background: isDark ? '#0f172a' : '#f1f5f9',
+      background: t.bgBase,
     },
     body: {
       flex: 1,
@@ -129,7 +130,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      background: isDark ? '#1e293b' : '#fff',
+      background: t.bgSurface,
       padding: '48px 40px 40px',
       borderRadius: 16,
       boxShadow: isDark
@@ -137,7 +138,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
         : '0 8px 32px rgba(0,0,0,0.08)',
       width: '100%',
       maxWidth: 400,
-      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+      border: `1px solid ${t.border}`,
     },
     logoWrap: {
       marginBottom: 16,
@@ -153,11 +154,11 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       margin: '0 0 4px',
       fontSize: 22,
       fontWeight: 700,
-      color: isDark ? '#f1f5f9' : '#0f172a',
+      color: t.textStrong,
     },
     subtitle: {
       margin: '0 0 28px',
-      color: isDark ? '#94a3b8' : '#64748b',
+      color: t.textMuted,
       fontSize: 14,
     },
     form: {
@@ -174,15 +175,15 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     label: {
       fontSize: 13,
       fontWeight: 600,
-      color: isDark ? '#cbd5e1' : '#475569',
+      color: t.text,
     },
     input: {
       padding: '11px 14px',
-      border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
+      border: `1px solid ${t.border}`,
       borderRadius: 10,
       fontSize: 14,
-      background: isDark ? '#0f172a' : '#f8fafc',
-      color: isDark ? '#e2e8f0' : '#1e293b',
+      background: t.bgMuted,
+      color: t.text,
       outline: 'none',
       transition: 'border-color 0.15s',
     },
@@ -202,21 +203,16 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     },
     button: {
       padding: '12px 16px',
-      background: '#475569',
-      color: '#fff',
-      border: 'none',
       borderRadius: 10,
       fontSize: 15,
       fontWeight: 700,
-      cursor: 'pointer',
-      transition: 'background 0.15s',
       marginTop: 4,
     },
     footer: {
       marginTop: 24,
       textAlign: 'center',
       fontSize: 13,
-      color: isDark ? '#94a3b8' : '#64748b',
+      color: t.textMuted,
     },
     link: {
       color: isDark ? '#93c5fd' : '#3b82f6',

@@ -3,6 +3,8 @@
  * - Mac: 타이틀만 표시 (시스템 트래픽 라이트 사용, 커스텀 버튼 없음)
  * - Windows: 좌측 타이틀 + 우측 최소화/최대화/닫기
  */
+import { getThemeTokens } from './ui/themeTokens';
+
 export default function TitleBar({
   title,
   isDark = false,
@@ -14,9 +16,10 @@ export default function TitleBar({
   const platform = api?.platform ?? 'darwin';
   const isMac = platform === 'darwin';
 
-  const bg = isDark ? '#1e293b' : '#fff';
-  const border = isDark ? '#334155' : '#eee';
-  const textColor = isDark ? '#e2e8f0' : '#333';
+  const t = getThemeTokens(isDark);
+  const bg = t.bgSurface;
+  const border = t.border;
+  const textColor = t.text;
 
   const baseBar = {
     flexShrink: 0,

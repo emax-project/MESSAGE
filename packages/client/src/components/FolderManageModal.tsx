@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { foldersApi, type Folder, type Room } from '../api';
 import { useAuthStore, useThemeStore } from '../store';
+import { getThemeTokens } from './ui/themeTokens';
 
 function FolderIcon({ size = 16 }: { size?: number }) {
   return (
@@ -232,10 +233,11 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
 }
 
 function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  const bg = isDark ? '#1e293b' : '#fff';
-  const border = isDark ? '#334155' : '#e2e8f0';
-  const text = isDark ? '#e2e8f0' : '#1e293b';
-  const sub = isDark ? '#94a3b8' : '#64748b';
+  const t = getThemeTokens(isDark);
+  const bg = t.bgSurface;
+  const border = t.border;
+  const text = t.text;
+  const sub = t.textMuted;
   return {
     overlay: { position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 },
     modal: { background: bg, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', maxWidth: 440, width: '100%', maxHeight: '85vh', overflow: 'auto' },
@@ -246,13 +248,13 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     section: { padding: '16px 20px', borderBottom: `1px solid ${border}` },
     sectionTitle: { fontSize: 13, fontWeight: 600, color: sub, marginBottom: 10 },
     addRow: { display: 'flex', gap: 8 },
-    input: { flex: 1, padding: '8px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 14, background: isDark ? '#0f172a' : '#f8fafc', color: text, outline: 'none' },
+    input: { flex: 1, padding: '8px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 14, background: t.bgMuted, color: text, outline: 'none' },
     addBtn: { padding: '8px 16px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
     empty: { fontSize: 13, color: sub, padding: '8px 0' },
     folderList: { listStyle: 'none', margin: 0, padding: 0 },
     folderItem: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: `1px solid ${border}` },
     folderName: { flex: 1, fontSize: 14, color: text, display: 'flex', alignItems: 'center', gap: 8 },
-    editInput: { flex: 1, padding: '6px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, background: isDark ? '#0f172a' : '#f8fafc', color: text },
+    editInput: { flex: 1, padding: '6px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, background: t.bgMuted, color: text },
     smBtn: { padding: '4px 10px', border: `1px solid ${border}`, borderRadius: 6, background: 'transparent', color: sub, fontSize: 12, cursor: 'pointer' },
     roomList: { listStyle: 'none', margin: 0, padding: 0 },
     roomItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: `1px solid ${border}` },
@@ -262,7 +264,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       border: `1px solid ${border}`,
       borderRadius: 8,
       fontSize: 13,
-      background: isDark ? '#0f172a' : '#f8fafc',
+      background: t.bgMuted,
       color: text,
       minWidth: 140,
       cursor: 'pointer',

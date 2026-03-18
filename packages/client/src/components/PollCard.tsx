@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { pollsApi, type Poll } from '../api';
 import { useThemeStore } from '../store';
+import { getThemeTokens } from './ui/themeTokens';
 
 type Props = {
   poll: Poll;
@@ -27,11 +28,12 @@ export default function PollCard({ poll, myId, isMine }: Props) {
     }
   };
 
-  const bgColor = isDark ? '#1e293b' : '#f8fafc';
-  const borderColor = isDark ? '#475569' : '#e2e8f0';
-  const textColor = isDark ? '#e2e8f0' : '#1e293b';
-  const subColor = isDark ? '#94a3b8' : '#64748b';
-  const barBg = isDark ? '#334155' : '#e2e8f0';
+  const t = getThemeTokens(isDark);
+  const bgColor = t.bgSurface;
+  const borderColor = t.border;
+  const textColor = t.text;
+  const subColor = t.textMuted;
+  const barBg = t.bgMuted;
   const barFill = isMine ? '#94a3b8' : '#475569';
 
   return (

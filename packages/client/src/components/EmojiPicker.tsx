@@ -1,4 +1,5 @@
 import { useThemeStore } from '../store';
+import { getThemeTokens } from './ui/themeTokens';
 
 const QUICK_EMOJIS = ['\uD83D\uDC4D', '\u2764\uFE0F', '\uD83D\uDE02', '\uD83D\uDE2E', '\uD83D\uDE22', '\u2705'];
 
@@ -9,8 +10,9 @@ type Props = {
 
 export default function EmojiPicker({ onSelect, onClose }: Props) {
   const isDark = useThemeStore((s) => s.isDark);
-  const bg = isDark ? '#334155' : '#fff';
-  const borderColor = isDark ? '#475569' : '#e5e7eb';
+  const t = getThemeTokens(isDark);
+  const bg = t.bgSurface;
+  const borderColor = t.border;
 
   return (
     <div

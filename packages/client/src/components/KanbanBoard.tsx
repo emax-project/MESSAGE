@@ -4,6 +4,8 @@ import { projectsApi, type Project, type TaskItem, type User } from '../api';
 import { useThemeStore } from '../store';
 import TaskCreateModal from './TaskCreateModal';
 import TaskDetailModal from './TaskDetailModal';
+import TitleBar from './TitleBar';
+import { getThemeTokens } from './ui/themeTokens';
 
 type Props = {
   roomId: string;
@@ -39,14 +41,15 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
   const [addingBoard, setAddingBoard] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
 
-  const bg = isDark ? '#0f172a' : '#f1f5f9';
+  const t = getThemeTokens(isDark);
+  const bg = t.bgBase;
   const headerBg = isDark ? '#1e293b' : '#475569';
-  const cardBg = isDark ? '#1e293b' : '#fff';
+  const cardBg = t.bgSurface;
   const columnBg = isDark ? '#1e293b80' : '#e2e8f0';
-  const text = isDark ? '#e2e8f0' : '#333';
-  const sub = isDark ? '#94a3b8' : '#666';
-  const border = isDark ? '#475569' : '#e5e7eb';
-  const inputBg = isDark ? '#334155' : '#f5f5f5';
+  const text = t.text;
+  const sub = t.textMuted;
+  const border = t.border;
+  const inputBg = t.bgMuted;
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects', roomId],
@@ -186,14 +189,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
     <div style={{ width: '100%', height: '100vh', background: bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Electron title bar */}
       {hasElectron && (
-        <div style={{ flexShrink: 0, height: 38, minHeight: 38, display: 'flex', alignItems: 'center', paddingLeft: 12, paddingRight: 12, gap: 8, background: isDark ? '#1e293b' : '#fff', borderBottom: `1px solid ${isDark ? '#334155' : '#eee'}`, WebkitAppRegion: 'drag' as const }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, WebkitAppRegion: 'no-drag' as const }}>
-            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => window.electronAPI?.windowClose()} aria-label="닫기" />
-            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => window.electronAPI?.windowMinimize()} aria-label="최소화" />
-            <button type="button" style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#c0c0c0', cursor: 'pointer', padding: 0 }} onClick={() => window.electronAPI?.windowMaximize()} aria-label="최대화" />
-          </div>
-          <span style={{ flex: 1, textAlign: 'center', fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333', pointerEvents: 'none' }}>프로젝트 보드</span>
-        </div>
+        <TitleBar title="프로젝트 보드" isDark={isDark} />
       )}
       {/* Header */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', height: 50, background: headerBg }}>

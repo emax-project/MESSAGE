@@ -1,4 +1,3 @@
-import { getBaseUrl } from '../api';
 import UserAvatar from './UserAvatar';
 
 type Member = { id: string; name?: string; avatarUrl?: string | null };
@@ -12,7 +11,6 @@ type Props = {
 
 /** 그룹채팅 아바타: 멤버 프로필을 겹쳐서 표시 (카카오톡/슬랙 스타일) */
 export default function GroupAvatar({ members, myId, size = 32, style }: Props) {
-  const base = getBaseUrl();
   const safeMembers = Array.isArray(members) ? members : [];
   const others = safeMembers.filter((m) => m.id !== myId);
   const displayMembers = others.length > 0 ? others : safeMembers;
@@ -52,10 +50,8 @@ export default function GroupAvatar({ members, myId, size = 32, style }: Props) 
         <GroupAvatarItem
           key={m.id}
           member={m}
-          base={base}
           size={itemSize}
           position={positions[i]}
-          containerSize={size}
         />
       ))}
     </div>
@@ -66,14 +62,10 @@ function GroupAvatarItem({
   member,
   size,
   position,
-  base: _base,
-  containerSize: _containerSize,
 }: {
   member: Member;
-  base: string;
   size: number;
   position: { left: string; top: string };
-  containerSize: number;
 }) {
   const common: React.CSSProperties = {
     position: 'absolute',

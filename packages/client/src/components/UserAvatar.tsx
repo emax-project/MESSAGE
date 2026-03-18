@@ -53,8 +53,8 @@ export default function UserAvatar({ userId, name, avatarUrlPath, style, imgStyl
   }, [userId, avatarUrlPath, token, base]);
 
   if (avatarUrlPath && imgSrc && !error) {
-    return <img src={imgSrc} alt="" style={{ ...imgStyle, display: 'block' }} />;
+    return <img src={imgSrc} alt="" style={{ ...style, ...imgStyle, display: 'block' }} />;
   }
   const displayText = (name?.trim().slice(0, 2) || '?').toUpperCase();
-  return <span style={initialStyle}>{displayText}</span>;
+  return <span style={{ ...style, ...initialStyle }}>{displayText}</span>;
 }
