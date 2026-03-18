@@ -1,4 +1,5 @@
 import { useThemeStore } from '../../store';
+import UICloseButton from './UICloseButton';
 
 type Props = {
   children: React.ReactNode;
@@ -26,9 +27,7 @@ export default function UIModal({
         {title && (
           <div style={st.header}>
             <h3 style={st.title}>{title}</h3>
-            <button type="button" onClick={onClose} style={st.closeBtn} aria-label="닫기">
-              ×
-            </button>
+            <UICloseButton onClick={onClose} />
           </div>
         )}
         <div style={st.body}>{children}</div>
@@ -73,15 +72,6 @@ function getStyles(
       flexShrink: 0,
     },
     title: { margin: 0, fontSize: 18, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' },
-    closeBtn: {
-      border: 'none',
-      background: 'none',
-      cursor: 'pointer',
-      padding: 4,
-      color: isDark ? '#94a3b8' : '#64748b',
-      fontSize: 18,
-      lineHeight: 1,
-    },
     body: { padding: 20, overflow: 'auto', minHeight: 0 },
   };
 }

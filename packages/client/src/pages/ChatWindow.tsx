@@ -21,6 +21,7 @@ import TitleBar from '../components/TitleBar';
 import LinkPreview, { extractFirstUrl } from '../components/LinkPreview';
 import ContextAttachModal, { type MessageContext } from '../components/ContextAttachModal';
 import { getThemeTokens } from '../components/ui/themeTokens';
+import UICloseButton from '../components/ui/UICloseButton';
 
 const MAX_DROP_SIZE = 2 * 1024 * 1024 * 1024;
 const EDIT_LIMIT_MS = 5 * 60 * 1000;
@@ -153,8 +154,21 @@ const chatWindowStyles = {
   ctxMenuItem: (dark: boolean): React.CSSProperties => ({ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: 'none', borderRadius: 6, fontSize: 13, color: dark ? '#e2e8f0' : '#333', textAlign: 'left', cursor: 'pointer' }),
   searchBar: (dark: boolean): React.CSSProperties => ({ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: `1px solid ${getThemeTokens(dark).border}`, background: getThemeTokens(dark).bgSurface }),
   searchInput: (dark: boolean): React.CSSProperties => ({ flex: 1, padding: '8px 12px', border: `1px solid ${getThemeTokens(dark).border}`, borderRadius: 8, fontSize: 13, background: getThemeTokens(dark).bgMuted, color: getThemeTokens(dark).text, outline: 'none' }),
-  searchBtn: (dark: boolean): React.CSSProperties => ({ padding: '8px 14px', border: 'none', borderRadius: 8, background: getThemeTokens(dark).primary, color: '#fff', fontSize: 13, cursor: 'pointer' }),
-  searchCloseBtn: (dark: boolean): React.CSSProperties => ({ padding: '8px 10px', border: 'none', borderRadius: 8, background: dark ? '#334155' : '#f0f0f0', color: dark ? '#94a3b8' : '#666', cursor: 'pointer', fontSize: 14 }),
+  searchBtn: (dark: boolean): React.CSSProperties => ({
+    height: 32,
+    minHeight: 32,
+    padding: '0 14px',
+    border: 'none',
+    borderRadius: 8,
+    background: getThemeTokens(dark).primary,
+    color: '#fff',
+    fontSize: 13,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    lineHeight: 1,
+  }),
   searchResults: (dark: boolean): React.CSSProperties => ({ maxHeight: 200, overflow: 'auto', borderBottom: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#fff' }),
   searchResultItem: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderBottom: `1px solid ${dark ? '#334155' : '#f0f0f0'}`, fontSize: 13 }),
   replyIndicator: (dark: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderTop: `1px solid ${dark ? '#334155' : '#eee'}`, background: dark ? '#1e293b' : '#f8fafc' }),
@@ -1453,7 +1467,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               autoFocus
             />
             <button type="button" onClick={handleSearch} style={s.searchBtn(isDark)}>검색</button>
-            <button type="button" onClick={() => { setSearchOpen(false); setSearchResults([]); setSearchQuery(''); }} style={s.searchCloseBtn(isDark)}>x</button>
+            <UICloseButton
+              size="md"
+              variant="subtle"
+              onClick={() => { setSearchOpen(false); setSearchResults([]); setSearchQuery(''); }}
+              style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, borderRadius: 8 }}
+            />
           </div>
         )}
         {searchResults.length > 0 && (
@@ -1971,14 +1990,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 6 }}>
-                      <button
-                        type="button"
+                      <UICloseButton
+                        size="sm"
                         onClick={() => { summaryDismissedRef.current = true; setSummaryText(''); setSummaryLoading(false); }}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '2px 6px', fontSize: 12, color: isDark ? '#64748b' : '#666' }}
                         title="닫기"
-                      >
-                        ×
-                      </button>
+                      />
                     </div>
                     <div style={{ fontSize: 14, lineHeight: 1.6, color: isDark ? '#e2e8f0' : '#333', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                       {summaryLoading ? '요약 중...' : summaryText}
@@ -2138,7 +2154,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 {editingMsg ? editingMsg.content : replyTo!.content}
               </span>
             </div>
-            <button type="button" onClick={() => { setReplyTo(null); setEditingMsg(null); setInput(''); }} style={{ border: 'none', background: 'none', color: isDark ? '#94a3b8' : '#888', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>x</button>
+            <UICloseButton size="sm" onClick={() => { setReplyTo(null); setEditingMsg(null); setInput(''); }} />
           </div>
         )}
 
@@ -2168,7 +2184,13 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                     <div style={{ fontSize: 12, fontWeight: 500, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
                     <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>{sizeStr}</div>
                   </div>
-                  <button type="button" onClick={() => setPendingFiles((prev) => prev.filter((_, i) => i !== idx))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: isDark ? '#94a3b8' : '#888', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>x</button>
+                  <UICloseButton
+                    size="sm"
+                    aria-label="첨부 파일 제거"
+                    title="첨부 파일 제거"
+                    style={{ color: isDark ? '#94a3b8' : '#888' }}
+                    onClick={() => setPendingFiles((prev) => prev.filter((_, i) => i !== idx))}
+                  />
                 </div>
               );
             })}
@@ -2200,7 +2222,13 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               }}
             >
               📍 {[messageContext.filePath, messageContext.line > 0 ? `:${messageContext.line}` : null, messageContext.branch ? ` (${messageContext.branch})` : null].filter(Boolean).join('')}
-              <button type="button" onClick={() => setMessageContext(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, opacity: 0.8 }} aria-label="제거">×</button>
+              <UICloseButton
+                size="sm"
+                aria-label="제거"
+                title="제거"
+                style={{ opacity: 0.8 }}
+                onClick={() => setMessageContext(null)}
+              />
             </span>
           </div>
         )}
@@ -2306,7 +2334,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             <div style={{ width: 380, height: '100%', background: isDark ? '#1e293b' : '#fff', boxShadow: isDark ? '-4px 0 20px rgba(0,0,0,0.3)' : '-4px 0 20px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: '16px 20px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 16, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' }}>스레드</span>
-                <button type="button" onClick={() => setThreadOpen(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: isDark ? '#94a3b8' : '#666', padding: 4 }}>x</button>
+                <UICloseButton onClick={() => setThreadOpen(null)} />
               </div>
               <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
                 {/* Parent message */}
@@ -2430,12 +2458,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                   {rightPanel === 'members' && '멤버'}
                   {rightPanel === 'pins' && '고정 메시지'}
                 </span>
-                <button
-                  type="button"
+                <UICloseButton
                   aria-label="패널 닫기"
+                  size="lg"
                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); setRightPanel('none'); }}
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 20, color: isDark ? '#94a3b8' : '#666', padding: 8, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}
-                >×</button>
+                />
               </div>
               <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
                 {rightPanel === 'file' && (

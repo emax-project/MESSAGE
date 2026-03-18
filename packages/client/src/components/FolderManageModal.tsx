@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { foldersApi, type Folder, type Room } from '../api';
 import { useAuthStore, useThemeStore } from '../store';
 import { getThemeTokens } from './ui/themeTokens';
+import UICloseButton from './ui/UICloseButton';
 
 function FolderIcon({ size = 16 }: { size?: number }) {
   return (
@@ -139,7 +140,7 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
       <div style={st.modal} onClick={(e) => e.stopPropagation()}>
         <div style={st.header}>
           <h3 style={st.title}>폴더 관리</h3>
-          <button type="button" style={st.closeBtn} onClick={handleOverlayClick}>×</button>
+          <UICloseButton onClick={handleOverlayClick} />
         </div>
 
         {error && <div style={st.error}>{error}</div>}
@@ -243,7 +244,6 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     modal: { background: bg, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', maxWidth: 440, width: '100%', maxHeight: '85vh', overflow: 'auto' },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${border}` },
     title: { margin: 0, fontSize: 18, fontWeight: 600, color: text },
-    closeBtn: { border: 'none', background: 'none', fontSize: 24, color: sub, cursor: 'pointer', padding: 0, lineHeight: 1 },
     error: { margin: '8px 20px', padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: 8, color: '#ef4444', fontSize: 13 },
     section: { padding: '16px 20px', borderBottom: `1px solid ${border}` },
     sectionTitle: { fontSize: 13, fontWeight: 600, color: sub, marginBottom: 10 },

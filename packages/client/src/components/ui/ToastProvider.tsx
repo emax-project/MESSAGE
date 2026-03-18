@@ -1,5 +1,6 @@
 import { useThemeStore, useToastStore } from '../../store';
 import { getThemeTokens } from './themeTokens';
+import UICloseButton from './UICloseButton';
 
 export default function ToastProvider() {
   const isDark = useThemeStore((s) => s.isDark);
@@ -48,21 +49,12 @@ export default function ToastProvider() {
             }}
           >
             <span style={{ flex: 1 }}>{t.message}</span>
-            <button
-              type="button"
+            <UICloseButton
+              size="sm"
+              tone="inverse"
               onClick={() => remove(t.id)}
-              style={{
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                color: '#e5e7eb',
-                padding: 4,
-                fontSize: 14,
-              }}
-              aria-label="닫기"
-            >
-              ×
-            </button>
+              style={{ opacity: 0.9 }}
+            />
           </div>
         );
       })}

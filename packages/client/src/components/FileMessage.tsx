@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { type Message, filesApi } from '../api';
 import { useThemeStore } from '../store';
+import UICloseButton from './ui/UICloseButton';
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -22,17 +23,12 @@ function ImageLightbox({ src, alt, onDownload, onClose }: {
   return (
     <div style={lightboxStyles.overlay} onClick={onClose}>
       <div style={lightboxStyles.content} onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
+        <UICloseButton
+          size="lg"
+          tone="inverse"
           style={lightboxStyles.closeBtn}
           onClick={onClose}
-          aria-label="닫기"
-        >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+        />
         <img src={src} alt={alt} style={lightboxStyles.image} />
         <div style={lightboxStyles.bottomBar}>
           <span style={lightboxStyles.fileName}>{alt}</span>
@@ -73,10 +69,6 @@ const lightboxStyles: Record<string, React.CSSProperties> = {
     position: 'absolute',
     top: -40,
     right: -4,
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 4,
     opacity: 0.8,
     zIndex: 1,
   },

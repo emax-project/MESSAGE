@@ -5,6 +5,7 @@ import { useAuthStore, useThemeStore } from '../store';
 import UserAvatar from './UserAvatar';
 import AvatarEditModal from './AvatarEditModal';
 import { getThemeTokens } from './ui/themeTokens';
+import UICloseButton from './ui/UICloseButton';
 
 type Props = {
   mode: 'topic' | 'chat';
@@ -198,12 +199,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
         {/* Header */}
         <div style={st.header}>
           <h3 style={st.title}>{title}</h3>
-          <button type="button" style={st.closeBtn} onClick={onClose} aria-label="닫기">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <UICloseButton onClick={onClose} />
         </div>
 
         {/* Topic Form Step */}
@@ -604,14 +600,6 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       flexShrink: 0,
     },
     title: { margin: 0, fontSize: 18, fontWeight: 600, color: t.textStrong },
-    closeBtn: {
-      border: 'none',
-      background: 'none',
-      cursor: 'pointer',
-      padding: 4,
-      display: 'flex',
-      alignItems: 'center',
-    },
 
     /* Form */
     formBody: {

@@ -16,6 +16,7 @@ import TitleBar from '../components/TitleBar';
 import ChatWindow from './ChatWindow';
 import { getThemeTokens } from '../components/ui/themeTokens';
 import UIChevron from '../components/ui/UIChevron';
+import UICloseButton from '../components/ui/UICloseButton';
 
 const STATUS_OPTIONS = [
   { id: '', label: '설정 안 함' },
@@ -77,23 +78,6 @@ function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
     );
   }
   return null;
-}
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.35-4.35" />
-    </svg>
-  );
-}
-
-function FolderIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-    </svg>
-  );
 }
 
 function PlusIcon({ size = 12 }: { size?: number }) {
@@ -675,7 +659,6 @@ export default function Main() {
 
           {/* Search */}
           <div style={st.searchWrap}>
-            <span style={st.searchIcon} aria-hidden><SearchIcon /></span>
             <input
               type="text"
               placeholder="대화방 검색"
@@ -683,6 +666,16 @@ export default function Main() {
               onChange={(e) => setSearchQuery(e.target.value)}
               style={st.searchInput}
             />
+            {searchQuery.trim().length > 0 && (
+              <UICloseButton
+                size="sm"
+                variant="subtle"
+                onClick={() => setSearchQuery('')}
+                style={st.searchClearBtn}
+                aria-label="검색어 지우기"
+                title="검색어 지우기"
+              />
+            )}
           </div>
 
           {/* Scrollable sections */}
@@ -694,17 +687,17 @@ export default function Main() {
                   <span style={st.sectionChevron}><UIChevron open={sectionOpen.topic} size={11} color={isDark ? '#94a3b8' : '#64748b'} /></span>
                   <span style={st.sectionTitle}>아젠다</span>
                   <span style={st.sectionCount}>{topicRooms.length}개</span>
-                  {topicUnreadCount > 0 && <span style={st.sectionUnreadBadge}>새 메시지 {topicUnreadCount > 99 ? '99+' : topicUnreadCount}개</span>}
+                  {topicUnreadCount > 0 && <span style={st.sectionUnreadBadge}>{topicUnreadCount > 99 ? '99+' : topicUnreadCount}</span>}
                 </span>
                 <span style={{ display: 'flex', gap: 4 }}>
                   <span
-                    style={st.sectionAddBtn}
+                    style={st.sectionTextBtn}
                     role="button"
                     tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); setShowFolderManageModal(true); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setShowFolderManageModal(true); } }}
                     title="폴더 관리"
-                  ><FolderIcon size={14} /></span>
+                  >폴더</span>
                   <span
                     style={st.sectionAddBtn}
                     role="button"
@@ -737,10 +730,9 @@ export default function Main() {
                               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <UIChevron open={isOpen} size={10} color={isDark ? '#94a3b8' : '#64748b'} />
                               </span>
-                              <FolderIcon size={14} />
                               <span>{f.name}</span>
                               <span style={{ fontSize: 11, opacity: 0.8 }}>({rooms.length})</span>
-                              {folderUnread > 0 && <span style={st.sectionUnreadBadge}>새 {folderUnread}개</span>}
+                              {folderUnread > 0 && <span style={st.sectionUnreadBadge}>{folderUnread > 99 ? '99+' : folderUnread}</span>}
                             </button>
                             {isOpen && <ul style={st.roomList}>{rooms.map(renderRoomItem)}</ul>}
                           </div>
@@ -781,7 +773,7 @@ export default function Main() {
                   <span style={st.sectionChevron}><UIChevron open={sectionOpen.chat} size={11} color={isDark ? '#94a3b8' : '#64748b'} /></span>
                   <span style={st.sectionTitle}>채팅</span>
                   <span style={st.sectionCount}>{chatRooms.length}개</span>
-                  {chatUnreadCount > 0 && <span style={st.sectionUnreadBadge}>새 메시지 {chatUnreadCount > 99 ? '99+' : chatUnreadCount}개</span>}
+                  {chatUnreadCount > 0 && <span style={st.sectionUnreadBadge}>{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</span>}
                 </span>
                 <span
                   style={st.sectionAddBtn}
@@ -816,9 +808,6 @@ export default function Main() {
                     style={{ ...st.appItem, ...(activePanel === 'schedule' ? st.appItemActive : {}) }}
                     onClick={() => setActivePanel(activePanel === 'schedule' ? 'none' : 'schedule')}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
                     <span>캘린더</span>
                   </button>
                   <button
@@ -826,9 +815,6 @@ export default function Main() {
                     style={{ ...st.appItem, ...(activePanel === 'ai' ? st.appItemActive : {}) }}
                     onClick={() => setActivePanel(activePanel === 'ai' ? 'none' : 'ai')}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
-                    </svg>
                     <span>AI 채팅</span>
                   </button>
                 </div>
@@ -969,9 +955,21 @@ export default function Main() {
                             </div>
                             <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af', marginTop: 2 }}>{b.message?.createdAt ? new Date(b.message.createdAt).toLocaleString('ko-KR') : ''}</div>
                           </div>
-                          <button type="button" title="북마크 해제" style={{ border: 'none', background: 'none', color: isDark ? '#64748b' : '#9ca3af', cursor: 'pointer', padding: 4, fontSize: 16, flexShrink: 0, lineHeight: 1 }}
-                            onClick={async (e) => { e.stopPropagation(); try { await bookmarksApi.remove(b.messageId); queryClient.invalidateQueries({ queryKey: ['bookmarks'] }); } catch (err) { console.error(err); } }}
-                          >×</button>
+                          <UICloseButton
+                            size="sm"
+                            title="북마크 해제"
+                            aria-label="북마크 해제"
+                            style={{ color: isDark ? '#64748b' : '#9ca3af' }}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await bookmarksApi.remove(b.messageId);
+                                queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+                              } catch (err) {
+                                console.error(err);
+                              }
+                            }}
+                          />
                         </li>
                       ))}
                     </ul>
@@ -1449,7 +1447,7 @@ export default function Main() {
           <div style={st.modal} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>사용자 프로필</h3>
-              <button type="button" style={{ border: 'none', background: 'none', fontSize: 24, color: isDark ? '#64748b' : '#666', cursor: 'pointer', lineHeight: 1, padding: 0 }} onClick={() => setProfileModalUser(null)}>×</button>
+              <UICloseButton onClick={() => setProfileModalUser(null)} />
             </div>
             <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>이름</strong> {profileModalUser.name}</p>
             <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>이메일</strong> {profileModalUser.email}</p>
@@ -1492,9 +1490,9 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     profileInitial: { fontSize: 13, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' },
     profileName: { fontSize: 13, fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     profileStatus: { fontSize: 11, color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    searchWrap: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderBottom: `1px solid ${border}` },
-    searchIcon: { color: sub, display: 'flex', alignItems: 'center' },
+    searchWrap: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 0, padding: '8px 12px', borderBottom: `1px solid ${border}` },
     searchInput: { flex: 1, padding: '6px 8px', border: 'none', borderRadius: 6, fontSize: 13, background: inputBg, color: text, outline: 'none', minWidth: 0 },
+    searchClearBtn: { width: 24, height: 24, marginLeft: 4, border: 'none', borderRadius: 6, background: 'transparent', color: muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 },
     sidebarContent: { flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' },
 
     /* Sections */
@@ -1502,12 +1500,13 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     sectionChevron: { width: 12, height: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: muted },
     sectionTitle: { fontSize: 13, fontWeight: 700, color: textStrong },
     sectionCount: { fontSize: 11, color: muted },
-    sectionUnreadBadge: { fontSize: 10, color: t.primary, fontWeight: 700 },
+    sectionUnreadBadge: { minWidth: 16, height: 16, padding: '0 5px', borderRadius: 999, background: t.primary, color: '#fff', fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
     sectionAddBtn: { width: 22, height: 22, borderRadius: 6, background: t.primary, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1, cursor: 'pointer', flexShrink: 0 },
+    sectionTextBtn: { height: 22, padding: '0 8px', borderRadius: 6, background: isDark ? '#334155' : '#e5e7eb', color: text, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, lineHeight: 1, cursor: 'pointer', flexShrink: 0 },
     folderHeader: { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 12px', border: 'none', background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 12, cursor: 'pointer', textAlign: 'left' as const },
 
     /* App items */
-    appItem: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', border: 'none', borderRadius: 6, background: 'transparent', cursor: 'pointer', fontSize: 13, color: text, textAlign: 'left' as const },
+    appItem: { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '8px 12px', border: 'none', borderRadius: 6, background: 'transparent', cursor: 'pointer', fontSize: 13, color: text, textAlign: 'left' as const },
     appItemActive: { background: isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb' },
 
     /* Room list */
