@@ -1,5 +1,4 @@
-import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
-import type { Socket } from 'socket.io-client';
+import { useEffect, useState, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react';
 import type { Message, ReactionGroup, Room } from '../../../api';
 import EventCard from '../../../components/EventCard';
 import PollCard from '../../../components/PollCard';
@@ -12,7 +11,7 @@ import { formatDateLabel, getDateKey, isSystemMessage, renderContentWithMentions
 type ChatBubbleListProps = {
   displayMessages: Message[];
   firstUnreadMessageId: string | null;
-  firstUnreadRef: RefObject<HTMLDivElement | null>;
+  firstUnreadRef: RefObject<HTMLDivElement> | MutableRefObject<HTMLDivElement | null>;
   isDark: boolean;
   myId?: string;
   room?: Room;
@@ -29,6 +28,8 @@ type ChatBubbleListProps = {
 };
 
 const s = chatWindowStyles;
+const isStandaloneSystemMessage = (message: Message) =>
+  isSystemMessage(message.content) && !message.fileUrl && message.eventTitle == null && !message.poll;
 
 export default function ChatBubbleList({
   displayMessages,
@@ -48,6 +49,27 @@ export default function ChatBubbleList({
   setEmojiPickerMsg,
   handleReaction,
 }: ChatBubbleListProps) {
+  const [alwaysShowActions, setAlwaysShowActions] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+
+    const hoverNoneQuery = window.matchMedia('(hover: none)');
+    const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
+    const updateActionVisibilityMode = () => setAlwaysShowActions(hoverNoneQuery.matches || coarsePointerQuery.matches);
+
+    updateActionVisibilityMode();
+    hoverNoneQuery.addEventListener?.('change', updateActionVisibilityMode);
+    coarsePointerQuery.addEventListener?.('change', updateActionVisibilityMode);
+    window.addEventListener('resize', updateActionVisibilityMode);
+
+    return () => {
+      hoverNoneQuery.removeEventListener?.('change', updateActionVisibilityMode);
+      coarsePointerQuery.removeEventListener?.('change', updateActionVisibilityMode);
+      window.removeEventListener('resize', updateActionVisibilityMode);
+    };
+  }, []);
+
   return (
     <>
       {displayMessages.map((m, idx) => {
@@ -55,6 +77,15 @@ export default function ChatBubbleList({
         const prevMsg = idx > 0 ? displayMessages[idx - 1] : null;
         const curDateKey = getDateKey(m.createdAt);
         const prevDateKey = prevMsg ? getDateKey(prevMsg.createdAt) : null;
+        const isMine = m.senderId === myId;
+        const shouldGroupWithPrev = Boolean(
+          prevMsg &&
+          prevDateKey === curDateKey &&
+          prevMsg.senderId === m.senderId &&
+          !isStandaloneSystemMessage(prevMsg) &&
+          m.id !== firstUnreadMessageId
+        );
+        const showSenderIdentity = !isMine && !shouldGroupWithPrev;
         if (idx === 0 || curDateKey !== prevDateKey) {
           elements.push(
             <div key={`date-${curDateKey}-${m.id}`} style={s.dateSeparator()}>
@@ -69,7 +100,7 @@ export default function ChatBubbleList({
             </div>
           );
         }
-        if (isSystemMessage(m.content) && !m.fileUrl && m.eventTitle == null && !m.poll) {
+        if (isStandaloneSystemMessage(m)) {
           elements.push(
             <div key={m.id} style={s.systemMessageRow()}>
               <span style={s.systemMessageText()}>{m.content}</span>
@@ -79,11 +110,17 @@ export default function ChatBubbleList({
         }
         if (m.deletedAt) {
           elements.push(
-            <div key={m.id} style={{ ...s.messageRow(), ...(m.senderId === myId ? s.messageRowMine() : {}) }}>
+            <div key={m.id} style={{ ...s.messageRow(), ...(isMine ? s.messageRowMine() : {}) }}>
               <div style={s.messageRowInner()}>
-                {m.senderId !== myId && <div style={s.avatarWrap()} aria-hidden><span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span></div>}
-                <div style={{ width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(m.senderId === myId ? { marginLeft: 'auto' } : {}) }}>
-                  <div style={{ ...s.messageBubble(isDark), ...(m.senderId === myId ? s.messageBubbleMine(isDark) : {}), opacity: 0.5, fontStyle: 'italic' }}>
+                {!isMine && (
+                  showSenderIdentity ? (
+                    <div style={s.avatarWrap()} aria-hidden><span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span></div>
+                  ) : (
+                    <div style={s.avatarSpacer()} aria-hidden />
+                  )
+                )}
+                <div style={{ width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(isMine ? { marginLeft: 'auto' } : {}) }}>
+                  <div style={{ ...s.messageBubble(isDark), ...(isMine ? s.messageBubbleMine(isDark) : {}), opacity: 0.5, fontStyle: 'italic' }}>
                     <span style={s.messageContent()}>[삭제된 메시지]</span>
                   </div>
                 </div>
@@ -99,15 +136,16 @@ export default function ChatBubbleList({
           <div
             key={m.id}
             id={`msg-${m.id}`}
-            style={{ ...s.messageRow(), ...(m.senderId === myId ? s.messageRowMine() : {}) }}
+            style={{ ...s.messageRow(), ...(isMine ? s.messageRowMine() : {}) }}
             onMouseEnter={() => setHoveredMsg(m.id)}
             onMouseLeave={() => setHoveredMsg(null)}
+            onTouchStart={() => setHoveredMsg(m.id)}
             onContextMenu={(e) => {
               e.preventDefault();
               setContextMenu({ x: e.clientX, y: e.clientY, message: m });
             }}
           >
-            {m.senderId !== myId && <div style={s.senderLabel(isDark)}>{m.sender.name}</div>}
+            {showSenderIdentity && <div style={s.senderLabel(isDark)}>{m.sender.name}</div>}
 
             {(m.contextFilePath || m.contextBranch) && (
               <div
@@ -127,15 +165,16 @@ export default function ChatBubbleList({
                   padding: '4px 10px',
                   borderRadius: 8,
                   background: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
-                  color: isDark ? '#a5b4fc' : '#4f46e5',
+                  color: isDark ? '#c7d2fe' : '#4f46e5',
                   marginBottom: 4,
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
-                  maxWidth: '100%',
+                  maxWidth: '85%',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
                 title="클릭하여 복사 (IDE에서 파일:라인 형식)"
               >
@@ -146,7 +185,7 @@ export default function ChatBubbleList({
               <div
                 role="button"
                 tabIndex={0}
-                style={s.replyPreview(isDark, m.senderId === myId)}
+                style={s.replyPreview(isDark, isMine)}
                 onClick={() => {
                   const targetId = m.replyTo!.id;
                   const el = document.getElementById(`msg-${targetId}`);
@@ -181,20 +220,24 @@ export default function ChatBubbleList({
             )}
 
             <div style={s.messageRowInner()}>
-              {m.senderId !== myId && (
-                <div style={s.avatarWrap()} aria-hidden>
-                  <span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
-                </div>
+              {!isMine && (
+                showSenderIdentity ? (
+                  <div style={s.avatarWrap()} aria-hidden>
+                    <span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
+                  </div>
+                ) : (
+                  <div style={s.avatarSpacer()} aria-hidden />
+                )
               )}
-              <div style={{ position: 'relative', width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(m.senderId === myId ? { marginLeft: 'auto' } : {}) }}>
+              <div style={{ position: 'relative', width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(isMine ? { marginLeft: 'auto' } : {}) }}>
                 <div
                   className={isHighlighted ? 'message-bubble-highlight' : undefined}
-                  style={{ ...s.messageBubble(isDark), ...(m.senderId === myId ? s.messageBubbleMine(isDark) : {}) }}
+                  style={{ ...s.messageBubble(isDark), ...(isMine ? s.messageBubbleMine(isDark) : {}) }}
                 >
                   {m.poll ? (
-                    <PollCard poll={m.poll} myId={myId} isMine={m.senderId === myId} />
+                    <PollCard poll={m.poll} myId={myId} isMine={isMine} />
                   ) : m.eventTitle != null ? (
-                    <EventCard title={m.eventTitle} startAt={m.eventStartAt!} endAt={m.eventEndAt!} description={m.eventDescription ?? undefined} isMine={m.senderId === myId} />
+                    <EventCard title={m.eventTitle} startAt={m.eventStartAt!} endAt={m.eventEndAt!} description={m.eventDescription ?? undefined} isMine={isMine} />
                   ) : m.fileUrl ? (
                     <FileMessage message={m} />
                   ) : (
@@ -207,10 +250,10 @@ export default function ChatBubbleList({
                   )}
                   {m.editedAt && <span style={{ fontSize: 10, opacity: 0.6, marginTop: 4, display: 'block' }}>(수정됨)</span>}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                    <span style={{ ...s.metaTime(isDark), ...(m.senderId === myId ? { color: '#fff' } : {}) }}>
+                    <span style={{ ...s.metaTime(isDark), ...(isMine ? { color: '#fff' } : {}) }}>
                       {new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {m.senderId === myId && room && (() => {
+                    {isMine && room && (() => {
                       const memberCount = room.members?.length ?? 0;
                       if (memberCount <= 2) return null;
                       const totalReaders = memberCount - 1;
@@ -221,11 +264,11 @@ export default function ChatBubbleList({
                     })()}
                   </div>
                 </div>
-                {isHovered && !m.deletedAt && (
+                {(isHovered || alwaysShowActions) && !m.deletedAt && (
                   <div style={{
                     position: 'absolute',
-                    top: 0,
-                    ...(m.senderId === myId
+                    bottom: 0,
+                    ...(isMine
                       ? { right: '100%', marginRight: 6 }
                       : { left: '100%', marginLeft: 6 }),
                     display: 'flex',
@@ -249,7 +292,7 @@ export default function ChatBubbleList({
             </div>
 
             {m.reactions && m.reactions.length > 0 && (
-              <div style={s.reactionsRow(m.senderId === myId)}>
+              <div style={s.reactionsRow(isMine)}>
                 {m.reactions.map((r: ReactionGroup) => (
                   <button
                     key={r.emoji}

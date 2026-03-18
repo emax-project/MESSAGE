@@ -1001,11 +1001,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         {/* Reply/Edit indicator */}
         {(replyTo || editingMsg) && (
           <div style={s.replyIndicator(isDark)}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#60a5fa' : '#2563eb' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#60a5fa' : '#2563eb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {editingMsg ? '메시지 수정' : `${replyTo!.sender.name}에게 답장`}
               </span>
-              <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#888', marginLeft: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.35, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                 {editingMsg ? editingMsg.content : replyTo!.content}
               </span>
             </div>
