@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { orgApi, roomsApi, type OrgUser } from '../api';
 import { useThemeStore, useToastStore } from '../store';
@@ -14,12 +14,25 @@ type Props = {
   onInvited: (newRoomId: string) => void;
 };
 
+function TreeChevron({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+      <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ) : (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+      <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function InviteModal({ roomId, currentMemberIds, onClose, onInvited }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const summaryRef = useRef<HTMLDivElement>(null);
+  const [hideJoined, setHideJoined] = useState(true);
+  const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set());
+  const [collapsedDepartments, setCollapsedDepartments] = useState<Set<string>>(new Set());
   const isDark = useThemeStore((s) => s.isDark);
   const showToast = useToastStore((s) => s.show);
 
@@ -50,18 +63,8 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
           .map((u) => u.id)
       : allUsers.map((u) => u.id)
   );
-  // When rendering tree: if no search, show all (members + invitable). If search, only show matching invitable.
+  // When rendering tree: if no search, show all invitable (+ joined when toggle off). If search, show matching invitable.
   const showAllUsers = !searchLower;
-
-  // Close summary popover on outside click
-  useEffect(() => {
-    if (!summaryOpen) return;
-    const close = (e: MouseEvent) => {
-      if (summaryRef.current && !summaryRef.current.contains(e.target as Node)) setSummaryOpen(false);
-    };
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, [summaryOpen]);
 
   const toggleUser = (userId: string) => {
     setSelected((prev) => {
@@ -100,6 +103,24 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
     }
   };
 
+  const toggleCompany = (companyId: string) => {
+    setCollapsedCompanies((prev) => {
+      const next = new Set(prev);
+      if (next.has(companyId)) next.delete(companyId);
+      else next.add(companyId);
+      return next;
+    });
+  };
+
+  const toggleDepartmentOpen = (key: string) => {
+    setCollapsedDepartments((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   const handleInvite = async () => {
     if (selected.size === 0) return;
     setLoading(true);
@@ -117,33 +138,48 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
 
   const filteredIdList = Array.from(filteredUserIds);
   const allChecked = filteredIdList.length > 0 && filteredIdList.every((id) => selected.has(id));
+  const selectedUsers = Array.from(selected)
+    .map((id) => allUsers.find((u) => u.id === id))
+    .filter(Boolean) as { id: string; name: string; email: string }[];
 
   const st = getStyles(isDark);
 
   return (
-    <UIModal title="멤버 초대" onClose={onClose} width={440}>
+    <UIModal title="멤버 초대" onClose={onClose} width={760}>
       {!orgLoading && allUsers.length > 0 && (
         <div style={st.searchWrap}>
-          <UITextInput
-            type="text"
-            placeholder="이름 또는 이메일 검색"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div style={st.searchRow}>
+            <UITextInput
+              type="text"
+              placeholder="이름 또는 이메일 검색"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <label style={st.hideJoinedToggle}>
+              <input
+                type="checkbox"
+                checked={hideJoined}
+                onChange={(e) => setHideJoined(e.target.checked)}
+                style={st.checkbox}
+              />
+              <span>참여중 숨기기</span>
+            </label>
+          </div>
         </div>
       )}
 
       <div style={st.body}>
-          {orgLoading ? (
-            <div style={st.skeletonWrap}>
-              {[1, 2, 3].map((i) => (
-                <div key={i} style={st.skeletonLine} />
-              ))}
-            </div>
-          ) : allUsers.length === 0 ? (
-            <p style={st.emptyText}>초대할 수 있는 사용자가 없습니다.</p>
-          ) : (
-            <>
+        {orgLoading ? (
+          <div style={st.skeletonWrap}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} style={st.skeletonLine} />
+            ))}
+          </div>
+        ) : allUsers.length === 0 ? (
+          <p style={st.emptyText}>초대할 수 있는 사용자가 없습니다.</p>
+        ) : (
+          <div style={st.contentGrid}>
+            <div style={st.treePane}>
               <label style={st.allCheckRow}>
                 <input
                   type="checkbox"
@@ -160,127 +196,155 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
               {searchLower && filteredIdList.length === 0 ? (
                 <p style={st.emptyText}>검색 결과가 없습니다.</p>
               ) : (
-              <div style={st.treeWrap}>
-                {safeOrgTree.map((company) => {
-                  const visibleDepts = (company.departments ?? []).filter((dept) => {
-                    const invitable = (dept.users ?? []).filter((u) => !memberSet.has(u.id));
-                    return showAllUsers ? invitable.length > 0 : invitable.some((u) => filteredUserIds.has(u.id));
-                  });
-                  if (visibleDepts.length === 0) return null;
-                  return (
-                    <div key={company.id} style={st.companyBlock}>
-                      <span style={st.companyName}>{company.name}</span>
-                      {visibleDepts.map((dept) => {
-                        const invitable = (dept.users ?? []).filter((u) =>
-                          !memberSet.has(u.id) && (showAllUsers || filteredUserIds.has(u.id))
-                        );
-                        const deptAllChecked = invitable.length > 0 && invitable.every((u) => selected.has(u.id));
-                        const deptSomeChecked = invitable.some((u) => selected.has(u.id));
-                        return (
-                          <div key={dept.id} style={st.deptBlock}>
-                            <label style={st.deptRow}>
-                              <input
-                                type="checkbox"
-                                checked={deptAllChecked}
-                                ref={(el) => {
-                                  if (el) el.indeterminate = !deptAllChecked && deptSomeChecked;
-                                }}
-                                onChange={() => toggleDepartment(invitable.map((u) => u.id))}
-                                style={st.checkbox}
-                              />
-                              <span style={st.deptName}>{dept.name}</span>
-                              <span style={st.deptCount}>{invitable.length}명</span>
-                            </label>
-                            <ul style={st.userList}>
-                              {(dept.users ?? []).map((user) => {
-                                const isMember = memberSet.has(user.id);
-                                const visible = showAllUsers || (!isMember && filteredUserIds.has(user.id));
-                                if (!visible) return null;
-                                if (isMember) {
+                <div style={st.treeWrap}>
+                  {safeOrgTree.map((company) => {
+                    const visibleDepts = (company.departments ?? []).filter((dept) =>
+                      (dept.users ?? []).some((u) => {
+                        const isMember = memberSet.has(u.id);
+                        if (hideJoined && isMember) return false;
+                        if (showAllUsers) return true;
+                        return !isMember && filteredUserIds.has(u.id);
+                      })
+                    );
+                    if (visibleDepts.length === 0) return null;
+                    const companyOpen = searchLower ? true : !collapsedCompanies.has(company.id);
+                    return (
+                      <div key={company.id} style={st.companyBlock}>
+                        <button
+                          type="button"
+                          style={st.companyToggle}
+                          onClick={() => toggleCompany(company.id)}
+                        >
+                          <span style={st.chevron}><TreeChevron open={companyOpen} /></span>
+                          <span style={st.companyName}>{company.name}</span>
+                        </button>
+                        {companyOpen && visibleDepts.map((dept) => {
+                          const invitable = (dept.users ?? []).filter((u) =>
+                            !memberSet.has(u.id) && (showAllUsers || filteredUserIds.has(u.id))
+                          );
+                          const deptAllChecked = invitable.length > 0 && invitable.every((u) => selected.has(u.id));
+                          const deptSomeChecked = invitable.some((u) => selected.has(u.id));
+                          const deptKey = `${company.id}:${dept.id}`;
+                          const deptOpen = searchLower ? true : !collapsedDepartments.has(deptKey);
+                          return (
+                            <div key={dept.id} style={st.deptBlock}>
+                              <div style={st.deptRow}>
+                                <input
+                                  type="checkbox"
+                                  checked={deptAllChecked}
+                                  ref={(el) => {
+                                    if (el) el.indeterminate = !deptAllChecked && deptSomeChecked;
+                                  }}
+                                  onChange={() => toggleDepartment(invitable.map((u) => u.id))}
+                                  style={st.checkbox}
+                                />
+                                <button
+                                  type="button"
+                                  style={st.deptToggle}
+                                  onClick={() => toggleDepartmentOpen(deptKey)}
+                                >
+                                  <span style={st.chevron}><TreeChevron open={deptOpen} /></span>
+                                  <span style={st.deptName}>{dept.name}</span>
+                                </button>
+                                <span style={st.deptSelect}>
+                                  <span style={st.deptCount}>{invitable.length}명</span>
+                                </span>
+                              </div>
+                              {deptOpen && <ul style={st.userList}>
+                                {(dept.users ?? []).map((user) => {
+                                  const isMember = memberSet.has(user.id);
+                                  const visible = hideJoined
+                                    ? !isMember && (showAllUsers || filteredUserIds.has(user.id))
+                                    : showAllUsers || (!isMember && filteredUserIds.has(user.id));
+                                  if (!visible) return null;
+                                  if (isMember) {
+                                    return (
+                                      <li key={user.id} style={st.userItem}>
+                                        <label style={{ ...st.userRow, ...st.userRowDisabled }}>
+                                          <input type="checkbox" checked disabled style={st.checkbox} />
+                                          <span style={st.userAvatar}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
+                                          <span style={st.userNameDisabled}>{user.name}</span>
+                                          <span style={st.memberBadge}>참여중</span>
+                                        </label>
+                                      </li>
+                                    );
+                                  }
                                   return (
                                     <li key={user.id} style={st.userItem}>
-                                      <label style={{ ...st.userRow, ...st.userRowDisabled }}>
-                                        <input type="checkbox" checked disabled style={st.checkbox} />
+                                      <label style={st.userRow}>
+                                        <input
+                                          type="checkbox"
+                                          checked={selected.has(user.id)}
+                                          onChange={() => toggleUser(user.id)}
+                                          style={st.checkbox}
+                                        />
                                         <span style={st.userAvatar}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
-                                        <span style={st.userNameDisabled}>{user.name}</span>
-                                        <span style={st.memberBadge}>참여중</span>
+                                        <span style={st.userName}>{user.name}</span>
                                       </label>
                                     </li>
                                   );
-                                }
-                                return (
-                                  <li key={user.id} style={st.userItem}>
-                                    <label style={st.userRow}>
-                                      <input
-                                        type="checkbox"
-                                        checked={selected.has(user.id)}
-                                        onChange={() => toggleUser(user.id)}
-                                        style={st.checkbox}
-                                      />
-                                      <span style={st.userAvatar}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
-                                      <span style={st.userName}>{user.name}</span>
-                                    </label>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-              )}
-            </>
-          )}
-      </div>
-
-      <ModalFooter justify="space-between" bordered paddingTop={12} marginTop={0} style={{ gap: 12 }}>
-        <div style={st.footerLeft} ref={summaryRef}>
-          {selected.size > 0 ? (
-            <>
-              <button
-                type="button"
-                style={st.summaryPill}
-                onClick={() => setSummaryOpen((v) => !v)}
-                aria-expanded={summaryOpen}
-              >
-                {(() => {
-                  const names = Array.from(selected)
-                    .map((id) => allUsers.find((u) => u.id === id)?.name)
-                    .filter(Boolean) as string[];
-                  const n = names.length;
-                  const text = n <= 2 ? names.join(', ') : `${names[0]}, ${names[1]} 외 ${n - 2}명`;
-                  return `${n}명 선택됨: ${text}`;
-                })()}
-              </button>
-              {summaryOpen && (
-                <div style={st.summaryPopover}>
-                  <div style={st.summaryPopoverTitle}>선택된 멤버</div>
-                  {Array.from(selected).map((id) => {
-                    const name = allUsers.find((u) => u.id === id)?.name ?? '';
-                    return (
-                      <div key={id} style={st.summaryPopoverRow}>
-                        <span style={st.summaryPopoverName}>{name}</span>
-                        <button
-                          type="button"
-                          style={st.summaryPopoverRemove}
-                          onClick={() => setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; })}
-                          aria-label={`${name} 선택 해제`}
-                        >
-                          ×
-                        </button>
+                                })}
+                              </ul>}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}
                 </div>
               )}
-            </>
-          ) : (
-            <span style={st.selectedCount}>선택된 사용자 없음</span>
-          )}
-        </div>
+            </div>
+
+            <aside style={st.selectionPane}>
+              <div style={st.selectionHeader}>
+                <h4 style={st.selectionTitle}>선택된 멤버</h4>
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set())}
+                  style={st.clearBtn}
+                  disabled={selectedUsers.length === 0}
+                >
+                  전체 해제
+                </button>
+              </div>
+              {selectedUsers.length === 0 ? (
+                <p style={st.selectionEmpty}>선택된 사용자가 없습니다.</p>
+              ) : (
+                <ul style={st.selectedList}>
+                  {selectedUsers.map((u) => (
+                    <li key={u.id} style={st.selectedItem}>
+                      <div style={st.selectedUserMeta}>
+                        <span style={st.userAvatar}>{u.name.trim()[0]?.toUpperCase() || '?'}</span>
+                        <div style={st.selectedUserText}>
+                          <span style={st.selectedUserName}>{u.name}</span>
+                          {u.email && <span style={st.selectedUserEmail}>{u.email}</span>}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        style={st.removeBtn}
+                        onClick={() =>
+                          setSelected((prev) => {
+                            const next = new Set(prev);
+                            next.delete(u.id);
+                            return next;
+                          })
+                        }
+                        aria-label={`${u.name} 선택 해제`}
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </aside>
+          </div>
+        )}
+      </div>
+
+      <ModalFooter justify="space-between" bordered paddingTop={12} marginTop={0} style={{ gap: 12 }}>
+        <span style={st.selectedCount}>총 {selected.size}명 선택</span>
         <div style={st.footerButtons}>
           <UIButton variant="secondary" onClick={onClose}>
             취소
@@ -290,7 +354,7 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
             disabled={selected.size === 0 || loading}
             onClick={handleInvite}
           >
-            {loading ? '초대 중...' : '초대'}
+            {loading ? '초대 중...' : `${selected.size}명 초대`}
           </UIButton>
         </div>
       </ModalFooter>
@@ -342,21 +406,124 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       padding: '10px 20px',
       borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
     },
-    searchInput: {
-      width: '100%',
-      padding: '8px 12px',
-      border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
-      borderRadius: 8,
-      fontSize: 14,
-      background: isDark ? '#0f172a' : '#f8fafc',
-      color: isDark ? '#e2e8f0' : '#1e293b',
-      outline: 'none',
+    searchRow: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+    },
+    hideJoinedToggle: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 12,
+      color: isDark ? '#94a3b8' : '#64748b',
+      whiteSpace: 'nowrap',
     },
     body: {
       flex: 1,
       overflow: 'auto',
       padding: '12px 20px',
       minHeight: 0,
+    },
+    contentGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'minmax(0, 1.7fr) minmax(0, 1fr)',
+      gap: 14,
+      minHeight: 360,
+    },
+    treePane: {
+      minWidth: 0,
+      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+      borderRadius: 10,
+      padding: '10px 12px',
+      background: isDark ? '#0f172a' : '#fff',
+    },
+    selectionPane: {
+      minWidth: 0,
+      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+      borderRadius: 10,
+      padding: '10px 12px',
+      background: isDark ? '#0f172a' : '#fff',
+      display: 'flex',
+      flexDirection: 'column',
+      maxHeight: 460,
+    },
+    selectionHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+      gap: 8,
+    },
+    selectionTitle: {
+      margin: 0,
+      fontSize: 13,
+      fontWeight: 700,
+      color: isDark ? '#e2e8f0' : '#1e293b',
+    },
+    clearBtn: {
+      border: 'none',
+      background: 'none',
+      color: isDark ? '#94a3b8' : '#64748b',
+      fontSize: 12,
+      cursor: 'pointer',
+      padding: 0,
+    },
+    selectionEmpty: {
+      margin: 0,
+      fontSize: 12,
+      color: isDark ? '#94a3b8' : '#64748b',
+      paddingTop: 8,
+    },
+    selectedList: {
+      listStyle: 'none',
+      margin: 0,
+      padding: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+      overflow: 'auto',
+      minHeight: 0,
+    },
+    selectedItem: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      padding: '6px 4px',
+      borderRadius: 8,
+      background: isDark ? '#1e293b' : '#f8fafc',
+    },
+    selectedUserMeta: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      minWidth: 0,
+      flex: 1,
+    },
+    selectedUserText: { display: 'flex', flexDirection: 'column', minWidth: 0 },
+    selectedUserName: {
+      fontSize: 13,
+      color: isDark ? '#e2e8f0' : '#1e293b',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+    },
+    selectedUserEmail: {
+      fontSize: 11,
+      color: isDark ? '#94a3b8' : '#64748b',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+    },
+    removeBtn: {
+      border: 'none',
+      background: 'none',
+      color: isDark ? '#94a3b8' : '#64748b',
+      fontSize: 16,
+      cursor: 'pointer',
+      padding: '0 4px',
+      flexShrink: 0,
     },
     skeletonWrap: { padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 8 },
     skeletonLine: {
@@ -378,25 +545,59 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     countBadge: { fontSize: 12, color: isDark ? '#64748b' : '#888', marginLeft: 'auto' },
     treeWrap: {},
     companyBlock: { marginBottom: 12 },
+    companyToggle: {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      border: 'none',
+      background: 'none',
+      padding: '7px 0',
+      cursor: 'pointer',
+      textAlign: 'left',
+    },
     companyName: {
-      display: 'block',
       fontSize: 13,
       fontWeight: 700,
       color: isDark ? '#94a3b8' : '#475569',
-      padding: '4px 0',
-      marginBottom: 4,
     },
     deptBlock: { marginLeft: 8, marginBottom: 8 },
+    chevron: {
+      width: 18,
+      height: 18,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: isDark ? '#64748b' : '#94a3b8',
+      flexShrink: 0,
+    },
     deptRow: {
       display: 'flex',
       alignItems: 'center',
       gap: 8,
-      padding: '6px 0',
+      padding: '7px 0',
+    },
+    deptToggle: {
+      border: 'none',
+      background: 'none',
+      padding: '2px 0',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
       cursor: 'pointer',
+      minWidth: 0,
+      flex: 1,
+      textAlign: 'left',
+    },
+    deptSelect: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      marginLeft: 'auto',
     },
     deptName: { fontWeight: 600, fontSize: 14, color: isDark ? '#cbd5e1' : '#555' },
-    deptCount: { fontSize: 12, color: isDark ? '#64748b' : '#888', marginLeft: 'auto' },
-    checkbox: { width: 16, height: 16, cursor: 'pointer', flexShrink: 0 },
+    deptCount: { fontSize: 12, color: isDark ? '#64748b' : '#888' },
+    checkbox: { width: 16, height: 16, margin: 0, cursor: 'pointer', flexShrink: 0 },
     userList: { listStyle: 'none', margin: 0, padding: 0, marginLeft: 8 },
     userItem: { marginBottom: 2 },
     userRow: {
@@ -431,83 +632,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
       borderRadius: 4,
       marginLeft: 'auto',
     },
-    footerLeft: { position: 'relative', flex: 1, minWidth: 0 },
-    summaryPill: {
-      border: 'none',
-      background: isDark ? '#334155' : '#f1f5f9',
-      color: isDark ? '#e2e8f0' : '#475569',
-      fontSize: 13,
-      padding: '6px 12px',
-      borderRadius: 20,
-      cursor: 'pointer',
-      maxWidth: '100%',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-    },
-    summaryPopover: {
-      position: 'absolute',
-      bottom: '100%',
-      left: 0,
-      marginBottom: 6,
-      background: isDark ? '#334155' : '#fff',
-      border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
-      borderRadius: 10,
-      boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 16px rgba(0,0,0,0.12)',
-      minWidth: 200,
-      maxHeight: 200,
-      overflow: 'auto',
-      zIndex: 10,
-    },
-    summaryPopoverTitle: {
-      fontSize: 12,
-      fontWeight: 600,
-      color: isDark ? '#94a3b8' : '#64748b',
-      padding: '8px 12px',
-      borderBottom: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
-    },
-    summaryPopoverRow: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '6px 12px',
-      gap: 8,
-    },
-    summaryPopoverName: { fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    summaryPopoverRemove: {
-      border: 'none',
-      background: 'none',
-      color: isDark ? '#94a3b8' : '#64748b',
-      cursor: 'pointer',
-      fontSize: 16,
-      padding: '0 4px',
-      flexShrink: 0,
-    },
     selectedCount: { fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' },
     footerButtons: { display: 'flex', gap: 8 },
-    cancelBtn: {
-      padding: '8px 16px',
-      border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
-      borderRadius: 8,
-      background: isDark ? '#334155' : '#fff',
-      color: isDark ? '#e2e8f0' : '#555',
-      fontSize: 14,
-      cursor: 'pointer',
-    },
-    inviteBtn: {
-      padding: '8px 20px',
-      border: 'none',
-      borderRadius: 8,
-      background: '#475569',
-      color: '#fff',
-      fontSize: 14,
-      fontWeight: 600,
-      cursor: 'pointer',
-    },
-    inviteBtnDisabled: {
-      background: isDark ? '#334155' : '#cbd5e1',
-      color: isDark ? '#64748b' : '#fff',
-      cursor: 'not-allowed',
-    },
   };
 }
