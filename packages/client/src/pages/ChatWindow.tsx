@@ -2303,11 +2303,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           <div style={s.inputRowCenter()}>
             <textarea
               ref={inputRef}
-              placeholder={
-                isBoardView
-                  ? '글을 입력하세요… (Shift+Enter 줄바꿈)'
-                  : '메시지를 입력하세요… (Shift+Enter 줄바꿈)'
-              }
+              placeholder="메시지를 입력하세요"
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
