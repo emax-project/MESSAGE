@@ -9,6 +9,8 @@ node_modules/
 # Build / dist
 packages/client/dist/
 packages/client/release/
+packages/client/playwright-report/
+packages/client/test-results/
 
 # Uploads (server)
 packages/server/uploads/*
