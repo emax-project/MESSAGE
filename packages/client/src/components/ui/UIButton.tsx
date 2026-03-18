@@ -1,4 +1,5 @@
 import { useThemeStore } from '../../store';
+import { getThemeTokens } from './themeTokens';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md';
@@ -30,6 +31,7 @@ export default function UIButton({
 }
 
 function getStyles(isDark: boolean, variant: Variant, size: Size, disabled: boolean): Record<string, React.CSSProperties> {
+  const t = getThemeTokens(isDark);
   const sizes: Record<Size, React.CSSProperties> = {
     sm: { padding: '8px 12px', fontSize: 13, borderRadius: 8 },
     md: { padding: '10px 16px', fontSize: 14, borderRadius: 10 },
@@ -50,17 +52,18 @@ function getStyles(isDark: boolean, variant: Variant, size: Size, disabled: bool
 
   const variants: Record<Variant, React.CSSProperties> = {
     primary: {
-      background: disabled ? (isDark ? '#334155' : '#cbd5e1') : '#475569',
-      color: '#fff',
+      background: disabled ? (isDark ? '#334155' : '#cbd5e1') : t.gradientPrimary,
+      color: t.white,
+      boxShadow: disabled ? 'none' : (isDark ? '0 4px 14px rgba(154,88,168,0.32)' : '0 4px 12px rgba(154,88,168,0.24)'),
     },
     secondary: {
       background: isDark ? '#334155' : '#f1f5f9',
-      color: isDark ? '#e2e8f0' : '#475569',
-      border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
+      color: t.text,
+      border: `1px solid ${t.border}`,
     },
     ghost: {
       background: 'transparent',
-      color: isDark ? '#e2e8f0' : '#475569',
+      color: t.text,
     },
     danger: {
       background: disabled ? (isDark ? 'rgba(239,68,68,0.25)' : 'rgba(239,68,68,0.15)') : '#ef4444',

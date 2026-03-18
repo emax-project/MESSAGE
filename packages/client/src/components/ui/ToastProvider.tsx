@@ -1,12 +1,14 @@
 import { useThemeStore, useToastStore } from '../../store';
+import { getThemeTokens } from './themeTokens';
 
 export default function ToastProvider() {
   const isDark = useThemeStore((s) => s.isDark);
   const { toasts, remove } = useToastStore();
+  const theme = getThemeTokens(isDark);
 
   if (toasts.length === 0) return null;
 
-  const bgInfo = isDark ? '#1e293b' : '#111827';
+  const bgInfo = isDark ? '#2a2d31' : '#1f2227';
 
   return (
     <div
@@ -24,9 +26,9 @@ export default function ToastProvider() {
       {toasts.map((t) => {
         const bg =
           t.type === 'success'
-            ? '#16a34a'
+            ? 'linear-gradient(135deg, #1f9d55 0%, #13795b 100%)'
             : t.type === 'error'
-            ? '#dc2626'
+            ? 'linear-gradient(135deg, #de4c5a 0%, #b4233f 100%)'
             : bgInfo;
         return (
           <div
@@ -39,9 +41,10 @@ export default function ToastProvider() {
               padding: '10px 12px',
               borderRadius: 10,
               background: bg,
-              color: '#f9fafb',
+              color: theme.white,
               boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
               fontSize: 13,
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.22)'}`,
             }}
           >
             <span style={{ flex: 1 }}>{t.message}</span>

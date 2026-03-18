@@ -96,6 +96,14 @@ function FolderIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+function PlusIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden style={{ display: 'block', flexShrink: 0 }}>
+      <path d="M6 2.5V9.5M2.5 6H9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function openChatWindow(roomId: string) {
   if (window.electronAPI?.openChatWindow) {
     window.electronAPI.openChatWindow(roomId);
@@ -704,7 +712,7 @@ export default function Main() {
                     onClick={(e) => { e.stopPropagation(); setCreateGroupFor('topic'); setShowCreateGroupModal(true); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setCreateGroupFor('topic'); setShowCreateGroupModal(true); } }}
                     title="아젠다 만들기"
-                  >+</span>
+                  ><PlusIcon /></span>
                 </span>
               </button>
               {sectionOpen.topic && (
@@ -782,7 +790,7 @@ export default function Main() {
                   onClick={(e) => { e.stopPropagation(); setCreateGroupFor('chat'); setShowCreateGroupModal(true); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setCreateGroupFor('chat'); setShowCreateGroupModal(true); } }}
                   title="1:1 채팅 만들기"
-                >+</span>
+                ><PlusIcon /></span>
               </button>
               {sectionOpen.chat && (
                 chatRooms.length === 0 ? (
@@ -1494,8 +1502,8 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     sectionChevron: { width: 12, height: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: muted },
     sectionTitle: { fontSize: 13, fontWeight: 700, color: textStrong },
     sectionCount: { fontSize: 11, color: muted },
-    sectionUnreadBadge: { fontSize: 10, color: '#e53935', fontWeight: 600 },
-    sectionAddBtn: { width: 22, height: 22, borderRadius: 6, background: isDark ? '#475569' : '#e5e7eb', color: isDark ? '#e2e8f0' : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: '22px', cursor: 'pointer' },
+    sectionUnreadBadge: { fontSize: 10, color: t.primary, fontWeight: 700 },
+    sectionAddBtn: { width: 22, height: 22, borderRadius: 6, background: t.primary, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1, cursor: 'pointer', flexShrink: 0 },
     folderHeader: { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 12px', border: 'none', background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 12, cursor: 'pointer', textAlign: 'left' as const },
 
     /* App items */
@@ -1516,7 +1524,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     roomMeta: { flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 },
     roomMuted: { fontSize: 10, color: '#94a3b8' },
     roomTime: { fontSize: 10, color: sub },
-    roomUnreadBadge: { minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: '#e53935', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    roomUnreadBadge: { minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: t.primary, color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
 
     /* Right side */
     rightSide: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: contentBg },
@@ -1525,7 +1533,7 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
     menuBarRight: { display: 'flex', alignItems: 'center', gap: 4 },
     menuBtn: { width: 34, height: 34, padding: 0, border: 'none', borderRadius: 8, background: 'transparent', color: isDark ? '#94a3b8' : '#666', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     menuBtnActive: { background: isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb', color: isDark ? '#fff' : '#333' },
-    menuBadge: { position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: '#e53935', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    menuBadge: { position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: t.primary, color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
     contentArea: { flex: 1, minHeight: 0, minWidth: 0, overflowX: 'hidden', overflowY: 'auto', display: 'flex', flexDirection: 'column' },
 
     /* Empty state */
@@ -1544,13 +1552,13 @@ function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
 
     /* Forms */
     formInput: { width: '100%', padding: '8px 12px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, fontSize: 13, marginBottom: 8, boxSizing: 'border-box' as const, background: isDark ? '#334155' : '#fff', color: text, outline: 'none' },
-    formBtn: { padding: '8px 16px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+    formBtn: { padding: '8px 16px', border: 'none', borderRadius: 8, background: t.gradientPrimary, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
     formBtnCancel: { padding: '8px 16px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, background: isDark ? '#1e293b' : '#fff', color: muted, fontSize: 13, cursor: 'pointer' },
     settingsBtn: { padding: '12px 16px', border: 'none', borderRadius: 10, background: isDark ? '#334155' : '#f0f0f0', color: text, cursor: 'pointer', fontSize: 14, textAlign: 'left' as const },
 
     /* Online filter */
     onlineFilterBtn: { display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '4px 8px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 16, background: 'transparent', color: isDark ? '#94a3b8' : '#6b7280', fontSize: 11, cursor: 'pointer', outline: 'none' },
-    onlineFilterBtnActive: { borderColor: '#475569', background: '#475569', color: '#fff' },
+    onlineFilterBtnActive: { borderColor: t.primary, background: t.primary, color: '#fff' },
 
     /* Tree */
     treeNode: { display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', border: 'none', borderRadius: 6, background: 'transparent', cursor: 'pointer', width: '100%', textAlign: 'left' as const, fontSize: 13, color: isDark ? '#cbd5e1' : '#374151' },

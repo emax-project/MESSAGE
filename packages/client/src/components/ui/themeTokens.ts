@@ -7,6 +7,9 @@ export type UIThemeTokens = {
   textMuted: string;
   border: string;
   primary: string;
+  primaryStrong: string;
+  white: string;
+  gradientPrimary: string;
   danger: string;
 };
 
@@ -28,15 +31,23 @@ export const uiSpacing = {
 } as const;
 
 export function getThemeTokens(isDark: boolean): UIThemeTokens {
+  // Slack-inspired accent setup: neutral surfaces + purple highlights.
+  // Tuned for clearer UI contrast on dark surfaces (targeting >= 3:1 for key colored UI).
+  const slackPurple = '#9a58a8';
+  const slackPurpleDeep = '#611f69';
+  const white = '#ffffff';
   return {
-    bgBase: isDark ? '#0f172a' : '#f1f5f9',
-    bgSurface: isDark ? '#1e293b' : '#ffffff',
-    bgMuted: isDark ? '#334155' : '#f8fafc',
-    text: isDark ? '#e2e8f0' : '#1e293b',
-    textStrong: isDark ? '#f1f5f9' : '#0f172a',
-    textMuted: isDark ? '#94a3b8' : '#64748b',
-    border: isDark ? '#334155' : '#e2e8f0',
-    primary: '#475569',
+    bgBase: isDark ? '#1d1c1d' : '#f8f8f8',
+    bgSurface: isDark ? '#222529' : '#ffffff',
+    bgMuted: isDark ? '#2a2d31' : '#f1f3f5',
+    text: isDark ? '#d1d2d3' : '#1d1c1d',
+    textStrong: isDark ? '#ffffff' : '#161616',
+    textMuted: isDark ? '#a7adb4' : '#5e6470',
+    border: isDark ? '#3a3f46' : '#dde1e6',
+    primary: slackPurple,
+    primaryStrong: slackPurpleDeep,
+    white,
+    gradientPrimary: 'linear-gradient(135deg, #ac67ba 0%, #8b4a99 100%)',
     danger: '#ef4444',
   };
 }
