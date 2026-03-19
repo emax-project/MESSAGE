@@ -789,37 +789,7 @@ function SchedulePanel({
             )}
           />
 
-          {editingEventId && (
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <input
-                type="datetime-local"
-                value={eventForm.startAt}
-                onChange={(e) => setEventForm((f) => ({ ...f, startAt: e.target.value }))}
-                className={cn(
-                  inputBase,
-                  'mb-0 flex-1 basis-44',
-                  isDark
-                    ? 'border-violet-300/30 bg-slate-900 text-slate-100'
-                    : 'border-violet-200 bg-white text-slate-700'
-                )}
-              />
-              <span className={cn('text-sm font-medium', isDark ? 'text-violet-300' : 'text-violet-500')}>~</span>
-              <input
-                type="datetime-local"
-                value={eventForm.endAt}
-                onChange={(e) => setEventForm((f) => ({ ...f, endAt: e.target.value }))}
-                className={cn(
-                  inputBase,
-                  'mb-0 flex-1 basis-44',
-                  isDark
-                    ? 'border-violet-300/30 bg-slate-900 text-slate-100'
-                    : 'border-violet-200 bg-white text-slate-700'
-                )}
-              />
-            </div>
-          )}
-
-          {!editingEventId && createTab === 'normal' && (
+          {(editingEventId || createTab === 'normal') && (
             <div className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-2">
               <div className={cn('rounded-xl border p-3', isDark ? 'border-violet-300/30 bg-slate-900/70' : 'border-violet-100 bg-white')}>
                 <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-violet-200' : 'text-violet-700')}>시작</div>
@@ -1261,7 +1231,7 @@ function SchedulePanel({
         )}
       </div>
 
-      {singleDateModal.isOpen && !editingEventId && (createTab === 'normal' || createTab === 'repeat') && (
+      {singleDateModal.isOpen && (editingEventId || createTab === 'normal' || createTab === 'repeat') && (
         <div
           className="fixed inset-0 z-[1995] flex items-center justify-center bg-black/35 p-4"
           onClick={() => setSingleDateModal((prev) => ({ ...prev, isOpen: false, target: null }))}
@@ -1314,7 +1284,7 @@ function SchedulePanel({
         </div>
       )}
 
-      {timeModal.isOpen && !editingEventId && (
+      {timeModal.isOpen && (
         <div
           className="fixed inset-0 z-[1998] flex items-center justify-center bg-black/35 p-4"
           onClick={closeTimeModal}
