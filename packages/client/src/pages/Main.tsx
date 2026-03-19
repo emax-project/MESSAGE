@@ -269,7 +269,29 @@ export default function Main() {
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, Event[]>();
-    events.forEach((ev) => { const key = toLocalDateKey(ev.startAt); if (key) { const list = map.get(key) || []; list.push(ev); map.set(key, list); } });
+    events.forEach((ev) => {
+      const startAt = new Date(ev.startAt);
+      const endAt = new Date(ev.endAt);
+      if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) return;
+
+      const rangeStart = new Date(startAt);
+      const rangeEnd = new Date(endAt);
+      if (rangeStart > rangeEnd) return;
+
+      rangeStart.setHours(0, 0, 0, 0);
+      rangeEnd.setHours(0, 0, 0, 0);
+
+      const cursor = new Date(rangeStart);
+      while (cursor <= rangeEnd) {
+        const key = toLocalDateKey(cursor.toISOString());
+        if (key) {
+          const list = map.get(key) || [];
+          list.push(ev);
+          map.set(key, list);
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    });
     return map;
   }, [events]);
 

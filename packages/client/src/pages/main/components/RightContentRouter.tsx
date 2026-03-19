@@ -3,6 +3,7 @@ import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import type { Event, OrgCompany, OrgUser } from '../../../api';
 import type { OllamaMessage } from '../../../ollama';
 import type { UpdateStatus } from '../hooks/useUpdateManager';
+import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
 import ChatWindow from '../../ChatWindow';
 import MentionPanel, { type MentionItem } from './MentionPanel';
 import BookmarkPanel, { type BookmarkItem } from './BookmarkPanel';
@@ -57,7 +58,7 @@ type RightContentRouterProps = {
     setSelectedDate: Dispatch<SetStateAction<string>>;
     setEventForm: Dispatch<SetStateAction<EventFormState>>;
     onUpdateEvent: () => void | Promise<void>;
-    onCreateEvent: () => void | Promise<void>;
+    onCreateEvent: (options?: ScheduleCreateOptions) => void | Promise<void>;
     onCancelEdit: () => void;
     onEditEvent: (ev: Event) => void;
     onDeleteEvent: (eventId: string) => void | Promise<void>;
