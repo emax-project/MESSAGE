@@ -1,14 +1,14 @@
 import { memo } from 'react';
-import type { CSSProperties, MouseEvent } from 'react';
+import type { MouseEvent } from 'react';
 import type { OrgCompany, OrgUser } from '../../../api';
 import UIChevron from '../../../components/ui/UIChevron';
 import UserAvatar from '../../../components/UserAvatar';
+import { cn } from '../../../utils/cn';
 
 type FriendsPanelProps = {
-  st: Record<string, CSSProperties>;
   isDark: boolean;
   isNarrowLayout: boolean;
-  panelWrapStyle: (maxWidth: number) => CSSProperties;
+  panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   searchQuery: string;
   showOnlineOnly: boolean;
   orgLoading: boolean;
@@ -30,7 +30,6 @@ type FriendsPanelProps = {
 };
 
 function FriendsPanel({
-  st,
   isDark,
   isNarrowLayout,
   panelWrapStyle,
@@ -53,10 +52,11 @@ function FriendsPanel({
   hasStatusIcon,
   renderStatusIcon,
 }: FriendsPanelProps) {
+  const wrap = panelWrapStyle(820);
   return (
-    <div style={panelWrapStyle(820)}>
-      <div style={st.panelHeader}>
-        <h3 style={st.panelTitle}>멤버</h3>
+    <div className={wrap.className} style={wrap.style}>
+      <div className={cn('shrink-0 flex items-center justify-between px-5 py-3.5 border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
+        <h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-[#161616]')}>멤버</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', width: isNarrowLayout ? '100%' : 'auto' }}>
           <input
             type="text"
@@ -66,13 +66,13 @@ function FriendsPanel({
             onChange={(e) => onSearchQueryChange(e.target.value)}
             style={{ padding: '5px 10px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 6, fontSize: 12, background: isDark ? '#334155' : '#f5f5f5', color: isDark ? '#e2e8f0' : '#333', outline: 'none', width: isNarrowLayout ? '100%' : 140, minWidth: 0, boxSizing: 'border-box' }}
           />
-          <button type="button" role="switch" aria-checked={showOnlineOnly} onClick={onToggleOnlineOnly} style={{ ...st.onlineFilterBtn, ...(showOnlineOnly ? st.onlineFilterBtnActive : {}) }}>
+          <button type="button" role="switch" aria-checked={showOnlineOnly} onClick={onToggleOnlineOnly} className={cn('flex items-center gap-1.5 px-2 py-1 border rounded-2xl bg-transparent text-[12px]', showOnlineOnly && 'border-[#9a58a8] bg-[#9a58a8] text-white')}>
             <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />
             온라인만
           </button>
         </div>
       </div>
-      <div style={st.panelBody}>
+      <div className="flex-1 min-h-0 overflow-auto">
         {orgLoading ? (
           <p style={{ color: isDark ? '#94a3b8' : '#888', fontSize: 13, padding: 16 }}>로딩 중...</p>
         ) : orgError ? (
@@ -91,7 +91,7 @@ function FriendsPanel({
               const companyOpen = treeOpen[companyKey] !== false;
               return (
                 <div key={company.id} style={{ marginBottom: 6 }}>
-                  <button type="button" style={st.treeNode} onClick={() => onToggleTree(companyKey)}>
+                  <button type="button" className="flex items-center gap-1.5 px-2 py-[5px] rounded-md bg-transparent text-[13px]" onClick={() => onToggleTree(companyKey)}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <UIChevron open={companyOpen} size={9} color={isDark ? '#64748b' : '#9ca3af'} />
                     </span>
@@ -102,7 +102,7 @@ function FriendsPanel({
                     const deptOpen = treeOpen[deptKey] !== false;
                     return (
                       <div key={dept.id} style={{ marginLeft: 14, marginTop: 2 }}>
-                        <button type="button" style={st.treeNode} onClick={() => onToggleTree(deptKey)}>
+                        <button type="button" className="flex items-center gap-1.5 px-2 py-[5px] rounded-md bg-transparent text-[13px]" onClick={() => onToggleTree(deptKey)}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             <UIChevron open={deptOpen} size={9} color={isDark ? '#64748b' : '#9ca3af'} />
                           </span>
@@ -116,7 +116,7 @@ function FriendsPanel({
                                 <li key={u.id} style={{ marginBottom: 1 }}>
                                   <button
                                     type="button"
-                                    style={{ ...st.treeUserBtn, ...(!isOnline ? { opacity: 0.7, color: isDark ? '#64748b' : '#9ca3af' } : {}) }}
+                                    className={cn('flex items-center gap-2 px-2 py-[5px] rounded-md bg-transparent text-[13px] w-full border-none cursor-pointer text-left', !isOnline && 'opacity-70', !isOnline && (isDark ? 'text-[#64748b]' : 'text-[#9ca3af]'))}
                                     onClick={() => void onOpenDirectMessage(u.id)}
                                     onContextMenu={(e) => onUserContextMenu(e, u)}
                                   >

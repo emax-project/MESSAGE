@@ -1,9 +1,10 @@
 import { memo } from 'react';
-import type { CSSProperties, Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { Event, OrgCompany, OrgUser } from '../../../api';
 import type { OllamaMessage } from '../../../ollama';
 import type { UpdateStatus } from '../hooks/useUpdateManager';
 import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
+import { cn } from '../../../utils/cn';
 import ChatWindow from '../../ChatWindow';
 import MentionPanel, { type MentionItem } from './MentionPanel';
 import BookmarkPanel, { type BookmarkItem } from './BookmarkPanel';
@@ -16,12 +17,11 @@ type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'a
 type EventFormState = { title: string; startAt: string; endAt: string; description: string };
 
 type RightContentRouterProps = {
-  st: Record<string, CSSProperties>;
   isDark: boolean;
   isNarrowLayout: boolean;
   activePanel: ActivePanel;
   selectedRoomId?: string;
-  panelWrapStyle: (maxWidth: number) => CSSProperties;
+  panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   onOpenInNewWindow: (roomId: string) => void;
   mentions: MentionItem[];
   onSelectMention: (mention: MentionItem) => void | Promise<void>;
@@ -103,7 +103,6 @@ type RightContentRouterProps = {
 };
 
 function RightContentRouter({
-  st,
   isDark,
   isNarrowLayout,
   activePanel,
@@ -127,28 +126,30 @@ function RightContentRouter({
   return (
     <>
       {activePanel === 'none' && (
-        <div style={st.emptyState}>
-          <div style={st.emptyIcon}>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+          <div className={cn(
+            'w-14 h-14 rounded-full flex items-center justify-center',
+            isDark ? 'bg-slate-700 text-[#a7adb4]' : 'bg-slate-100 text-[#5e6470]',
+          )}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           </div>
-          <p style={st.emptyText}>채팅방을 선택하세요</p>
-          <p style={st.emptyHint}>왼쪽 아젠다 또는 채팅에서 대화를 시작하세요</p>
+          <p className={cn('text-base font-semibold m-0', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>채팅방을 선택하세요</p>
+          <p className={cn('text-[13px] m-0', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>왼쪽 아젠다 또는 채팅에서 대화를 시작하세요</p>
         </div>
       )}
 
       {activePanel === 'mention' && (
-        <MentionPanel st={st} isDark={isDark} mentions={mentions} panelWrapStyle={panelWrapStyle} onSelectMention={onSelectMention} />
+        <MentionPanel isDark={isDark} mentions={mentions} panelWrapStyle={panelWrapStyle} onSelectMention={onSelectMention} />
       )}
 
       {activePanel === 'bookmark' && (
-        <BookmarkPanel st={st} isDark={isDark} bookmarks={bookmarks} panelWrapStyle={panelWrapStyle} onSelectBookmark={onSelectBookmark} onRemoveBookmark={onRemoveBookmark} />
+        <BookmarkPanel isDark={isDark} bookmarks={bookmarks} panelWrapStyle={panelWrapStyle} onSelectBookmark={onSelectBookmark} onRemoveBookmark={onRemoveBookmark} />
       )}
 
       {activePanel === 'friends' && (
         <FriendsPanel
-          st={st}
           isDark={isDark}
           isNarrowLayout={isNarrowLayout}
           panelWrapStyle={panelWrapStyle}
@@ -175,7 +176,6 @@ function RightContentRouter({
 
       {activePanel === 'schedule' && (
         <SchedulePanel
-          st={st}
           isDark={isDark}
           isNarrowLayout={isNarrowLayout}
           panelWrapStyle={panelWrapStyle}
@@ -197,7 +197,6 @@ function RightContentRouter({
 
       {activePanel === 'ai' && (
         <AiPanel
-          st={st}
           isDark={isDark}
           panelWrapStyle={panelWrapStyle}
           modelName={aiProps.modelName}
@@ -212,7 +211,6 @@ function RightContentRouter({
 
       {activePanel === 'settings' && (
         <SettingsPanel
-          st={st}
           panelWrapStyle={panelWrapStyle}
           isDark={isDark}
           isNarrowLayout={isNarrowLayout}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { type Message, filesApi } from '../api';
 import { useThemeStore } from '../store';
 import UICloseButton from './ui/UICloseButton';
+import { cn } from '../utils/cn';
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -21,19 +22,19 @@ function ImageLightbox({ src, alt, onDownload, onClose }: {
   onClose: () => void;
 }) {
   return (
-    <div style={lightboxStyles.overlay} onClick={onClose}>
-      <div style={lightboxStyles.content} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[99999] bg-black/85 flex flex-col items-center justify-center" onClick={onClose}>
+      <div className="relative flex flex-col items-center max-w-[95vw] max-h-[95vh]" onClick={(e) => e.stopPropagation()}>
         <UICloseButton
           size="lg"
           tone="inverse"
-          style={lightboxStyles.closeBtn}
+          className="absolute top-[-40px] right-[-4px] opacity-80 z-[1]"
           onClick={onClose}
         />
-        <img src={src} alt={alt} style={lightboxStyles.image} />
-        <div style={lightboxStyles.bottomBar}>
-          <span style={lightboxStyles.fileName}>{alt}</span>
-          <button type="button" onClick={onDownload} style={lightboxStyles.downloadBtn}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <img src={src} alt={alt} className="max-w-[90vw] max-h-[calc(90vh-60px)] object-contain rounded select-none" />
+        <div className="flex items-center justify-center gap-5 mt-4 px-5 py-2.5 bg-white/10 rounded-[10px]">
+          <span className="text-white/70 text-[13px] max-w-[300px] truncate">{alt}</span>
+          <button type="button" onClick={onDownload} className="flex items-center gap-1.5 px-4 py-2 bg-white/15 border border-white/25 rounded-lg text-white text-[13px] font-semibold cursor-pointer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
@@ -45,72 +46,6 @@ function ImageLightbox({ src, alt, onDownload, onClose }: {
     </div>
   );
 }
-
-const lightboxStyles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    zIndex: 99999,
-    background: 'rgba(0,0,0,0.85)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    maxWidth: '95vw',
-    maxHeight: '95vh',
-  },
-  closeBtn: {
-    position: 'absolute',
-    top: -40,
-    right: -4,
-    opacity: 0.8,
-    zIndex: 1,
-  },
-  image: {
-    maxWidth: '90vw',
-    maxHeight: 'calc(90vh - 60px)',
-    objectFit: 'contain',
-    borderRadius: 4,
-    userSelect: 'none',
-  },
-  bottomBar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-    marginTop: 16,
-    padding: '10px 20px',
-    background: 'rgba(255,255,255,0.1)',
-    borderRadius: 10,
-  },
-  fileName: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
-    maxWidth: 300,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  downloadBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '8px 16px',
-    background: 'rgba(255,255,255,0.15)',
-    border: '1px solid rgba(255,255,255,0.25)',
-    borderRadius: 8,
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-};
 
 type Props = {
   message: Message;
@@ -142,7 +77,11 @@ export default function FileMessage({ message }: Props) {
   }, [id, fileMimeType, fileUrl]);
 
   if (!fileUrl) {
-    return <span style={{ fontSize: 13, color: isDark ? '#64748b' : '#999', fontStyle: 'italic' }}>파일이 만료되었습니다</span>;
+    return (
+      <span className={cn('text-[13px] italic', isDark ? 'text-slate-500' : 'text-[#999]')}>
+        파일이 만료되었습니다
+      </span>
+    );
   }
 
   const expiresAt = fileExpiresAt ? new Date(fileExpiresAt) : null;
@@ -157,24 +96,27 @@ export default function FileMessage({ message }: Props) {
     }
   };
 
-  const st = getFileStyles(isDark);
+  const fileLinkClass = cn(
+    'flex items-center gap-2.5 px-3.5 py-2.5 rounded-[10px] border-none cursor-pointer w-full min-w-[220px] text-left text-inherit',
+    isDark ? 'bg-white/[0.06]' : 'bg-black/[0.04]',
+  );
 
   return (
-    <div style={st.container}>
+    <div className="mt-1">
       {isImageMime(fileMimeType) ? (
         <>
           {previewUrl && !previewError ? (
             <img
               src={previewUrl}
               alt={fileName || 'image'}
-              style={st.imagePreview}
+              className="max-w-[420px] max-h-[320px] rounded-lg cursor-pointer block w-full object-contain"
               loading="lazy"
               onClick={() => setLightboxOpen(true)}
             />
           ) : previewError ? (
-            <span style={st.fileLink}>미리보기를 불러올 수 없습니다</span>
+            <span className={fileLinkClass}>미리보기를 불러올 수 없습니다</span>
           ) : (
-            <span style={st.fileLink}>미리보기 로딩 중...</span>
+            <span className={fileLinkClass}>미리보기 로딩 중...</span>
           )}
           {lightboxOpen && (
             <ImageLightbox
@@ -186,20 +128,24 @@ export default function FileMessage({ message }: Props) {
           )}
         </>
       ) : (
-        <button type="button" onClick={handleDownload} style={st.fileLink}>
-          <div style={st.fileIcon}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <button type="button" onClick={handleDownload} className={cn(fileLinkClass, isDark ? 'text-slate-400' : 'text-slate-600')}>
+          <div className="shrink-0 flex items-center justify-center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
             </svg>
           </div>
-          <div style={st.fileInfo}>
-            <span style={st.fileName}>{fileName || 'file'}</span>
+          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
+            <span className={cn('text-[13px] font-medium truncate min-w-0 flex-1', isDark ? 'text-slate-200' : 'text-slate-800')}>
+              {fileName || 'file'}
+            </span>
             {fileSize != null && (
-              <span style={st.fileSize}>{formatFileSize(fileSize)}</span>
+              <span className={cn('text-[11px] shrink-0', isDark ? 'text-slate-500' : 'text-[#888]')}>
+                {formatFileSize(fileSize)}
+              </span>
             )}
           </div>
-          <div style={st.downloadIcon}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#64748b' : '#888'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className={cn('shrink-0 flex items-center justify-center', isDark ? 'text-slate-500' : 'text-slate-400')}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
@@ -208,76 +154,8 @@ export default function FileMessage({ message }: Props) {
         </button>
       )}
       {isExpiringSoon && (
-        <span style={st.expiryWarning}>곧 만료됩니다</span>
+        <span className="text-[11px] text-[#e65100] mt-1 block">곧 만료됩니다</span>
       )}
     </div>
   );
-}
-
-function getFileStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  return {
-    container: { marginTop: 4 },
-    imagePreview: {
-      maxWidth: 420,
-      maxHeight: 320,
-      borderRadius: 8,
-      cursor: 'pointer',
-      display: 'block',
-      width: '100%',
-      objectFit: 'contain',
-    },
-    fileLink: {
-      display: 'flex',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      padding: '10px 14px',
-      background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-      borderRadius: 10,
-      color: 'inherit',
-      border: 'none',
-      cursor: 'pointer',
-      width: '100%',
-      minWidth: 220,
-      textAlign: 'left',
-    },
-    fileIcon: {
-      flexShrink: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    fileInfo: {
-      display: 'flex',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      flex: 1,
-      minWidth: 0,
-      overflow: 'hidden',
-    },
-    fileName: {
-      fontSize: 13,
-      fontWeight: 500,
-      color: isDark ? '#e2e8f0' : '#1e293b',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-      minWidth: 0,
-      flex: 1,
-    },
-    fileSize: { fontSize: 11, color: isDark ? '#64748b' : '#888', flexShrink: 0 },
-    downloadIcon: {
-      flexShrink: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    expiryWarning: {
-      fontSize: 11,
-      color: '#e65100',
-      marginTop: 4,
-      display: 'block',
-    },
-  };
 }

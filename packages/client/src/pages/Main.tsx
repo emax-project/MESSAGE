@@ -7,7 +7,6 @@ import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, m
 import { getOllamaConfig, type OllamaMessage } from '../ollama';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar from '../components/TitleBar';
-import { getThemeTokens } from '../components/ui/themeTokens';
 import {
   normalizeTimeRange,
   startOfMonth,
@@ -24,6 +23,7 @@ import { type MentionItem } from './main/components/MentionPanel';
 import { type BookmarkItem } from './main/components/BookmarkPanel';
 import RightContentRouter from './main/components/RightContentRouter';
 import MainOverlays from './main/components/MainOverlays';
+import { cn } from '../utils/cn';
 
 const STATUS_OPTIONS = [
   { id: '', label: '설정 안 함' },
@@ -177,13 +177,10 @@ export default function Main() {
   const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
   const isCompactLayout = viewportWidth < 1180;
   const isNarrowLayout = viewportWidth < 980;
-  const st = useMemo(() => getStyles(isDark, isCompactLayout, isNarrowLayout), [isDark, isCompactLayout, isNarrowLayout]);
-  const panelWrapStyle = (maxWidth: number) => ({
-    ...st.panelWrap,
-    width: '100%',
-    maxWidth: isNarrowLayout ? '100%' : maxWidth,
-    margin: '0 auto',
-  });
+  const panelWrapStyle = useCallback((maxWidth: number) => ({
+    className: 'flex-1 flex flex-col min-h-0 w-full mx-auto',
+    style: { maxWidth: isCompactLayout || isNarrowLayout ? '100%' : maxWidth } as React.CSSProperties,
+  }), [isCompactLayout, isNarrowLayout]);
 
   const notificationStatus = typeof Notification === 'undefined' ? '지원되지 않음' : Notification.permission === 'granted' ? '허용됨' : Notification.permission === 'denied' ? '차단됨' : '미정';
   const requestNotificationPermission = async () => { if (typeof Notification !== 'undefined' && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch { /* ignore */ } } };
@@ -498,20 +495,18 @@ export default function Main() {
     <RoomListItem
       key={r.id}
       room={r}
-      st={st}
       myId={myId}
       mutedRoomIds={mutedRoomIds}
       onOpenRoom={handleOpenRoom}
       onContextMenu={handleRoomContextMenu}
     />
-  ), [st, myId, mutedRoomIds, handleOpenRoom, handleRoomContextMenu]);
+  ), [myId, mutedRoomIds, handleOpenRoom, handleRoomContextMenu]);
 
   return (
-    <div style={st.appWrap}>
+    <div className={cn('flex flex-col h-screen w-full min-w-0 overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
       {hasElectron && <TitleBar title="EMAX" isDark={isDark} />}
-      <div style={st.layout}>
+      <div className="flex flex-1 flex-row min-h-0 min-w-0">
         <LeftSidebar
-          st={st}
           isDark={isDark}
           user={user}
           statusInput={statusInput}
@@ -542,9 +537,9 @@ export default function Main() {
         />
 
         {/* ===== RIGHT SIDE ===== */}
-        <div style={st.rightSide}>
+        <div className={cn('flex-1 min-w-0 flex flex-col', isDark ? 'bg-slate-900' : 'bg-white')}>
           <TopMenuBar
-            st={st}
+            isDark={isDark}
             activePanel={activePanel}
             setActivePanel={setActivePanel}
             unreadMentionCount={unreadMentionCount?.count ?? 0}
@@ -552,9 +547,8 @@ export default function Main() {
           />
 
           {/* Content Area */}
-          <div style={st.contentArea}>
+          <div className="flex-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto flex flex-col">
             <RightContentRouter
-              st={st}
               isDark={isDark}
               isNarrowLayout={isNarrowLayout}
               activePanel={activePanel}
@@ -645,7 +639,6 @@ export default function Main() {
 
       {/* ===== MODALS ===== */}
       <MainOverlays
-        st={st}
         isDark={isDark}
         showAnnouncementModal={showAnnouncementModal}
         announcementContent={announcementData?.content ?? undefined}
@@ -677,109 +670,4 @@ export default function Main() {
       <ToastProvider />
     </div>
   );
-}
-
-function getStyles(isDark: boolean, isCompactLayout: boolean, isNarrowLayout: boolean): Record<string, React.CSSProperties> {
-  const t = getThemeTokens(isDark);
-  const bg = t.bgBase;
-  const sidebarBg = t.bgSurface;
-  const contentBg = t.bgBase;
-  const text = t.text;
-  const textStrong = t.textStrong;
-  const sub = t.textMuted;
-  const muted = t.textMuted;
-  const border = t.border;
-  const inputBg = t.bgMuted;
-
-  return {
-    appWrap: { display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', minWidth: 0, overflow: 'hidden', background: bg },
-    layout: { display: 'flex', flex: 1, flexDirection: 'row', minHeight: 0, minWidth: 0 },
-
-    /* Sidebar */
-    sidebar: { width: isNarrowLayout ? 232 : 260, flexShrink: 0, display: 'flex', flexDirection: 'column', background: sidebarBg, borderRight: `1px solid ${border}` },
-    sidebarHeader: { flexShrink: 0, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isNarrowLayout ? '0 10px' : '0 16px', borderBottom: `1px solid ${border}`, background: sidebarBg },
-    profileSection: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: `1px solid ${border}` },
-    profileAvatar: { width: 34, height: 34, borderRadius: 10, background: isDark ? '#475569' : '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-    profileAvatarImg: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 },
-    profileInitial: { fontSize: 13, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' },
-    profileName: { fontSize: 13, fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    profileStatus: { fontSize: 11, color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    searchWrap: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 0, padding: '8px 12px', borderBottom: `1px solid ${border}` },
-    searchInput: { flex: 1, padding: '6px 8px', border: 'none', borderRadius: 6, fontSize: 13, background: inputBg, color: text, outline: 'none', minWidth: 0 },
-    searchClearBtn: { width: 24, height: 24, marginLeft: 4, border: 'none', borderRadius: 6, background: 'transparent', color: muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 },
-    sidebarContent: { flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' },
-
-    /* Sections */
-    sectionHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '7px 12px', border: 'none', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', cursor: 'pointer', textAlign: 'left' as const },
-    sectionChevron: { width: 12, height: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: muted },
-    sectionTitle: { fontSize: 13, fontWeight: 700, color: textStrong },
-    sectionCount: { fontSize: 11, color: muted },
-    sectionUnreadBadge: { minWidth: 16, height: 16, padding: '0 5px', borderRadius: 999, background: t.primary, color: '#fff', fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
-    sectionAddBtn: { width: 22, height: 22, borderRadius: 6, background: t.primary, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1, cursor: 'pointer', flexShrink: 0 },
-    sectionTextBtn: { height: 22, padding: '0 8px', borderRadius: 6, background: isDark ? '#334155' : '#e5e7eb', color: text, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, lineHeight: 1, cursor: 'pointer', flexShrink: 0 },
-    folderHeader: { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 12px', border: 'none', background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 12, cursor: 'pointer', textAlign: 'left' as const },
-
-    /* Room list */
-    roomList: { listStyle: 'none', margin: 0, padding: 0 },
-    roomItem: { padding: '8px 14px', borderBottom: `1px solid ${isDark ? '#334155' : '#f0f0f0'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 },
-    roomFavoriteIcon: { width: 20, height: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDark ? '#fbbf24' : '#f59e0b' },
-    roomAvatar: { width: 32, height: 32, borderRadius: 10, background: isDark ? '#475569' : '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-    roomAvatarImg: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 },
-    roomAvatarInitial: { fontSize: 12, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' },
-    roomInfo: { flex: 1, minWidth: 0 },
-    roomName: { fontWeight: 600, fontSize: 12, color: text, marginBottom: 1, display: 'flex', alignItems: 'center', gap: 6 },
-    roomViewModeBadge: { fontSize: 10, color: muted, flexShrink: 0, padding: '1px 5px', borderRadius: 4, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
-    roomPreview: { fontSize: 11, color: sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    roomMeta: { flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 },
-    roomMuted: { fontSize: 10, color: '#94a3b8' },
-    roomTime: { fontSize: 10, color: sub },
-    roomUnreadBadge: { minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: t.primary, color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-
-    /* Right side */
-    rightSide: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: contentBg },
-    menuBar: { flexShrink: 0, minHeight: 46, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isNarrowLayout ? '6px 10px' : '0 16px', borderBottom: `1px solid ${border}`, background: sidebarBg, gap: 8 },
-    menuBarLeft: { flex: 1, minWidth: 0 },
-    menuBarRight: { display: 'flex', alignItems: 'center', gap: 4, flexWrap: isCompactLayout ? 'wrap' as const : 'nowrap' as const, justifyContent: 'flex-end' as const },
-    menuBtn: { width: 34, height: 34, padding: 0, border: 'none', borderRadius: 8, background: 'transparent', color: isDark ? '#94a3b8' : '#666', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    menuBtnActive: { background: isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb', color: isDark ? '#fff' : '#333' },
-    menuBadge: { position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: t.primary, color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    contentArea: { flex: 1, minHeight: 0, minWidth: 0, overflowX: 'hidden', overflowY: 'auto', display: 'flex', flexDirection: 'column' },
-
-    /* Empty state */
-    emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 },
-    emptyIcon: { width: 56, height: 56, borderRadius: '50%', background: isDark ? '#334155' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: sub },
-    emptyText: { fontSize: 16, fontWeight: 600, color: text, margin: 0 },
-    emptyHint: { fontSize: 13, color: sub, margin: 0 },
-
-    /* Panels */
-    panelWrap: { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, width: '100%', maxWidth: isCompactLayout ? '100%' : 420 },
-    panelHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isNarrowLayout ? '12px 14px' : '14px 20px', borderBottom: `1px solid ${border}`, flexWrap: 'wrap' as const, gap: 8 },
-    panelTitle: { margin: 0, fontSize: 16, fontWeight: 700, color: textStrong },
-    panelBody: { flex: 1, minHeight: 0, overflow: 'auto' },
-    panelEmpty: { padding: 32, textAlign: 'center' as const, fontSize: 14, color: sub },
-    panelItem: { padding: '12px 20px', borderBottom: `1px solid ${isDark ? '#334155' : '#f0f0f0'}`, cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10 },
-
-    /* Forms */
-    formInput: { width: '100%', padding: '8px 12px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, fontSize: 13, marginBottom: 8, boxSizing: 'border-box' as const, background: isDark ? '#334155' : '#fff', color: text, outline: 'none' },
-    formBtn: { padding: '8px 16px', border: 'none', borderRadius: 8, background: t.gradientPrimary, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-    formBtnCancel: { padding: '8px 16px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, background: isDark ? '#1e293b' : '#fff', color: muted, fontSize: 13, cursor: 'pointer' },
-    settingsBtn: { width: '100%', padding: '12px 16px', border: 'none', borderRadius: 10, background: isDark ? '#334155' : '#f0f0f0', color: text, cursor: 'pointer', fontSize: 14, textAlign: 'left' as const },
-
-    /* Online filter */
-    onlineFilterBtn: { display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '4px 8px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 16, background: 'transparent', color: isDark ? '#94a3b8' : '#6b7280', fontSize: 11, cursor: 'pointer', outline: 'none' },
-    onlineFilterBtnActive: { borderColor: t.primary, background: t.primary, color: '#fff' },
-
-    /* Tree */
-    treeNode: { display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', border: 'none', borderRadius: 6, background: 'transparent', cursor: 'pointer', width: '100%', textAlign: 'left' as const, fontSize: 13, color: isDark ? '#cbd5e1' : '#374151' },
-    treeUserBtn: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', border: 'none', borderRadius: 6, background: 'transparent', color: isDark ? '#cbd5e1' : '#374151', cursor: 'pointer', width: '100%', textAlign: 'left' as const, fontSize: 13 },
-
-    /* Context menu */
-    ctxMenu: { position: 'fixed', zIndex: 10000, minWidth: 120, maxWidth: 200, padding: 4, background: isDark ? '#334155' : '#fff', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.25)', border: `1px solid ${border}`, whiteSpace: 'nowrap' as const },
-    ctxMenuItem: { display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: 'none', borderRadius: 6, fontSize: 13, color: text, textAlign: 'left' as const, cursor: 'pointer' },
-
-    /* Overlay / Modal */
-    overlay: { position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    modal: { background: isDark ? '#1e293b' : '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', minWidth: 320, maxWidth: '90%', maxHeight: '80vh', overflow: 'auto', padding: 20 },
-
-  };
 }

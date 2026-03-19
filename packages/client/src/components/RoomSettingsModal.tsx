@@ -6,6 +6,7 @@ import RoomAvatar from './RoomAvatar';
 import UIButton from './ui/UIButton';
 import UIModal from './ui/UIModal';
 import ModalFooter from './ui/ModalFooter';
+import { cn } from '../utils/cn';
 
 type Props = {
   room: Room;
@@ -54,50 +55,94 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
   };
 
   const viewModeChanged = viewMode !== (room.viewMode === 'board' ? 'board' : 'chat');
-  const border = isDark ? '#334155' : '#e2e8f0';
-  const text = isDark ? '#f1f5f9' : '#1e293b';
-  const muted = isDark ? '#94a3b8' : '#64748b';
-  const tabBg = isDark ? '#0f172a' : '#f9fafb';
-  const tabActiveBg = isDark ? '#111827' : '#ffffff';
-  const tabActiveBorder = isDark ? '#4b5563' : '#e5e7eb';
+
+  const tabBtn = (tab: 'profile' | 'view', label: string) => {
+    const active = activeTab === tab;
+    return (
+      <button
+        type="button"
+        onClick={() => setActiveTab(tab)}
+        className={cn(
+          'flex-1 border-none rounded-full px-2.5 py-1.5 text-[13px] font-semibold cursor-pointer',
+          active
+            ? cn(
+                isDark ? 'bg-gray-900 text-slate-100' : 'bg-white text-slate-800',
+                isDark ? 'shadow-[0_0_0_1px_#4b5563]' : 'shadow-[0_0_0_1px_#e5e7eb]',
+              )
+            : cn('bg-transparent', isDark ? 'text-slate-400' : 'text-slate-500'),
+        )}
+      >
+        {label}
+      </button>
+    );
+  };
+
+  const viewRadio = (mode: 'chat' | 'board', title: string, desc: string) => {
+    const selected = viewMode === mode;
+    return (
+      <label
+        className={cn(
+          'flex-1 flex items-center gap-2 p-3 rounded-[10px] border-2 cursor-pointer',
+          selected
+            ? cn(isDark ? 'border-blue-400 bg-blue-400/10' : 'border-blue-600 bg-blue-600/[0.06]')
+            : cn(isDark ? 'border-slate-700' : 'border-slate-200', 'bg-transparent'),
+        )}
+      >
+        <input
+          type="radio"
+          name="viewMode"
+          checked={selected}
+          onChange={() => setViewMode(mode)}
+          className="w-4 h-4"
+        />
+        <div className="flex flex-col gap-0.5">
+          <span className={cn('text-sm font-semibold', isDark ? 'text-slate-100' : 'text-slate-800')}>
+            {title}
+          </span>
+          <span className={cn('text-xs', isDark ? 'text-slate-400' : 'text-slate-500')}>
+            {desc}
+          </span>
+        </div>
+      </label>
+    );
+  };
 
   return (
     <>
       <UIModal title="방 설정" onClose={onClose} width={440}>
             {/* 탭 */}
-            <div style={{ display: 'flex', gap: 6, padding: 4, borderRadius: 999, background: tabBg, marginBottom: 16 }}>
-              <button type="button" onClick={() => setActiveTab('profile')} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '6px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: activeTab === 'profile' ? tabActiveBg : 'transparent', color: activeTab === 'profile' ? text : muted, boxShadow: activeTab === 'profile' ? `0 0 0 1px ${tabActiveBorder}` : 'none' }}>
-                프로필
-              </button>
-              <button type="button" onClick={() => setActiveTab('view')} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '6px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: activeTab === 'view' ? tabActiveBg : 'transparent', color: activeTab === 'view' ? text : muted, boxShadow: activeTab === 'view' ? `0 0 0 1px ${tabActiveBorder}` : 'none' }}>
-                보기 설정
-              </button>
+            <div className={cn('flex gap-1.5 p-1 rounded-full mb-4', isDark ? 'bg-slate-900' : 'bg-gray-50')}>
+              {tabBtn('profile', '프로필')}
+              {tabBtn('view', '보기 설정')}
             </div>
 
             {/* 프로필 탭 */}
             {activeTab === 'profile' && (
               <div>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 14, fontWeight: 600, color: text, display: 'block', marginBottom: 4 }}>방 이름</label>
-                  <div style={{ fontSize: 14, color: muted, padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`, background: isDark ? '#020617' : '#f8fafc' }}>
+                <div className="mb-4">
+                  <label className={cn('text-sm font-semibold block mb-1', isDark ? 'text-slate-100' : 'text-slate-800')}>
+                    방 이름
+                  </label>
+                  <div
+                    className={cn(
+                      'text-sm px-2.5 py-2 rounded-lg border',
+                      isDark ? 'text-slate-400 border-slate-700 bg-slate-950' : 'text-slate-500 border-slate-200 bg-slate-50',
+                    )}
+                  >
                     {room.name || '이름이 설정되지 않은 방'}
                   </div>
                 </div>
 
-                <div style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 14, fontWeight: 600, color: text, display: 'block', marginBottom: 8 }}>프로필 사진</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className="mb-2">
+                  <label className={cn('text-sm font-semibold block mb-2', isDark ? 'text-slate-100' : 'text-slate-800')}>
+                    프로필 사진
+                  </label>
+                  <div className="flex items-center gap-3">
                     <div
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 12,
-                        background: isDark ? '#334155' : '#e2e8f0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                      }}
+                      className={cn(
+                        'w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden',
+                        isDark ? 'bg-slate-700' : 'bg-slate-200',
+                      )}
                     >
                       <RoomAvatar
                         roomId={room.id}
@@ -106,19 +151,22 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
                         hasAvatar={!!room.avatarUrl}
                         avatarUrlPath={room.avatarUrl}
                         imgStyle={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        initialStyle={{ fontSize: 24, fontWeight: 700, color: muted }}
+                        initialStyle={{ fontSize: 24, fontWeight: 700, color: isDark ? '#94a3b8' : '#64748b' }}
                       />
                     </div>
                     <div>
-                      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarSelect} style={{ display: 'none' }} />
+                      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`, background: isDark ? '#334155' : '#f1f5f9', color: text, fontSize: 13, cursor: 'pointer' }}
+                        className={cn(
+                          'px-3.5 py-2 rounded-lg border text-[13px] cursor-pointer',
+                          isDark ? 'border-slate-700 bg-slate-700 text-slate-100' : 'border-slate-200 bg-slate-100 text-slate-800',
+                        )}
                       >
                         사진 변경
                       </button>
-                      <p style={{ margin: '6px 0 0', fontSize: 12, color: muted }}>
+                      <p className={cn('mt-1.5 mb-0 text-xs', isDark ? 'text-slate-400' : 'text-slate-500')}>
                         사진 변경은 즉시 적용되며 아래 보기 모드 설정과는 별도로 저장됩니다.
                       </p>
                     </div>
@@ -130,26 +178,16 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
             {/* 보기 설정 탭 */}
             {activeTab === 'view' && (
               <div>
-                <div style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 14, fontWeight: 600, color: text, display: 'block', marginBottom: 6 }}>보기 모드</label>
-                  <p style={{ margin: '0 0 10px', fontSize: 12, color: muted }}>
+                <div className="mb-2">
+                  <label className={cn('text-sm font-semibold block mb-1.5', isDark ? 'text-slate-100' : 'text-slate-800')}>
+                    보기 모드
+                  </label>
+                  <p className={cn('mt-0 mb-2.5 text-xs', isDark ? 'text-slate-400' : 'text-slate-500')}>
                     채팅방을 기본으로 어떤 방식으로 열지 선택합니다. 변경 사항은 저장 버튼을 눌렀을 때 적용됩니다.
                   </p>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: 12, borderRadius: 10, border: `2px solid ${viewMode === 'chat' ? (isDark ? '#60a5fa' : '#2563eb') : border}`, background: viewMode === 'chat' ? (isDark ? 'rgba(96,165,250,0.1)' : 'rgba(37,99,235,0.06)') : 'transparent', cursor: 'pointer' }}>
-                      <input type="radio" name="viewMode" checked={viewMode === 'chat'} onChange={() => setViewMode('chat')} style={{ width: 16, height: 16 }} />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: text }}>챗뷰</span>
-                        <span style={{ fontSize: 12, color: muted }}>실시간 메시지 중심의 대화에 적합</span>
-                      </div>
-                    </label>
-                    <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: 12, borderRadius: 10, border: `2px solid ${viewMode === 'board' ? (isDark ? '#60a5fa' : '#2563eb') : border}`, background: viewMode === 'board' ? (isDark ? 'rgba(96,165,250,0.1)' : 'rgba(37,99,235,0.06)') : 'transparent', cursor: 'pointer' }}>
-                      <input type="radio" name="viewMode" checked={viewMode === 'board'} onChange={() => setViewMode('board')} style={{ width: 16, height: 16 }} />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: text }}>보드뷰</span>
-                        <span style={{ fontSize: 12, color: muted }}>게시글·티켓 형태로 정리된 뷰</span>
-                      </div>
-                    </label>
+                  <div className="flex gap-3">
+                    {viewRadio('chat', '챗뷰', '실시간 메시지 중심의 대화에 적합')}
+                    {viewRadio('board', '보드뷰', '게시글·티켓 형태로 정리된 뷰')}
                   </div>
                 </div>
               </div>

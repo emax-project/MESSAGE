@@ -7,6 +7,7 @@ import UITextInput from './ui/UITextInput';
 import UIModal from './ui/UIModal';
 import ModalFooter from './ui/ModalFooter';
 import UIChevron from './ui/UIChevron';
+import { cn } from '../utils/cn';
 
 type Props = {
   roomId: string;
@@ -32,7 +33,6 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
 
   const memberSet = new Set(currentMemberIds);
 
-  // Collect all invitable users (id, name, email for search)
   const allUsers: { id: string; name: string; email: string }[] = [];
   const safeOrgTree = Array.isArray(orgTree) ? orgTree : [];
   safeOrgTree.forEach((c) =>
@@ -43,7 +43,6 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
     )
   );
 
-  // Search filter: name or email contains query (case-insensitive). Only filters invitable users.
   const searchLower = searchQuery.trim().toLowerCase();
   const filteredUserIds = new Set<string>(
     searchLower
@@ -52,7 +51,6 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
           .map((u) => u.id)
       : allUsers.map((u) => u.id)
   );
-  // When rendering tree: if no search, show all invitable (+ joined when toggle off). If search, show matching invitable.
   const showAllUsers = !searchLower;
 
   const toggleUser = (userId: string) => {
@@ -131,25 +129,27 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
     .map((id) => allUsers.find((u) => u.id === id))
     .filter(Boolean) as { id: string; name: string; email: string }[];
 
-  const st = getStyles(isDark);
+  const checkboxCls = 'w-4 h-4 m-0 cursor-pointer shrink-0';
+  const avatarCls = cn('w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0', isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-600');
+  const chevronCls = cn('w-[18px] h-[18px] inline-flex items-center justify-center shrink-0', isDark ? 'text-slate-500' : 'text-slate-400');
 
   return (
     <UIModal title="멤버 초대" onClose={onClose} width={760}>
       {!orgLoading && allUsers.length > 0 && (
-        <div style={st.searchWrap}>
-          <div style={st.searchRow}>
+        <div className={cn('shrink-0 px-5 py-2.5 border-b', isDark ? 'border-slate-700' : 'border-slate-200')}>
+          <div className="flex items-center gap-2.5">
             <UITextInput
               type="text"
               placeholder="이름 또는 이메일 검색"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <label style={st.hideJoinedToggle}>
+            <label className={cn('flex items-center gap-1.5 text-xs whitespace-nowrap', isDark ? 'text-slate-400' : 'text-slate-500')}>
               <input
                 type="checkbox"
                 checked={hideJoined}
                 onChange={(e) => setHideJoined(e.target.checked)}
-                style={st.checkbox}
+                className={checkboxCls}
               />
               <span>참여중 숨기기</span>
             </label>
@@ -157,35 +157,35 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
         </div>
       )}
 
-      <div style={st.body}>
+      <div className="flex-1 overflow-auto px-5 py-3 min-h-0">
         {orgLoading ? (
-          <div style={st.skeletonWrap}>
+          <div className="py-2 flex flex-col gap-2">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} style={st.skeletonLine} />
+              <div key={i} className={cn('h-10 rounded-lg', isDark ? 'bg-slate-700/60' : 'bg-black/[0.06]')} />
             ))}
           </div>
         ) : allUsers.length === 0 ? (
-          <p style={st.emptyText}>초대할 수 있는 사용자가 없습니다.</p>
+          <p className={cn('text-sm m-0 py-4', isDark ? 'text-slate-400' : 'text-[#888]')}>초대할 수 있는 사용자가 없습니다.</p>
         ) : (
-          <div style={st.contentGrid}>
-            <div style={st.treePane}>
-              <label style={st.allCheckRow}>
+          <div className="grid grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-3.5 min-h-[360px]">
+            <div className={cn('min-w-0 border rounded-[10px] px-3 py-2.5', isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white')}>
+              <label className={cn('flex items-center gap-2 py-2.5 border-b cursor-pointer mb-2', isDark ? 'border-slate-700' : 'border-slate-200')}>
                 <input
                   type="checkbox"
                   checked={allChecked}
                   onChange={toggleAll}
-                  style={st.checkbox}
+                  className={checkboxCls}
                 />
-                <span style={st.allCheckLabel}>전체 선택</span>
-                <span style={st.countBadge}>
+                <span className={cn('font-semibold text-[15px]', isDark ? 'text-slate-200' : 'text-slate-800')}>전체 선택</span>
+                <span className={cn('text-xs ml-auto', isDark ? 'text-slate-500' : 'text-[#888]')}>
                   {searchLower ? `${filteredIdList.length}명 (검색)` : `${allUsers.length}명`}
                 </span>
               </label>
 
               {searchLower && filteredIdList.length === 0 ? (
-                <p style={st.emptyText}>검색 결과가 없습니다.</p>
+                <p className={cn('text-sm m-0 py-4', isDark ? 'text-slate-400' : 'text-[#888]')}>검색 결과가 없습니다.</p>
               ) : (
-                <div style={st.treeWrap}>
+                <div>
                   {safeOrgTree.map((company) => {
                     const visibleDepts = (company.departments ?? []).filter((dept) =>
                       (dept.users ?? []).some((u) => {
@@ -198,14 +198,14 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                     if (visibleDepts.length === 0) return null;
                     const companyOpen = searchLower ? true : !collapsedCompanies.has(company.id);
                     return (
-                      <div key={company.id} style={st.companyBlock}>
+                      <div key={company.id} className="mb-3">
                         <button
                           type="button"
-                          style={st.companyToggle}
+                          className="w-full flex items-center gap-1.5 border-none bg-transparent py-[7px] px-0 cursor-pointer text-left"
                           onClick={() => toggleCompany(company.id)}
                         >
-                          <span style={st.chevron}><UIChevron open={companyOpen} /></span>
-                          <span style={st.companyName}>{company.name}</span>
+                          <span className={chevronCls}><UIChevron open={companyOpen} /></span>
+                          <span className={cn('text-[13px] font-bold', isDark ? 'text-slate-400' : 'text-slate-600')}>{company.name}</span>
                         </button>
                         {companyOpen && visibleDepts.map((dept) => {
                           const invitable = (dept.users ?? []).filter((u) =>
@@ -216,8 +216,8 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                           const deptKey = `${company.id}:${dept.id}`;
                           const deptOpen = searchLower ? true : !collapsedDepartments.has(deptKey);
                           return (
-                            <div key={dept.id} style={st.deptBlock}>
-                              <div style={st.deptRow}>
+                            <div key={dept.id} className="ml-2 mb-2">
+                              <div className="flex items-center gap-2 py-[7px]">
                                 <input
                                   type="checkbox"
                                   checked={deptAllChecked}
@@ -225,21 +225,21 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                                     if (el) el.indeterminate = !deptAllChecked && deptSomeChecked;
                                   }}
                                   onChange={() => toggleDepartment(invitable.map((u) => u.id))}
-                                  style={st.checkbox}
+                                  className={checkboxCls}
                                 />
                                 <button
                                   type="button"
-                                  style={st.deptToggle}
+                                  className="border-none bg-transparent py-0.5 px-0 flex items-center gap-1.5 cursor-pointer min-w-0 flex-1 text-left"
                                   onClick={() => toggleDepartmentOpen(deptKey)}
                                 >
-                                  <span style={st.chevron}><UIChevron open={deptOpen} /></span>
-                                  <span style={st.deptName}>{dept.name}</span>
+                                  <span className={chevronCls}><UIChevron open={deptOpen} /></span>
+                                  <span className={cn('font-semibold text-sm', isDark ? 'text-slate-300' : 'text-[#555]')}>{dept.name}</span>
                                 </button>
-                                <span style={st.deptSelect}>
-                                  <span style={st.deptCount}>{invitable.length}명</span>
+                                <span className="flex items-center gap-1.5 ml-auto">
+                                  <span className={cn('text-xs', isDark ? 'text-slate-500' : 'text-[#888]')}>{invitable.length}명</span>
                                 </span>
                               </div>
-                              {deptOpen && <ul style={st.userList}>
+                              {deptOpen && <ul className="list-none m-0 p-0 ml-2">
                                 {(dept.users ?? []).map((user) => {
                                   const isMember = memberSet.has(user.id);
                                   const visible = hideJoined
@@ -248,27 +248,27 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                                   if (!visible) return null;
                                   if (isMember) {
                                     return (
-                                      <li key={user.id} style={st.userItem}>
-                                        <label style={{ ...st.userRow, ...st.userRowDisabled }}>
-                                          <input type="checkbox" checked disabled style={st.checkbox} />
-                                          <span style={st.userAvatar}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
-                                          <span style={st.userNameDisabled}>{user.name}</span>
-                                          <span style={st.memberBadge}>참여중</span>
+                                      <li key={user.id} className="mb-0.5">
+                                        <label className="flex items-center gap-2 px-1 py-1.5 rounded-md opacity-[0.55] cursor-default">
+                                          <input type="checkbox" checked disabled className={checkboxCls} />
+                                          <span className={avatarCls}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
+                                          <span className={cn('text-sm', isDark ? 'text-slate-500' : 'text-[#999]')}>{user.name}</span>
+                                          <span className={cn('text-[11px] px-1.5 py-0.5 rounded ml-auto', isDark ? 'text-slate-500 bg-slate-700' : 'text-[#888] bg-[#f0f0f0]')}>참여중</span>
                                         </label>
                                       </li>
                                     );
                                   }
                                   return (
-                                    <li key={user.id} style={st.userItem}>
-                                      <label style={st.userRow}>
+                                    <li key={user.id} className="mb-0.5">
+                                      <label className="flex items-center gap-2 px-1 py-1.5 rounded-md cursor-pointer">
                                         <input
                                           type="checkbox"
                                           checked={selected.has(user.id)}
                                           onChange={() => toggleUser(user.id)}
-                                          style={st.checkbox}
+                                          className={checkboxCls}
                                         />
-                                        <span style={st.userAvatar}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
-                                        <span style={st.userName}>{user.name}</span>
+                                        <span className={avatarCls}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
+                                        <span className={cn('text-sm', isDark ? 'text-slate-200' : 'text-slate-800')}>{user.name}</span>
                                       </label>
                                     </li>
                                   );
@@ -284,34 +284,34 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
               )}
             </div>
 
-            <aside style={st.selectionPane}>
-              <div style={st.selectionHeader}>
-                <h4 style={st.selectionTitle}>선택된 멤버</h4>
+            <aside className={cn('min-w-0 border rounded-[10px] px-3 py-2.5 flex flex-col max-h-[460px]', isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white')}>
+              <div className="flex items-center justify-between mb-2.5 gap-2">
+                <h4 className={cn('m-0 text-[13px] font-bold', isDark ? 'text-slate-200' : 'text-slate-800')}>선택된 멤버</h4>
                 <button
                   type="button"
                   onClick={() => setSelected(new Set())}
-                  style={st.clearBtn}
+                  className={cn('border-none bg-transparent text-xs cursor-pointer p-0', isDark ? 'text-slate-400' : 'text-slate-500')}
                   disabled={selectedUsers.length === 0}
                 >
                   전체 해제
                 </button>
               </div>
               {selectedUsers.length === 0 ? (
-                <p style={st.selectionEmpty}>선택된 사용자가 없습니다.</p>
+                <p className={cn('m-0 text-xs pt-2', isDark ? 'text-slate-400' : 'text-slate-500')}>선택된 사용자가 없습니다.</p>
               ) : (
-                <ul style={st.selectedList}>
+                <ul className="list-none m-0 p-0 flex flex-col gap-1.5 overflow-auto min-h-0">
                   {selectedUsers.map((u) => (
-                    <li key={u.id} style={st.selectedItem}>
-                      <div style={st.selectedUserMeta}>
-                        <span style={st.userAvatar}>{u.name.trim()[0]?.toUpperCase() || '?'}</span>
-                        <div style={st.selectedUserText}>
-                          <span style={st.selectedUserName}>{u.name}</span>
-                          {u.email && <span style={st.selectedUserEmail}>{u.email}</span>}
+                    <li key={u.id} className={cn('flex items-center justify-between gap-2 px-1 py-1.5 rounded-lg', isDark ? 'bg-slate-800' : 'bg-slate-50')}>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className={avatarCls}>{u.name.trim()[0]?.toUpperCase() || '?'}</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className={cn('text-[13px] truncate', isDark ? 'text-slate-200' : 'text-slate-800')}>{u.name}</span>
+                          {u.email && <span className={cn('text-[11px] truncate', isDark ? 'text-slate-400' : 'text-slate-500')}>{u.email}</span>}
                         </div>
                       </div>
                       <button
                         type="button"
-                        style={st.removeBtn}
+                        className={cn('border-none bg-transparent text-base cursor-pointer px-1 py-0 shrink-0', isDark ? 'text-slate-400' : 'text-slate-500')}
                         onClick={() =>
                           setSelected((prev) => {
                             const next = new Set(prev);
@@ -332,9 +332,9 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
         )}
       </div>
 
-      <ModalFooter justify="space-between" bordered paddingTop={12} marginTop={0} style={{ gap: 12 }}>
-        <span style={st.selectedCount}>총 {selected.size}명 선택</span>
-        <div style={st.footerButtons}>
+      <ModalFooter justify="space-between" bordered paddingTop={12} marginTop={0} gap={12}>
+        <span className={cn('text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>총 {selected.size}명 선택</span>
+        <div className="flex gap-2">
           <UIButton variant="secondary" onClick={onClose}>
             취소
           </UIButton>
@@ -349,279 +349,4 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
       </ModalFooter>
     </UIModal>
   );
-}
-
-function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  return {
-    overlay: {
-      position: 'fixed',
-      inset: 0,
-      zIndex: 10001,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    modal: {
-      background: isDark ? '#1e293b' : '#fff',
-      borderRadius: 12,
-      boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.15)',
-      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-      width: 420,
-      maxWidth: '95vw',
-      maxHeight: '80vh',
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    header: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '16px 20px',
-      borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-      flexShrink: 0,
-    },
-    title: { margin: 0, fontSize: 18, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' },
-    closeBtn: {
-      border: 'none',
-      background: 'none',
-      cursor: 'pointer',
-      padding: 4,
-      display: 'flex',
-      alignItems: 'center',
-    },
-    searchWrap: {
-      flexShrink: 0,
-      padding: '10px 20px',
-      borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-    },
-    searchRow: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-    },
-    hideJoinedToggle: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      fontSize: 12,
-      color: isDark ? '#94a3b8' : '#64748b',
-      whiteSpace: 'nowrap',
-    },
-    body: {
-      flex: 1,
-      overflow: 'auto',
-      padding: '12px 20px',
-      minHeight: 0,
-    },
-    contentGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'minmax(0, 1.7fr) minmax(0, 1fr)',
-      gap: 14,
-      minHeight: 360,
-    },
-    treePane: {
-      minWidth: 0,
-      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-      borderRadius: 10,
-      padding: '10px 12px',
-      background: isDark ? '#0f172a' : '#fff',
-    },
-    selectionPane: {
-      minWidth: 0,
-      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-      borderRadius: 10,
-      padding: '10px 12px',
-      background: isDark ? '#0f172a' : '#fff',
-      display: 'flex',
-      flexDirection: 'column',
-      maxHeight: 460,
-    },
-    selectionHeader: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 10,
-      gap: 8,
-    },
-    selectionTitle: {
-      margin: 0,
-      fontSize: 13,
-      fontWeight: 700,
-      color: isDark ? '#e2e8f0' : '#1e293b',
-    },
-    clearBtn: {
-      border: 'none',
-      background: 'none',
-      color: isDark ? '#94a3b8' : '#64748b',
-      fontSize: 12,
-      cursor: 'pointer',
-      padding: 0,
-    },
-    selectionEmpty: {
-      margin: 0,
-      fontSize: 12,
-      color: isDark ? '#94a3b8' : '#64748b',
-      paddingTop: 8,
-    },
-    selectedList: {
-      listStyle: 'none',
-      margin: 0,
-      padding: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-      overflow: 'auto',
-      minHeight: 0,
-    },
-    selectedItem: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-      padding: '6px 4px',
-      borderRadius: 8,
-      background: isDark ? '#1e293b' : '#f8fafc',
-    },
-    selectedUserMeta: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      minWidth: 0,
-      flex: 1,
-    },
-    selectedUserText: { display: 'flex', flexDirection: 'column', minWidth: 0 },
-    selectedUserName: {
-      fontSize: 13,
-      color: isDark ? '#e2e8f0' : '#1e293b',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-    },
-    selectedUserEmail: {
-      fontSize: 11,
-      color: isDark ? '#94a3b8' : '#64748b',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-    },
-    removeBtn: {
-      border: 'none',
-      background: 'none',
-      color: isDark ? '#94a3b8' : '#64748b',
-      fontSize: 16,
-      cursor: 'pointer',
-      padding: '0 4px',
-      flexShrink: 0,
-    },
-    skeletonWrap: { padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 8 },
-    skeletonLine: {
-      height: 40,
-      borderRadius: 8,
-      background: isDark ? 'rgba(51,65,85,0.6)' : 'rgba(0,0,0,0.06)',
-    },
-    emptyText: { color: isDark ? '#94a3b8' : '#888', fontSize: 14, margin: 0, padding: '16px 0' },
-    allCheckRow: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '10px 0',
-      borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-      cursor: 'pointer',
-      marginBottom: 8,
-    },
-    allCheckLabel: { fontWeight: 600, fontSize: 15, color: isDark ? '#e2e8f0' : '#1e293b' },
-    countBadge: { fontSize: 12, color: isDark ? '#64748b' : '#888', marginLeft: 'auto' },
-    treeWrap: {},
-    companyBlock: { marginBottom: 12 },
-    companyToggle: {
-      width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      border: 'none',
-      background: 'none',
-      padding: '7px 0',
-      cursor: 'pointer',
-      textAlign: 'left',
-    },
-    companyName: {
-      fontSize: 13,
-      fontWeight: 700,
-      color: isDark ? '#94a3b8' : '#475569',
-    },
-    deptBlock: { marginLeft: 8, marginBottom: 8 },
-    chevron: {
-      width: 18,
-      height: 18,
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: isDark ? '#64748b' : '#94a3b8',
-      flexShrink: 0,
-    },
-    deptRow: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '7px 0',
-    },
-    deptToggle: {
-      border: 'none',
-      background: 'none',
-      padding: '2px 0',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      cursor: 'pointer',
-      minWidth: 0,
-      flex: 1,
-      textAlign: 'left',
-    },
-    deptSelect: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      marginLeft: 'auto',
-    },
-    deptName: { fontWeight: 600, fontSize: 14, color: isDark ? '#cbd5e1' : '#555' },
-    deptCount: { fontSize: 12, color: isDark ? '#64748b' : '#888' },
-    checkbox: { width: 16, height: 16, margin: 0, cursor: 'pointer', flexShrink: 0 },
-    userList: { listStyle: 'none', margin: 0, padding: 0, marginLeft: 8 },
-    userItem: { marginBottom: 2 },
-    userRow: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '6px 4px',
-      borderRadius: 6,
-      cursor: 'pointer',
-    },
-    userRowDisabled: { opacity: 0.55, cursor: 'default' },
-    userAvatar: {
-      width: 28,
-      height: 28,
-      borderRadius: '50%',
-      background: isDark ? '#334155' : '#e2e8f0',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 12,
-      fontWeight: 700,
-      color: isDark ? '#94a3b8' : '#475569',
-      flexShrink: 0,
-    },
-    userName: { fontSize: 14, color: isDark ? '#e2e8f0' : '#1e293b' },
-    userNameDisabled: { fontSize: 14, color: isDark ? '#64748b' : '#999' },
-    memberBadge: {
-      fontSize: 11,
-      color: isDark ? '#64748b' : '#888',
-      background: isDark ? '#334155' : '#f0f0f0',
-      padding: '2px 6px',
-      borderRadius: 4,
-      marginLeft: 'auto',
-    },
-    selectedCount: { fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' },
-    footerButtons: { display: 'flex', gap: 8 },
-  };
 }

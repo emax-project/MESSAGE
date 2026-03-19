@@ -1,6 +1,6 @@
 import { memo } from 'react';
-import type { CSSProperties } from 'react';
 import UICloseButton from '../../../components/ui/UICloseButton';
+import { cn } from '../../../utils/cn';
 
 type BookmarkMessage = {
   room?: { id?: string; name?: string };
@@ -18,32 +18,31 @@ export type BookmarkItem = {
 };
 
 type BookmarkPanelProps = {
-  st: Record<string, CSSProperties>;
   isDark: boolean;
   bookmarks: BookmarkItem[];
-  panelWrapStyle: (maxWidth: number) => CSSProperties;
+  panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   onSelectBookmark: (bookmark: BookmarkItem) => void;
   onRemoveBookmark: (bookmark: BookmarkItem) => void | Promise<void>;
 };
 
 function BookmarkPanel({
-  st,
   isDark,
   bookmarks,
   panelWrapStyle,
   onSelectBookmark,
   onRemoveBookmark,
 }: BookmarkPanelProps) {
+  const wrap = panelWrapStyle(760);
   return (
-    <div style={panelWrapStyle(760)}>
-      <div style={st.panelHeader}><h3 style={st.panelTitle}>북마크</h3></div>
-      <div style={st.panelBody}>
+    <div className={wrap.className} style={wrap.style}>
+      <div className={cn('shrink-0 flex items-center justify-between px-5 py-3.5 border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}><h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-[#161616]')}>북마크</h3></div>
+      <div className="flex-1 min-h-0 overflow-auto">
         {bookmarks.length === 0 ? (
-          <div style={st.panelEmpty}>채팅에서 메시지를 북마크하세요</div>
+          <div className={cn('p-8 text-center text-sm', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>채팅에서 메시지를 북마크하세요</div>
         ) : (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {bookmarks.map((b) => (
-              <li key={b.id} style={{ ...st.panelItem, alignItems: 'stretch' }}>
+              <li key={b.id} className="px-5 py-3 border-b cursor-pointer flex items-stretch gap-3">
                 <button
                   type="button"
                   style={{ border: 'none', background: 'transparent', padding: 0, margin: 0, display: 'flex', flex: 1, minWidth: 0, textAlign: 'left' }}

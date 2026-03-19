@@ -6,7 +6,7 @@ import TitleBar from '../components/TitleBar';
 import { EmaxLogo } from '../components/EmaxLogo';
 import UIButton from '../components/ui/UIButton';
 import UITextInput from '../components/ui/UITextInput';
-import { getThemeTokens } from '../components/ui/themeTokens';
+import { cn } from '../utils/cn';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -38,158 +38,94 @@ export default function Register() {
   };
 
   const isElectron = !!window.electronAPI;
-  const s = getStyles(isDark);
 
   return (
-    <div style={s.container}>
+    <div className={cn('min-h-screen flex flex-col', isDark ? 'bg-[#1d1c1d]' : 'bg-[#f8f8f8]')}>
       {isElectron && <TitleBar title="EMAX" isDark={isDark} />}
-      <div style={s.body}>
-        <div style={s.card}>
-          <div style={s.logoWrap}>
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div
+          className={cn(
+            'flex flex-col items-center pt-12 px-10 pb-10 rounded-2xl w-full max-w-[400px] border',
+            isDark ? 'bg-[#222529] border-[#3a3f46] shadow-[0_8px_32px_rgba(0,0,0,0.3)]' : 'bg-white border-[#dde1e6] shadow-[0_8px_32px_rgba(0,0,0,0.08)]',
+          )}
+        >
+          <div className="mb-[18px]">
             <EmaxLogo variant={isDark ? 'light' : 'accent'} size="lg" />
           </div>
-          <p style={s.subtitle}>새 계정 만들기</p>
-          <form onSubmit={handleSubmit} style={s.form}>
-            <div style={s.fieldGroup}>
-              <label style={s.label}>이름</label>
+          <p className={cn('mb-7 text-sm', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
+            새 계정 만들기
+          </p>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+            <div className="flex flex-col gap-1.5">
+              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>
+                이름
+              </label>
               <UITextInput
                 type="text"
                 placeholder="이름 입력"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                style={s.input as React.CSSProperties}
                 autoComplete="name"
+                className="!px-[14px] !py-[11px] !rounded-[10px]"
               />
             </div>
-            <div style={s.fieldGroup}>
-              <label style={s.label}>이메일</label>
+            <div className="flex flex-col gap-1.5">
+              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>
+                이메일
+              </label>
               <UITextInput
                 type="email"
                 placeholder="name@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={s.input as React.CSSProperties}
                 autoComplete="email"
+                className="!px-[14px] !py-[11px] !rounded-[10px]"
               />
             </div>
-            <div style={s.fieldGroup}>
-              <label style={s.label}>비밀번호</label>
+            <div className="flex flex-col gap-1.5">
+              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>
+                비밀번호
+              </label>
               <UITextInput
                 type="password"
                 placeholder="비밀번호 입력"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={s.input as React.CSSProperties}
                 autoComplete="new-password"
+                className="!px-[14px] !py-[11px] !rounded-[10px]"
               />
             </div>
-            {error && <p style={s.error}>{error}</p>}
-            <UIButton type="submit" disabled={loading} variant="primary" style={s.button as React.CSSProperties}>
+            {error && (
+              <p className={cn(
+                'px-3 py-2 rounded-lg text-[13px] leading-relaxed text-red-500',
+                isDark ? 'bg-red-500/15' : 'bg-red-500/[0.08]',
+              )}>
+                {error}
+              </p>
+            )}
+            <UIButton
+              type="submit"
+              disabled={loading}
+              variant="primary"
+              className="mt-1 !px-4 !py-3 !text-[15px] !font-bold"
+            >
               {loading ? '가입 중...' : '회원가입'}
             </UIButton>
           </form>
-          <p style={s.footer}>
-            이미 계정이 있으신가요? <Link to="/login" style={s.link}>로그인</Link>
+          <p className={cn('mt-6 text-center text-[13px]', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
+            이미 계정이 있으신가요?{' '}
+            <Link
+              to="/login"
+              className={cn('no-underline font-semibold', isDark ? 'text-blue-300' : 'text-blue-500')}
+            >
+              로그인
+            </Link>
           </p>
         </div>
       </div>
     </div>
   );
-}
-
-function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  const t = getThemeTokens(isDark);
-  return {
-    container: {
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      background: t.bgBase,
-    },
-    body: {
-      flex: 1,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
-    },
-    card: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      background: t.bgSurface,
-      padding: '48px 40px 40px',
-      borderRadius: 16,
-      boxShadow: isDark
-        ? '0 8px 32px rgba(0,0,0,0.3)'
-        : '0 8px 32px rgba(0,0,0,0.08)',
-      width: '100%',
-      maxWidth: 400,
-      border: `1px solid ${t.border}`,
-    },
-    logoWrap: {
-      marginBottom: 18,
-    },
-    subtitle: {
-      margin: '0 0 28px',
-      color: t.textMuted,
-      fontSize: 14,
-    },
-    form: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 16,
-      width: '100%',
-    },
-    fieldGroup: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-    },
-    label: {
-      fontSize: 13,
-      fontWeight: 600,
-      color: t.text,
-    },
-    input: {
-      padding: '11px 14px',
-      border: `1px solid ${t.border}`,
-      borderRadius: 10,
-      fontSize: 14,
-      background: t.bgMuted,
-      color: t.text,
-      outline: 'none',
-      transition: 'border-color 0.15s',
-    },
-    error: {
-      margin: 0,
-      padding: '8px 12px',
-      background: isDark ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.08)',
-      borderRadius: 8,
-      color: '#ef4444',
-      fontSize: 13,
-      lineHeight: 1.5,
-    },
-    button: {
-      padding: '12px 16px',
-      borderRadius: 10,
-      fontSize: 15,
-      fontWeight: 700,
-      marginTop: 4,
-    },
-    footer: {
-      marginTop: 24,
-      textAlign: 'center',
-      fontSize: 13,
-      color: t.textMuted,
-    },
-    link: {
-      color: isDark ? '#93c5fd' : '#3b82f6',
-      textDecoration: 'none',
-      fontWeight: 600,
-    },
-  };
 }

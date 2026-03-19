@@ -1,12 +1,12 @@
 import { memo } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import UserAvatar from '../../../components/UserAvatar';
+import { cn } from '../../../utils/cn';
 
 type StatusOption = { id: string; label: string };
 
 type SettingsPanelProps = {
-  st: Record<string, CSSProperties>;
-  panelWrapStyle: (maxWidth: number) => CSSProperties;
+  panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   isDark: boolean;
   isNarrowLayout: boolean;
   user: { id: string; name?: string | null; email?: string | null; avatarUrl?: string | null; isAdmin?: boolean } | null | undefined;
@@ -38,7 +38,6 @@ type SettingsPanelProps = {
 };
 
 function SettingsPanel({
-  st,
   panelWrapStyle,
   isDark,
   isNarrowLayout,
@@ -69,10 +68,11 @@ function SettingsPanel({
   onRequestNotificationPermission,
   onLogout,
 }: SettingsPanelProps) {
+  const wrap = panelWrapStyle(760);
   return (
-    <div style={panelWrapStyle(760)}>
-      <div style={st.panelHeader}><h3 style={st.panelTitle}>설정</h3></div>
-      <div style={{ ...st.panelBody, padding: isNarrowLayout ? 14 : 24, display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+    <div className={wrap.className} style={wrap.style}>
+      <div className={cn('shrink-0 flex items-center justify-between px-5 py-3.5 border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}><h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-[#161616]')}>설정</h3></div>
+      <div className="flex-1 min-h-0 overflow-auto flex flex-col gap-3" style={{ padding: isNarrowLayout ? 14 : 24 }}>
         <div style={{ padding: '20px 16px', borderRadius: 12, background: isDark ? '#334155' : '#f0f4ff', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 16 }}>
           <div style={{ width: 96, height: 96, borderRadius: 16, background: isDark ? '#475569' : '#e2e8f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {user?.avatarUrl ? <UserAvatar userId={user.id} name={user.name || ''} avatarUrlPath={user.avatarUrl} imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16 }} initialStyle={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }} /> : <span style={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}>{user?.name?.trim()[0]?.toUpperCase() || '?'}</span>}
@@ -100,12 +100,12 @@ function SettingsPanel({
           {notificationsSnoozedUntil > Date.now() ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8, fontSize: 12, color: isDark ? '#64748b' : '#666' }}>
               <span>해제: {new Date(notificationsSnoozedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-              <button type="button" style={st.formBtn} onClick={clearSnooze}>해제</button>
+              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#ac67ba] to-[#8b4a99] text-white text-[13px] font-semibold cursor-pointer" onClick={clearSnooze}>해제</button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-              <button type="button" style={st.formBtn} onClick={() => snoozeNotifications(10)}>10분</button>
-              <button type="button" style={st.formBtn} onClick={() => snoozeNotifications(60)}>1시간</button>
+              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#ac67ba] to-[#8b4a99] text-white text-[13px] font-semibold cursor-pointer" onClick={() => snoozeNotifications(10)}>10분</button>
+              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#ac67ba] to-[#8b4a99] text-white text-[13px] font-semibold cursor-pointer" onClick={() => snoozeNotifications(60)}>1시간</button>
             </div>
           )}
         </div>
@@ -128,11 +128,11 @@ function SettingsPanel({
                 {updateStatus === 'error' && updateError && ` · ${updateError}`}
               </span>
               {updateStatus !== 'ready' ? (
-                <button type="button" style={st.formBtn} disabled={updateStatus === 'checking'} onClick={() => void handleCheckForUpdates()}>
+                <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#ac67ba] to-[#8b4a99] text-white text-[13px] font-semibold cursor-pointer" disabled={updateStatus === 'checking'} onClick={() => void handleCheckForUpdates()}>
                   {updateStatus === 'checking' ? '확인 중...' : '업데이트 확인'}
                 </button>
               ) : (
-                <button type="button" style={{ ...st.formBtn, background: '#16a34a', color: '#fff', fontWeight: 600 }} onClick={() => void handleQuitAndInstall()}>
+                <button type="button" className="px-4 py-2 border-none rounded-lg bg-[#16a34a] text-white text-[13px] font-semibold cursor-pointer" onClick={() => void handleQuitAndInstall()}>
                   지금 재시작하여 업데이트
                 </button>
               )}
@@ -179,13 +179,13 @@ function SettingsPanel({
           <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
             <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>공지 등록</h4>
             <textarea value={announcementEdit} onChange={(e) => setAnnouncementEdit(e.target.value)} placeholder="공지 내용을 입력하세요." style={{ width: '100%', padding: 12, border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, fontSize: 14, lineHeight: 1.5, resize: 'vertical' as const, marginBottom: 10, boxSizing: 'border-box' as const, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#333' }} rows={3} />
-            <button type="button" style={st.formBtn} disabled={announcementSaving} onClick={() => void onSaveAnnouncement()}>{announcementSaving ? '저장 중...' : '저장'}</button>
+            <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#ac67ba] to-[#8b4a99] text-white text-[13px] font-semibold cursor-pointer" disabled={announcementSaving} onClick={() => void onSaveAnnouncement()}>{announcementSaving ? '저장 중...' : '저장'}</button>
           </div>
         )}
 
-        {hasElectron && <button type="button" style={st.settingsBtn} onClick={onTestNotification}>알림 테스트</button>}
-        {!hasElectron && <button type="button" style={st.settingsBtn} onClick={() => void onRequestNotificationPermission()}>알림 권한 요청</button>}
-        <button type="button" style={{ ...st.settingsBtn, color: '#c62828', fontWeight: 600 }} onClick={onLogout}>로그아웃</button>
+        {hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-[#f0f0f0] text-slate-800')} onClick={onTestNotification}>알림 테스트</button>}
+        {!hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-[#f0f0f0] text-slate-800')} onClick={() => void onRequestNotificationPermission()}>알림 권한 요청</button>}
+        <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer text-[#c62828]', isDark ? 'bg-slate-700' : 'bg-[#f0f0f0]')} onClick={onLogout}>로그아웃</button>
       </div>
     </div>
   );

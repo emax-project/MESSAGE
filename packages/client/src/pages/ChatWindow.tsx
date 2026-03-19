@@ -22,7 +22,7 @@ import {
 } from './chat-window/utils';
 import { useChatSocket } from './chat-window/hooks/useChatSocket';
 import { useActiveChatPresence } from './chat-window/hooks/useActiveChatPresence';
-import { chatWindowStyles } from './chat-window/styles';
+import { cn } from '../utils/cn';
 import ChatBubbleList from './chat-window/components/ChatBubbleList';
 import BoardMessageList from './chat-window/components/BoardMessageList';
 import ThreadPanel from './chat-window/components/ThreadPanel';
@@ -33,7 +33,6 @@ const SCROLL_BOTTOM_THRESHOLD = 80;
 const RIGHT_SIDEBAR_PANEL_WIDTH = 280;
 const RIGHT_SIDEBAR_ICON_WIDTH = 48;
 
-const s = chatWindowStyles;
 
 type ChatWindowProps = { embedded?: boolean; onOpenInNewWindow?: () => void };
 
@@ -603,8 +602,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
   if (roomLoading || !room) {
     return (
-      <div style={s.layout(isDark)}>
-        <div style={s.loading(isDark)}>채팅방 로딩 중...</div>
+      <div className={cn('flex flex-col flex-1 min-h-0 relative', isDark ? 'bg-slate-900' : 'bg-white')}>
+        <div className={cn('flex-1 flex items-center justify-center text-base', isDark ? 'text-slate-400' : 'text-slate-500')}>
+          채팅방 로딩 중...
+        </div>
       </div>
     );
   }
@@ -615,12 +616,14 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const isCreator = !!(room?.isTopic && room?.createdBy && room.createdBy === myId);
   const canInvite = !room?.isTopic || isCreator;
 
-  const wrapperStyle: React.CSSProperties = embedded
-    ? { flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: isDark ? '#0f172a' : '#fafafa' }
-    : s.appWrap(isDark);
-
   return (
-    <div style={wrapperStyle}>
+    <div
+      className={cn(
+        'flex flex-col overflow-hidden',
+        embedded ? 'flex-1 min-h-0 min-w-0' : 'h-screen w-full min-w-0',
+        isDark ? 'bg-slate-900' : embedded ? 'bg-slate-50' : 'bg-white',
+      )}
+    >
       <style>{`
         @keyframes message-bubble-highlight-blink {
           0%, 100% { outline-color: rgba(59, 130, 246, 0.9); }
@@ -637,46 +640,59 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         }
       `}</style>
       {!embedded && hasElectron && <TitleBar title={room.name} isDark={isDark} />}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
+      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <div
-          style={embedded ? { ...s.layout(isDark), flex: 1, minHeight: 0, minWidth: 0 } : { ...s.layout(isDark), flex: 1, minWidth: 0 }}
+          className={cn(
+            'flex flex-col flex-1 min-w-0 relative',
+            isDark ? 'bg-slate-900' : 'bg-white',
+          )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
         {dragOver && (
-          <div style={s.dropOverlay()}>
-            <div style={s.dropContent()}>
-              <span style={s.dropText()}>파일을 여기에 놓으세요</span>
+          <div className="absolute inset-0 z-[100] bg-black/60 flex items-center justify-center pointer-events-none">
+            <div className="flex flex-col items-center gap-3">
+              <span className="text-white text-base font-semibold">파일을 여기에 놓으세요</span>
             </div>
           </div>
         )}
-        <header style={s.chatHeader(isDark, isCompactHeader)}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', minWidth: 0 }}>
-            <span style={s.chatHeaderName(isDark)}>{room.name}</span>
+        <header
+          className={cn(
+            'flex items-center justify-between shrink-0 border-b',
+            isCompactHeader ? 'px-3 py-2 gap-2 flex-wrap' : 'px-5 min-h-[56px] gap-3',
+            isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm',
+          )}
+        >
+          <span className="flex items-center gap-2 overflow-hidden min-w-0">
+            <span className={cn('text-base font-bold truncate', isDark ? 'text-slate-100' : 'text-slate-800')}>
+              {room.name}
+            </span>
             {isBoardView && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b', padding: '2px 8px', borderRadius: 6, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', flexShrink: 0 }}>보드뷰</span>
+              <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-md shrink-0', isDark ? 'text-slate-400 bg-white/10' : 'text-slate-500 bg-black/5')}>
+                보드뷰
+              </span>
             )}
           </span>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: isCompactHeader ? 'wrap' : 'nowrap', justifyContent: 'flex-end', marginLeft: 'auto' }}>
+          <div className={cn('flex gap-1.5 items-center ml-auto justify-end', isCompactHeader ? 'flex-wrap' : 'flex-nowrap')}>
             {embedded && onOpenInNewWindow && (
-              <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={onOpenInNewWindow} title="새 창으로 열기">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={onOpenInNewWindow} title="새 창으로 열기">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
               </button>
             )}
-            <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={() => setSearchOpen(!searchOpen)} title="검색">
+            <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => setSearchOpen(!searchOpen)} title="검색">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
               </svg>
             </button>
-            <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={handleSummarize} title="채팅 요약" disabled={summaryLoading}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600', summaryLoading && 'opacity-60')} onClick={handleSummarize} title="채팅 요약" disabled={summaryLoading}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
               </svg>
             </button>
-            <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={() => {
+            <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => {
               if (window.electronAPI?.openKanbanWindow) {
                 window.electronAPI.openKanbanWindow(roomId!);
               } else {
@@ -688,15 +704,15 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               </svg>
             </button>
             {isCreator && (
-              <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={() => setSettingsOpen(true)} title="방 설정">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => setSettingsOpen(true)} title="방 설정">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
                 </svg>
               </button>
             )}
             {canInvite && (
-            <button type="button" style={s.headerIconBtn(isDark, isCompactHeader)} onClick={() => setInviteOpen(true)} title="멤버 초대">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => setInviteOpen(true)} title="멤버 초대">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
               </svg>
             </button>
@@ -705,17 +721,19 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         </header>
 
         {searchOpen && (
-          <div style={s.searchBar(isDark)}>
+          <div className={cn('flex gap-1.5 py-2 px-4 border-b', isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50')}>
             <input
               type="text"
               placeholder="메시지 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              style={s.searchInput(isDark)}
+              className={cn('flex-1 px-3 py-2 border rounded-lg text-[13px] outline-none', isDark ? 'border-slate-600 bg-slate-950 text-slate-200' : 'border-slate-200 bg-slate-100 text-slate-800')}
               autoFocus
             />
-            <button type="button" onClick={handleSearch} style={s.searchBtn(isDark)}>검색</button>
+            <button type="button" onClick={handleSearch} className="h-8 min-h-8 px-3.5 border-none rounded-lg bg-[#9a58a8] text-white text-[13px] cursor-pointer inline-flex items-center justify-center">
+              검색
+            </button>
             <UICloseButton
               size="md"
               variant="subtle"
@@ -725,9 +743,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           </div>
         )}
         {searchResults.length > 0 && (
-          <div style={s.searchResults(isDark)}>
+          <div className={cn('max-h-[200px] overflow-auto border-b', isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white')}>
             {searchResults.map((sr) => (
-              <div key={sr.id} style={s.searchResultItem(isDark)}>
+              <div key={sr.id} className={cn('flex items-center gap-1 py-2 px-4 border-b', isDark ? 'border-slate-700' : 'border-slate-100')}>
                 <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#888', marginRight: 8 }}>{sr.sender.name}</span>
                 <span style={{ fontSize: 13, color: isDark ? '#e2e8f0' : '#333' }}>{sr.content}</span>
                 <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#aaa', marginLeft: 'auto', flexShrink: 0 }}>
@@ -775,11 +793,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
         <PinnedMessages roomId={roomId!} />
 
-        <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div className="relative flex-1 min-h-0 flex flex-col">
           <div
             ref={messagesScrollRef}
             onScroll={checkAtBottom}
-            style={s.messages(isDark)}
+            className={cn('flex-1 overflow-x-hidden overflow-y-auto py-4 px-5 flex flex-col gap-2.5', isDark ? 'bg-slate-900' : 'bg-white')}
           >
           <div ref={topSentinelRef} style={{ height: 1 }} />
           {isFetchingNextPage && (
@@ -828,21 +846,22 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
           {/* AI 채팅 요약 (채팅 메시지 형태) */}
           {(summaryLoading || summaryText) && (
-            <div style={s.messageRow()}>
-              <div style={s.senderLabel(isDark)}>AI 요약</div>
-              <div style={s.messageRowInner()}>
-                <div style={s.avatarWrap()} aria-hidden>
-                  <span style={{ ...s.avatarCircle(isDark), background: isDark ? '#171717' : '#171717', color: '#fff' }}>AI</span>
+            <div className="flex flex-col items-start w-full">
+              <div className={cn('text-xs mb-1 ml-[42px] max-w-[calc(75%-8px)] truncate', isDark ? 'text-slate-300' : 'text-slate-600')}>
+                AI 요약
+              </div>
+              <div className="flex items-start gap-2 w-full">
+                <div className="w-[34px] h-[34px] shrink-0" aria-hidden>
+                  <span className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-[13px] font-bold bg-[#171717] text-white">
+                    AI
+                  </span>
                 </div>
-                <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+                <div className="relative inline-block shrink-0">
                   <div
-                    style={{
-                      ...s.messageBubble(isDark),
-                      background: isDark ? '#334155' : '#e8f5e9',
-                      border: `1px solid ${isDark ? '#475569' : '#c8e6c9'}`,
-                      maxWidth: '75%',
-                      minWidth: 200,
-                    }}
+                    className={cn(
+                      'min-w-[200px] max-w-[75%] py-2.5 px-3.5 rounded-2xl rounded-tl',
+                      isDark ? 'bg-slate-700 border border-slate-600' : 'bg-green-50 border border-green-200',
+                    )}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 6 }}>
                       <UICloseButton
@@ -866,7 +885,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           <button
             type="button"
             onClick={scrollToBottom}
-            style={s.scrollToBottomBtn(isDark)}
+            className={cn(
+              'absolute bottom-4 right-5 w-10 h-10 rounded-full border-none cursor-pointer flex items-center justify-center z-10 shadow-lg',
+              isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-600',
+            )}
             aria-label="맨 아래로"
             title="맨 아래로"
           >
@@ -879,28 +901,28 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
         {/* Context menu */}
         {contextMenu && (
-          <div style={{ ...s.ctxMenu(isDark), left: contextMenu.x, top: contextMenu.y }} onClick={(e) => e.stopPropagation()}>
-            <button type="button" style={s.ctxMenuItem(isDark)} onClick={() => { setReplyTo(contextMenu.message); setContextMenu(null); inputRef.current?.focus(); }}>
+          <div className={cn('fixed z-[10000] min-w-[120px] p-1 rounded-lg shadow-lg border whitespace-nowrap', isDark ? 'bg-slate-700 border-slate-600' : 'bg-white border-slate-200')} style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(e) => e.stopPropagation()}>
+            <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { setReplyTo(contextMenu.message); setContextMenu(null); inputRef.current?.focus(); }}>
               답장
             </button>
-            <button type="button" style={s.ctxMenuItem(isDark)} onClick={() => { setForwardOpen(contextMenu.message.id); setContextMenu(null); }}>
+            <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { setForwardOpen(contextMenu.message.id); setContextMenu(null); }}>
               전달
             </button>
-            <button type="button" style={s.ctxMenuItem(isDark)} onClick={() => { handleToggleBookmark(contextMenu.message.id); setContextMenu(null); }}>
+            <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { handleToggleBookmark(contextMenu.message.id); setContextMenu(null); }}>
               {bookmarkedIds.has(contextMenu.message.id) ? '북마크 해제' : '북마크'}
             </button>
-            <button type="button" style={s.ctxMenuItem(isDark)} onClick={() => { handlePin(contextMenu.message.id); setContextMenu(null); }}>
+            <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { handlePin(contextMenu.message.id); setContextMenu(null); }}>
               고정
             </button>
-            <button type="button" style={s.ctxMenuItem(isDark)} onClick={() => { handleOpenThread(contextMenu.message.id); setContextMenu(null); }}>
+            <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { handleOpenThread(contextMenu.message.id); setContextMenu(null); }}>
               스레드 보기
             </button>
-            <button type="button" style={s.ctxMenuItem(isDark)} onClick={() => { setTaskFromMessage({ title: contextMenu.message.content, messageId: contextMenu.message.id }); setContextMenu(null); }}>
+            <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { setTaskFromMessage({ title: contextMenu.message.content, messageId: contextMenu.message.id }); setContextMenu(null); }}>
               태스크로 변환
             </button>
             {canEditOrDelete(contextMenu.message, myId) && (
               <>
-                <button type="button" style={s.ctxMenuItem(isDark)} onClick={() => {
+                <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => {
                   setEditingMsg(contextMenu.message);
                   setInput(contextMenu.message.content);
                   setContextMenu(null);
@@ -908,7 +930,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 }}>
                   수정
                 </button>
-                <button type="button" style={{ ...s.ctxMenuItem(isDark), color: '#c62828' }} onClick={() => { handleDelete(contextMenu.message); setContextMenu(null); }}>
+                <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer text-red-600')} onClick={() => { handleDelete(contextMenu.message); setContextMenu(null); }}>
                   삭제
                 </button>
               </>
@@ -962,8 +984,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         })()}
 
         {shareEventOpen && (
-          <div style={s.shareEventOverlay()} onClick={() => setShareEventOpen(false)}>
-            <div style={s.shareEventModal(isDark)} onClick={(e) => e.stopPropagation()}>
+          <div className="absolute inset-0 z-[200] bg-black/40 flex items-center justify-center" onClick={() => setShareEventOpen(false)}>
+            <div className={cn('rounded-xl shadow-lg min-w-[320px] max-w-[90%] max-h-[70vh] overflow-auto p-5', isDark ? 'bg-slate-800' : 'bg-white')} onClick={(e) => e.stopPropagation()}>
               <h4 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>일정 공유</h4>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {myEvents.length === 0 ? (
@@ -1000,7 +1022,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
         {/* Reply/Edit indicator */}
         {(replyTo || editingMsg) && (
-          <div style={s.replyIndicator(isDark)}>
+          <div className={cn('flex items-start gap-2 py-2 px-4 border-t', isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-slate-50')}>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#60a5fa' : '#2563eb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {editingMsg ? '메시지 수정' : `${replyTo!.sender.name}에게 답장`}
@@ -1087,12 +1109,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             </span>
           </div>
         )}
-        <div style={s.inputRow(isDark)}>
-          <div style={s.inputRowLeft()}>
-            <div style={s.plusWrap()}>
+        <div className={cn('py-2.5 px-4 pb-3.5 flex gap-2.5 items-center', isDark ? 'bg-slate-800 border-t border-slate-700' : 'bg-slate-50 border-t border-slate-200')}>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="relative shrink-0">
               <button
                 type="button"
-                style={s.plusBtn(isDark)}
+                className={cn('w-10 h-10 rounded-full border-none text-xl leading-10 text-center cursor-pointer inline-flex items-center justify-center transition-colors', isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600')}
                 onClick={() => setActionsOpen((v) => !v)}
                 disabled={!socket}
                 title="추가 액션"
@@ -1100,10 +1122,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 +
               </button>
               {actionsOpen && (
-                <div style={s.plusMenu(isDark)}>
+                <div className={cn('absolute bottom-12 left-0 py-1.5 px-1.5 flex flex-col gap-0.5 min-w-[150px] z-50 rounded-xl border shadow-lg', isDark ? 'bg-slate-700 border-slate-600' : 'bg-white border-slate-200')}>
                   <button
                     type="button"
-                    style={s.plusMenuItem(isDark)}
+                    className={cn('border-none bg-transparent rounded-lg py-2.5 px-3 text-left cursor-pointer text-[13px] transition-colors', isDark ? 'text-slate-200' : 'text-slate-700')}
                     onClick={() => {
                       setActionsOpen(false);
                       setContextOpen(true);
@@ -1111,16 +1133,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                   >
                     코드 위치 첨부
                   </button>
-                  <div
-                    style={{
-                      height: 1,
-                      background: isDark ? '#475569' : '#eef2f7',
-                      margin: '2px 0',
-                    }}
-                  />
+                  <div className={cn('h-px my-0.5', isDark ? 'bg-slate-600' : 'bg-slate-200')} />
                   <button
                     type="button"
-                    style={s.plusMenuItem(isDark)}
+                    className={cn('border-none bg-transparent rounded-lg py-2.5 px-3 text-left cursor-pointer text-[13px] transition-colors', isDark ? 'text-slate-200' : 'text-slate-700')}
                     onClick={() => {
                       setActionsOpen(false);
                       setShareEventOpen(true);
@@ -1128,16 +1144,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                   >
                     일정 공유
                   </button>
-                  <div
-                    style={{
-                      height: 1,
-                      background: isDark ? '#475569' : '#eef2f7',
-                      margin: '2px 0',
-                    }}
-                  />
+                  <div className={cn('h-px my-0.5', isDark ? 'bg-slate-600' : 'bg-slate-200')} />
                   <button
                     type="button"
-                    style={s.plusMenuItem(isDark)}
+                    className={cn('border-none bg-transparent rounded-lg py-2.5 px-3 text-left cursor-pointer text-[13px] transition-colors', isDark ? 'text-slate-200' : 'text-slate-700')}
                     onClick={() => {
                       setActionsOpen(false);
                       setPollCreateOpen(true);
@@ -1155,7 +1165,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               }
             />
           </div>
-          <div style={s.inputRowCenter()}>
+          <div className="flex-1 flex flex-col min-w-0">
             <textarea
               ref={inputRef}
               placeholder="메시지를 입력하세요"
@@ -1164,14 +1174,22 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               rows={1}
-              style={s.input(isDark)}
+              className={cn(
+                'w-full py-2.5 px-4 border rounded-full text-sm leading-snug min-h-[42px] max-h-[120px] resize-none outline-none transition-colors font-inherit',
+                isDark ? 'border-slate-600 bg-slate-950 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-800',
+              )}
             />
           </div>
-          <div style={s.inputRowRight()}>
+          <div className="flex items-center justify-end shrink-0">
             <button
               type="button"
               onClick={sendMessage}
-              style={s.sendBtn(isDark, !input.trim() || !socket || fileUploading)}
+              className={cn(
+                'py-2.5 px-5 rounded-full font-bold text-sm cursor-pointer whitespace-nowrap transition-colors',
+                !input.trim() || !socket || fileUploading
+                  ? (isDark ? 'bg-slate-700 text-slate-400 opacity-90' : 'bg-slate-300 text-white opacity-90')
+                  : 'bg-slate-600 text-white',
+              )}
               disabled={!input.trim() || !socket || fileUploading}
             >
               {editingMsg ? '수정' : '전송'}

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { CSSProperties } from 'react';
+import { cn } from '../../../utils/cn';
 
 type MentionMessage = {
   room?: { id?: string; name?: string };
@@ -15,39 +15,35 @@ export type MentionItem = {
 };
 
 type MentionPanelProps = {
-  st: Record<string, CSSProperties>;
   isDark: boolean;
   mentions: MentionItem[];
-  panelWrapStyle: (maxWidth: number) => CSSProperties;
+  panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   onSelectMention: (mention: MentionItem) => void | Promise<void>;
 };
 
 function MentionPanel({
-  st,
   isDark,
   mentions,
   panelWrapStyle,
   onSelectMention,
 }: MentionPanelProps) {
+  const wrap = panelWrapStyle(760);
   return (
-    <div style={panelWrapStyle(760)}>
-      <div style={st.panelHeader}><h3 style={st.panelTitle}>멘션</h3></div>
-      <div style={st.panelBody}>
+    <div className={wrap.className} style={wrap.style}>
+      <div className={cn('shrink-0 flex items-center justify-between px-5 py-3.5 border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}><h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-[#161616]')}>멘션</h3></div>
+      <div className="flex-1 min-h-0 overflow-auto">
         {mentions.length === 0 ? (
-          <div style={st.panelEmpty}>대화에서 @멘션 되면 여기에 표시됩니다</div>
+          <div className={cn('p-8 text-center text-sm', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>대화에서 @멘션 되면 여기에 표시됩니다</div>
         ) : (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {mentions.map((m) => (
               <li key={m.id}>
                 <button
                   type="button"
-                  style={{
-                    ...st.panelItem,
-                    width: '100%',
-                    border: 'none',
-                    background: !m.readAt ? (isDark ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.04)') : 'transparent',
-                    textAlign: 'left',
-                  }}
+                  className={cn(
+                    'px-5 py-3 cursor-pointer flex items-center gap-3 w-full border-none text-left',
+                    !m.readAt ? (isDark ? 'bg-[rgba(99,102,241,0.08)]' : 'bg-[rgba(99,102,241,0.04)]') : 'bg-transparent',
+                  )}
                   onClick={() => void onSelectMention(m)}
                 >
                   {!m.readAt && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#171717', flexShrink: 0 }} />}

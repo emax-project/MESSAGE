@@ -50,23 +50,11 @@ const makeEvent = (): Event => ({
 });
 
 const baseProps = () => ({
-  st: {
-    emptyState: {},
-    emptyIcon: {},
-    emptyText: {},
-    emptyHint: {},
-    panelHeader: {},
-    panelTitle: {},
-    panelBody: {},
-    formInput: {},
-    formBtn: {},
-    formBtnCancel: {},
-  },
   isDark: false,
   isNarrowLayout: false,
   activePanel: 'none' as 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'ai' | 'settings',
   selectedRoomId: undefined as string | undefined,
-  panelWrapStyle: () => ({}),
+  panelWrapStyle: () => ({ className: '', style: {} }),
   onOpenInNewWindow: vi.fn<(roomId: string) => void>(),
   mentions: [],
   onSelectMention: vi.fn(),

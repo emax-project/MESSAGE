@@ -5,7 +5,7 @@ import EventCard from '../../../components/EventCard';
 import PollCard from '../../../components/PollCard';
 import FileMessage from '../../../components/FileMessage';
 import LinkPreview, { extractFirstUrl } from '../../../components/LinkPreview';
-import { chatWindowStyles } from '../styles';
+import { cn } from '../../../utils/cn';
 import { formatDateLabel, getDateKey, isSystemMessage, renderContentWithMentions } from '../utils';
 
 type BoardMessageListProps = {
@@ -22,8 +22,6 @@ type BoardMessageListProps = {
   socketRef: MutableRefObject<Socket | null>;
   roomId?: string;
 };
-
-const s = chatWindowStyles;
 
 export default function BoardMessageList({
   rootPosts,
@@ -48,32 +46,44 @@ export default function BoardMessageList({
         const prevDateKey = prevMsg ? getDateKey(prevMsg.createdAt) : null;
         if (idx === 0 || curDateKey !== prevDateKey) {
           elements.push(
-            <div key={`date-${curDateKey}-${m.id}`} style={s.dateSeparator()}>
-              <span style={s.dateSeparatorText()}>{formatDateLabel(new Date(m.createdAt))}</span>
+            <div key={`date-${curDateKey}-${m.id}`} className="flex items-center justify-center py-3">
+              <span className="text-xs text-white bg-black/25 py-1 px-3.5 rounded-xl">
+                {formatDateLabel(new Date(m.createdAt))}
+              </span>
             </div>
           );
         }
         if (isSystemMessage(m.content) && !m.fileUrl && m.eventTitle == null && !m.poll) {
           elements.push(
-            <div key={m.id} style={s.systemMessageRow()}>
-              <span style={s.systemMessageText()}>{m.content}</span>
+            <div key={m.id} className="flex items-center justify-center py-1.5">
+              <span className="text-xs text-white bg-black/25 py-1 px-3.5 rounded-xl text-center">
+                {m.content}
+              </span>
             </div>
           );
           return elements;
         }
         if (m.deletedAt) {
           elements.push(
-            <div key={m.id} style={s.boardCard(isDark)}>
-              <div style={s.boardCardHeader(isDark)}>
-                <div style={s.boardCardHeaderLeft(isDark)}>
-                  <span style={s.boardCardAvatar(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
-                  <div style={s.boardCardAuthor(isDark)}>
-                    <span style={s.boardCardAuthorName(isDark)}>{m.sender?.name ?? '알 수 없음'}</span>
-                    <span style={s.boardCardTime(isDark)}>{new Date(m.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+            <div key={m.id} className={cn('w-full max-w-full p-4 rounded-xl flex flex-col gap-3', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200', 'border shadow-sm')}>
+              <div className="flex items-center justify-between gap-2.5 flex-wrap">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className={cn('w-10 h-10 rounded-full flex items-center justify-center text-[15px] font-bold shrink-0', isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-500')}>
+                    {m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}
+                  </span>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className={cn('text-sm font-semibold', isDark ? 'text-slate-200' : 'text-gray-900')}>
+                      {m.sender?.name ?? '알 수 없음'}
+                    </span>
+                    <span className={cn('text-xs shrink-0', isDark ? 'text-slate-400' : 'text-slate-500')}>
+                      {new Date(m.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 </div>
               </div>
-              <div style={{ ...s.boardCardBody(isDark), opacity: 0.6, fontStyle: 'italic' }}>[삭제된 메시지]</div>
+              <div className={cn('text-sm whitespace-pre-wrap break-words leading-relaxed opacity-60 italic', isDark ? 'text-slate-200' : 'text-slate-700')}>
+                [삭제된 메시지]
+              </div>
             </div>
           );
           return elements;
@@ -83,26 +93,33 @@ export default function BoardMessageList({
           <div
             key={m.id}
             id={`msg-${m.id}`}
-            style={s.boardCard(isDark)}
+            className={cn(
+              'w-full max-w-full p-4 rounded-xl flex flex-col gap-3 border shadow-sm',
+              isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200',
+            )}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, message: m }); }}
           >
-            <div style={s.boardCardHeader(isDark)}>
-              <div style={s.boardCardHeaderLeft(isDark)}>
-                <span style={s.boardCardAvatar(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
-                <div style={s.boardCardAuthor(isDark)}>
-                  <span style={s.boardCardAuthorName(isDark)}>{m.sender?.name ?? '알 수 없음'}</span>
-                  <span style={s.boardCardTime(isDark)}>
+            <div className="flex items-center justify-between gap-2.5 flex-wrap">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className={cn('w-10 h-10 rounded-full flex items-center justify-center text-[15px] font-bold shrink-0', isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-500')}>
+                  {m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}
+                </span>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className={cn('text-sm font-semibold', isDark ? 'text-slate-200' : 'text-gray-900')}>
+                    {m.sender?.name ?? '알 수 없음'}
+                  </span>
+                  <span className={cn('text-xs shrink-0', isDark ? 'text-slate-400' : 'text-slate-500')}>
                     {new Date(m.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
               </div>
               <button
                 type="button"
-                style={s.boardMenuBtn(isDark)}
+                className="border-none bg-transparent cursor-pointer p-1.5 rounded-full flex items-center justify-center transition-colors shrink-0"
                 onClick={(e) => { e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, message: m }); }}
                 title="더보기"
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill={isDark ? '#94a3b8' : '#6b7280'}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className={isDark ? 'text-slate-400' : 'text-slate-500'}>
                   <circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13" r="1.5" />
                 </svg>
               </button>
@@ -119,13 +136,13 @@ export default function BoardMessageList({
                     navigator.clipboard.writeText(str).then(() => showToast('복사되었습니다.', 'success'));
                   }
                 }}
-                style={{ fontSize: 11, padding: '4px 10px', marginBottom: 6, borderRadius: 6, background: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)', color: isDark ? '#a5b4fc' : '#4f46e5', cursor: 'pointer', display: 'inline-block' }}
+                className={cn('text-[11px] py-1 px-2.5 mb-1.5 rounded-md cursor-pointer inline-block', isDark ? 'bg-indigo-500/15 text-indigo-200' : 'bg-indigo-500/10 text-indigo-600')}
                 title="클릭하여 복사"
               >
                 📍 {[m.contextFilePath, m.contextLine ? `:${m.contextLine}` : null, m.contextBranch ? ` (${m.contextBranch})` : null].filter(Boolean).join('')}
               </div>
             )}
-            <div style={s.boardCardBody(isDark)}>
+            <div className={cn('text-sm whitespace-pre-wrap break-words leading-relaxed pl-0', isDark ? 'text-slate-200' : 'text-slate-700')}>
               {m.poll ? (
                 <PollCard poll={m.poll} myId={myId} isMine={m.senderId === myId} />
               ) : m.eventTitle != null ? (
@@ -138,9 +155,9 @@ export default function BoardMessageList({
                   {extractFirstUrl(m.content) && <LinkPreview url={extractFirstUrl(m.content)!} isDark={isDark} />}
                 </>
               )}
-              {m.editedAt && <span style={{ fontSize: 11, opacity: 0.6, marginTop: 4, display: 'block' }}>(수정됨)</span>}
+              {m.editedAt && <span className="text-[11px] opacity-60 mt-1 block">(수정됨)</span>}
             </div>
-            <div style={s.boardCardFooter(isDark)}>
+            <div className={cn('flex items-center gap-3 flex-wrap pt-2 border-t', isDark ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-500', 'text-xs')}>
               {m.senderId === myId && room && (() => {
                 const memberCount = room.members?.length ?? 0;
                 if (memberCount <= 2) return null;
@@ -149,53 +166,86 @@ export default function BoardMessageList({
                 const unreadCount = Math.max(0, totalReaders - readCount);
                 if (unreadCount === 0) return null;
                 return (
-                  <span style={s.readStatusMineBoard(isDark)}>{unreadCount}</span>
+                  <span className={cn('text-xs font-bold', isDark ? 'text-[#9a58a8]' : 'text-[#9a58a8]')}>{unreadCount}</span>
                 );
               })()}
               {m.reactions && m.reactions.length > 0 ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="flex items-center gap-1.5">
                   {m.reactions.map((r: ReactionGroup) => (
-                    <button key={r.emoji} type="button" onClick={() => handleReaction(m.id, r.emoji)} style={s.reactionBadge(isDark, myId ? r.userIds.includes(myId) : false)}>
+                    <button
+                      key={r.emoji}
+                      type="button"
+                      onClick={() => handleReaction(m.id, r.emoji)}
+                      className={cn(
+                        'border rounded-xl py-0.5 px-2 text-[13px] cursor-pointer flex items-center gap-1',
+                        myId && r.userIds.includes(myId)
+                          ? (isDark ? 'border-blue-400 bg-blue-400/15' : 'border-blue-600 bg-blue-600/10')
+                          : (isDark ? 'border-slate-600 bg-transparent' : 'border-slate-200 bg-transparent'),
+                      )}
+                    >
                       {r.emoji} {r.count}
                     </button>
                   ))}
                 </span>
               ) : (
-                <button type="button" style={s.boardCardFooterBtn(isDark)} onClick={() => handleReaction(m.id, '👍')}>
+                <button
+                  type="button"
+                  onClick={() => handleReaction(m.id, '👍')}
+                  className={cn(
+                    'py-1 px-2.5 border rounded-lg text-xs cursor-pointer shrink-0',
+                    isDark ? 'border-slate-600 bg-slate-700 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-500',
+                  )}
+                >
                   👍 좋아요
                 </button>
               )}
             </div>
             {replies.length > 0 && (
-              <div style={s.boardCommentSection(isDark)}>
+              <div className={cn('border-t pt-3 flex flex-col gap-2.5', isDark ? 'border-slate-700' : 'border-slate-200')}>
                 {replies.map((reply) => (
                   <div
                     key={reply.id}
                     id={`msg-${reply.id}`}
-                    style={s.boardCommentRow(isDark)}
+                    className={cn('flex items-start gap-2 py-1 border-b pb-2.5', isDark ? 'border-slate-700/40' : 'border-slate-200/60')}
                     onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, message: reply }); }}
                   >
-                    <span style={s.boardCommentAvatar(isDark)}>{reply.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b' }}>{reply.sender?.name ?? '알 수 없음'}</span>
-                        <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>
+                    <span className={cn('w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0', isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-500')}>
+                      {reply.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={cn('text-[13px] font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
+                          {reply.sender?.name ?? '알 수 없음'}
+                        </span>
+                        <span className={cn('text-[11px]', isDark ? 'text-slate-500' : 'text-slate-400')}>
                           {new Date(reply.createdAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       {reply.deletedAt ? (
-                        <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#9ca3af', fontStyle: 'italic', marginTop: 2 }}>[삭제된 댓글]</div>
+                        <div className={cn('text-[13px] italic mt-0.5', isDark ? 'text-slate-500' : 'text-slate-400')}>
+                          [삭제된 댓글]
+                        </div>
                       ) : reply.fileUrl ? (
-                        <div style={{ marginTop: 4 }}><FileMessage message={reply} /></div>
+                        <div className="mt-1"><FileMessage message={reply} /></div>
                       ) : (
-                        <div style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#374151', lineHeight: 1.5, marginTop: 2, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        <div className={cn('text-[13px] leading-relaxed mt-0.5 whitespace-pre-wrap break-words', isDark ? 'text-slate-300' : 'text-slate-700')}>
                           {renderContentWithMentions(reply.content, isDark)}
                         </div>
                       )}
                       {reply.reactions && reply.reactions.length > 0 && (
-                        <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                        <div className="flex gap-1 mt-1">
                           {reply.reactions.map((r: ReactionGroup) => (
-                            <button key={r.emoji} type="button" onClick={() => handleReaction(reply.id, r.emoji)} style={{ ...s.reactionBadge(isDark, myId ? r.userIds.includes(myId) : false), fontSize: 11, padding: '1px 6px' }}>
+                            <button
+                              key={r.emoji}
+                              type="button"
+                              onClick={() => handleReaction(reply.id, r.emoji)}
+                              className={cn(
+                                'border rounded-lg py-0.5 px-1.5 text-[11px] cursor-pointer flex items-center gap-1',
+                                myId && r.userIds.includes(myId)
+                                  ? (isDark ? 'border-blue-400 bg-blue-400/15' : 'border-blue-600 bg-blue-600/10')
+                                  : (isDark ? 'border-slate-600 bg-transparent' : 'border-slate-200 bg-transparent'),
+                              )}
+                            >
                               {r.emoji} {r.count}
                             </button>
                           ))}
@@ -206,13 +256,16 @@ export default function BoardMessageList({
                 ))}
               </div>
             )}
-            <div style={s.boardCommentInputRow(isDark)}>
+            <div className={cn('flex items-center gap-2 border-t pt-2.5', isDark ? 'border-slate-700' : 'border-slate-200')}>
               <input
                 type="text"
                 value={boardCommentInputs[m.id] || ''}
                 onChange={(e) => setBoardCommentInputs((prev) => ({ ...prev, [m.id]: e.target.value }))}
                 placeholder="댓글을 입력하세요..."
-                style={s.boardCommentInput(isDark)}
+                className={cn(
+                  'flex-1 py-2 px-3 border rounded-full text-[13px] outline-none',
+                  isDark ? 'border-slate-600 bg-slate-950 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-800',
+                )}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     if ((e.nativeEvent as KeyboardEvent).isComposing) return;
@@ -227,7 +280,7 @@ export default function BoardMessageList({
               />
               <button
                 type="button"
-                style={s.boardCommentSendBtn(isDark)}
+                className={cn('py-1.5 px-3.5 border-none rounded-2xl text-white text-xs font-semibold cursor-pointer shrink-0', isDark ? 'bg-slate-600' : 'bg-blue-500')}
                 onClick={() => {
                   const text = (boardCommentInputs[m.id] || '').trim();
                   if (text && socketRef.current && roomId) {

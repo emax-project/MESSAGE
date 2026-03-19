@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { eventsApi } from '../api';
 import { useThemeStore } from '../store';
+import { cn } from '../utils/cn';
 import UIButton from './ui/UIButton';
-import { getThemeTokens } from './ui/themeTokens';
 
 type Props = {
   title: string;
@@ -63,45 +63,42 @@ export default function EventCard({ title, startAt, endAt, description, isMine }
       setAdding(false);
     }
   };
-  const st = getEventStyles(isDark, !!isMine);
 
   return (
-    <div style={st.card}>
-      <strong style={st.title}>{title}</strong>
-      <div style={st.time}>
+    <div
+      className={cn(
+        'box-border w-full rounded-lg border p-2.5',
+        isMine
+          ? 'border-white/25 bg-white/15'
+          : isDark
+            ? 'border-slate-400/20 bg-slate-400/10'
+            : 'border-slate-500/20 bg-slate-500/[0.08]',
+      )}
+    >
+      <strong className="mb-1 block text-sm font-semibold">{title}</strong>
+      <div className="mb-1 text-xs opacity-90">
         {start} ~ {end}
       </div>
-      {description && <div style={st.desc}>{description}</div>}
+      {description && <div className="whitespace-pre-wrap break-words text-[13px]">{description}</div>}
       {!isMine && (
         <>
-          <UIButton type="button" style={st.addBtn as React.CSSProperties} onClick={handleAdd} disabled={adding || added}>
+          <UIButton
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="mt-2 !rounded-md !px-2.5 !py-1.5 !text-xs"
+            onClick={handleAdd}
+            disabled={adding || added}
+          >
             {added ? '추가됨' : adding ? '추가 중...' : '내 일정에 추가'}
           </UIButton>
-          {error && <div style={st.error}>{error}</div>}
+          {error && (
+            <div className={cn('mt-1.5 text-xs', isDark ? 'text-red-400' : 'text-red-600')}>
+              {error}
+            </div>
+          )}
         </>
       )}
     </div>
   );
-}
-
-function getEventStyles(isDark: boolean, isMine: boolean): Record<string, React.CSSProperties> {
-  const t = getThemeTokens(isDark);
-  return {
-    card: isMine
-      ? { width: '100%', boxSizing: 'border-box' as const, padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }
-      : { width: '100%', boxSizing: 'border-box' as const, padding: 10, borderRadius: 8, background: isDark ? 'rgba(148,163,184,0.1)' : 'rgba(71,85,105,0.08)', border: `1px solid ${isDark ? 'rgba(148,163,184,0.2)' : 'rgba(71,85,105,0.2)'}` },
-    title: { display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 4 },
-    time: { fontSize: 12, color: 'inherit', opacity: 0.9, marginBottom: 4 },
-    desc: { fontSize: 13, whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
-    addBtn: {
-      marginTop: 8,
-      padding: '6px 10px',
-      border: `1px solid ${t.border}`,
-      borderRadius: 6,
-      background: t.bgSurface,
-      color: t.text,
-      fontSize: 12,
-    },
-    error: { marginTop: 6, fontSize: 12, color: isDark ? '#f87171' : '#dc2626' },
-  };
 }

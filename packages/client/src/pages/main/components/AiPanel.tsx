@@ -1,11 +1,10 @@
 import { memo, useEffect, useRef } from 'react';
-import type { CSSProperties } from 'react';
 import type { OllamaMessage } from '../../../ollama';
+import { cn } from '../../../utils/cn';
 
 type AiPanelProps = {
-  st: Record<string, CSSProperties>;
   isDark: boolean;
-  panelWrapStyle: (maxWidth: number) => CSSProperties;
+  panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   modelName: string;
   aiMessages: OllamaMessage[];
   aiInput: string;
@@ -16,7 +15,6 @@ type AiPanelProps = {
 };
 
 function AiPanel({
-  st,
   isDark,
   panelWrapStyle,
   modelName,
@@ -28,15 +26,16 @@ function AiPanel({
   onResetAi,
 }: AiPanelProps) {
   const aiMessagesEndRef = useRef<HTMLDivElement | null>(null);
+  const wrap = panelWrapStyle(820);
 
   useEffect(() => {
     aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [aiMessages, aiLoading]);
 
   return (
-    <div style={panelWrapStyle(820)}>
-      <div style={st.panelHeader}>
-        <h3 style={st.panelTitle}>AI 채팅</h3>
+    <div className={wrap.className} style={wrap.style}>
+      <div className={cn('shrink-0 flex items-center justify-between px-5 py-3.5 border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
+        <h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-[#161616]')}>AI 채팅</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#9ca3af' }}>{modelName}</span>
           {aiMessages.length > 0 && (
@@ -46,7 +45,7 @@ function AiPanel({
           )}
         </div>
       </div>
-      <div style={{ ...st.panelBody, display: 'flex', flexDirection: 'column', padding: 0 }}>
+      <div className="flex-1 min-h-0 overflow-auto flex flex-col p-0">
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16 }}>
           {aiMessages.length === 0 && (
             <div style={{ textAlign: 'center', padding: 32, color: isDark ? '#64748b' : '#9ca3af', fontSize: 13 }}>
@@ -116,7 +115,7 @@ function AiPanel({
                 fontFamily: 'inherit',
               }}
             />
-            <button type="submit" disabled={aiLoading || !aiInput.trim()} style={{ ...st.formBtn, alignSelf: 'flex-end', padding: '10px 16px' }}>
+            <button type="submit" disabled={aiLoading || !aiInput.trim()} className="px-4 py-2.5 border-none rounded-lg bg-gradient-to-br from-[#ac67ba] to-[#8b4a99] text-white text-[13px] font-semibold cursor-pointer self-end">
               {aiLoading ? '대기...' : '전송'}
             </button>
           </form>

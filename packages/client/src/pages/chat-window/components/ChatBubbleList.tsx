@@ -5,7 +5,7 @@ import PollCard from '../../../components/PollCard';
 import FileMessage from '../../../components/FileMessage';
 import LinkPreview, { extractFirstUrl } from '../../../components/LinkPreview';
 import EmojiPicker from '../../../components/EmojiPicker';
-import { chatWindowStyles } from '../styles';
+import { cn } from '../../../utils/cn';
 import { formatDateLabel, getDateKey, isSystemMessage, renderContentWithMentions } from '../utils';
 
 type ChatBubbleListProps = {
@@ -27,7 +27,6 @@ type ChatBubbleListProps = {
   handleReaction: (messageId: string, emoji: string) => void | Promise<void>;
 };
 
-const s = chatWindowStyles;
 const isStandaloneSystemMessage = (message: Message) =>
   isSystemMessage(message.content) && !message.fileUrl && message.eventTitle == null && !message.poll;
 
@@ -88,40 +87,54 @@ export default function ChatBubbleList({
         const showSenderIdentity = !isMine && !shouldGroupWithPrev;
         if (idx === 0 || curDateKey !== prevDateKey) {
           elements.push(
-            <div key={`date-${curDateKey}-${m.id}`} style={s.dateSeparator()}>
-              <span style={s.dateSeparatorText()}>{formatDateLabel(new Date(m.createdAt))}</span>
+            <div key={`date-${curDateKey}-${m.id}`} className="flex items-center justify-center py-3">
+              <span className="text-xs text-white bg-black/25 py-1 px-3.5 rounded-xl">
+                {formatDateLabel(new Date(m.createdAt))}
+              </span>
             </div>
           );
         }
         if (m.id === firstUnreadMessageId) {
           elements.push(
-            <div key={`unread-${m.id}`} ref={firstUnreadRef} style={s.unreadDivider(isDark)}>
-              <span style={s.unreadDividerText(isDark)}>새 메시지</span>
+            <div key={`unread-${m.id}`} ref={firstUnreadRef} className="flex items-center justify-center py-2.5 px-4 mx-4 my-2 border-l-4 border-[#171717] rounded-lg animate-[unread-divider-pulse_2s_ease-in-out_3] bg-indigo-500/10">
+              <span className={cn('text-xs font-semibold', isDark ? 'text-indigo-100' : 'text-[#171717]')}>
+                새 메시지
+              </span>
             </div>
           );
         }
         if (isStandaloneSystemMessage(m)) {
           elements.push(
-            <div key={m.id} style={s.systemMessageRow()}>
-              <span style={s.systemMessageText()}>{m.content}</span>
+            <div key={m.id} className="flex items-center justify-center py-1.5">
+              <span className="text-xs text-white bg-black/25 py-1 px-3.5 rounded-xl text-center">
+                {m.content}
+              </span>
             </div>
           );
           return elements;
         }
         if (m.deletedAt) {
           elements.push(
-            <div key={m.id} style={{ ...s.messageRow(), ...(isMine ? s.messageRowMine() : {}) }}>
-              <div style={s.messageRowInner()}>
+            <div key={m.id} className={cn('flex flex-col items-start w-full', isMine && 'items-end')}>
+              <div className="flex items-start gap-2 w-full">
                 {!isMine && (
                   showSenderIdentity ? (
-                    <div style={s.avatarWrap()} aria-hidden><span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span></div>
+                    <div className="w-[34px] h-[34px] shrink-0" aria-hidden>
+                      <span className={cn('w-[34px] h-[34px] rounded-full flex items-center justify-center text-[13px] font-bold', isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-600')}>
+                        {m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}
+                      </span>
+                    </div>
                   ) : (
-                    <div style={s.avatarSpacer()} aria-hidden />
+                    <div className="w-[34px] h-[34px] shrink-0" aria-hidden />
                   )
                 )}
-                <div style={{ width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(isMine ? { marginLeft: 'auto' } : {}) }}>
-                  <div style={{ ...s.messageBubble(isDark), ...(isMine ? s.messageBubbleMine(isDark) : {}), opacity: 0.5, fontStyle: 'italic' }}>
-                    <span style={s.messageContent()}>[삭제된 메시지]</span>
+                <div className={cn('w-fit max-w-[75%] min-w-0', isMine && 'ml-auto')}>
+                  <div className={cn(
+                    'min-w-[80px] py-2.5 px-3.5 rounded-2xl rounded-tl',
+                    isMine ? 'bg-slate-600 text-white rounded-tl-2xl rounded-tr' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
+                    'opacity-50 italic',
+                  )}>
+                    <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">[삭제된 메시지]</span>
                   </div>
                 </div>
               </div>
@@ -136,7 +149,7 @@ export default function ChatBubbleList({
           <div
             key={m.id}
             id={`msg-${m.id}`}
-            style={{ ...s.messageRow(), ...(isMine ? s.messageRowMine() : {}) }}
+            className={cn('flex flex-col items-start w-full', isMine && 'items-end')}
             onMouseEnter={() => setHoveredMsg(m.id)}
             onMouseLeave={() => setHoveredMsg(null)}
             onTouchStart={() => setHoveredMsg(m.id)}
@@ -145,7 +158,11 @@ export default function ChatBubbleList({
               setContextMenu({ x: e.clientX, y: e.clientY, message: m });
             }}
           >
-            {showSenderIdentity && <div style={s.senderLabel(isDark)}>{m.sender.name}</div>}
+            {showSenderIdentity && (
+              <div className={cn('text-xs mb-1 ml-[42px] max-w-[calc(75%-8px)] truncate', isDark ? 'text-slate-300' : 'text-slate-600')}>
+                {m.sender.name}
+              </div>
+            )}
 
             {(m.contextFilePath || m.contextBranch) && (
               <div
@@ -185,7 +202,11 @@ export default function ChatBubbleList({
               <div
                 role="button"
                 tabIndex={0}
-                style={s.replyPreview(isDark, isMine)}
+                className={cn(
+                  'mb-1.5 py-2 px-3 rounded-[10px] flex flex-col gap-0.5 max-w-[85%] overflow-hidden cursor-pointer',
+                  isMine ? 'ml-0' : 'ml-[42px]',
+                  isDark ? 'bg-slate-700/70' : 'bg-slate-100/90',
+                )}
                 onClick={() => {
                   const targetId = m.replyTo!.id;
                   const el = document.getElementById(`msg-${targetId}`);
@@ -214,25 +235,34 @@ export default function ChatBubbleList({
                   }
                 }}
               >
-                <span style={s.replyPreviewLabel(isDark)}>{m.replyTo.sender?.name}</span>
-                <span style={s.replyPreviewContent(isDark)}>{m.replyTo.content}</span>
+                <span className={cn('text-[11px] font-semibold truncate', isDark ? 'text-slate-200' : 'text-slate-500')}>
+                  {m.replyTo.sender?.name}
+                </span>
+                <span className={cn('text-[13px] leading-snug line-clamp-2 truncate break-words', isDark ? 'text-slate-100' : 'text-slate-600')}>
+                  {m.replyTo.content}
+                </span>
               </div>
             )}
 
-            <div style={s.messageRowInner()}>
+            <div className="flex items-start gap-2 w-full">
               {!isMine && (
                 showSenderIdentity ? (
-                  <div style={s.avatarWrap()} aria-hidden>
-                    <span style={s.avatarCircle(isDark)}>{m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}</span>
+                  <div className="w-[34px] h-[34px] shrink-0" aria-hidden>
+                    <span className={cn('w-[34px] h-[34px] rounded-full flex items-center justify-center text-[13px] font-bold', isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-600')}>
+                      {m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}
+                    </span>
                   </div>
                 ) : (
-                  <div style={s.avatarSpacer()} aria-hidden />
+                  <div className="w-[34px] h-[34px] shrink-0" aria-hidden />
                 )
               )}
-              <div style={{ position: 'relative', width: 'fit-content', maxWidth: '75%', minWidth: 0, ...(isMine ? { marginLeft: 'auto' } : {}) }}>
+              <div className={cn('relative w-fit max-w-[75%] min-w-0', isMine && 'ml-auto')}>
                 <div
-                  className={isHighlighted ? 'message-bubble-highlight' : undefined}
-                  style={{ ...s.messageBubble(isDark), ...(isMine ? s.messageBubbleMine(isDark) : {}) }}
+                  className={cn(
+                    isHighlighted && 'message-bubble-highlight',
+                    'min-w-[80px] py-2.5 px-3.5 rounded-2xl rounded-tl shadow-sm',
+                    isMine ? 'bg-slate-600 text-white rounded-tl-2xl rounded-tr' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
+                  )}
                 >
                   {m.poll ? (
                     <PollCard poll={m.poll} myId={myId} isMine={isMine} />
@@ -242,15 +272,17 @@ export default function ChatBubbleList({
                     <FileMessage message={m} />
                   ) : (
                     <>
-                      <span style={s.messageContent()}>{renderContentWithMentions(m.content, isDark)}</span>
+                      <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">
+                      {renderContentWithMentions(m.content, isDark)}
+                    </span>
                       {extractFirstUrl(m.content) && (
                         <LinkPreview url={extractFirstUrl(m.content)!} isDark={isDark} />
                       )}
                     </>
                   )}
-                  {m.editedAt && <span style={{ fontSize: 10, opacity: 0.6, marginTop: 4, display: 'block' }}>(수정됨)</span>}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                    <span style={{ ...s.metaTime(isDark), ...(isMine ? { color: '#fff' } : {}) }}>
+                  {m.editedAt && <span className="text-[10px] opacity-60 mt-1 block">(수정됨)</span>}
+                  <div className="flex justify-end items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className={cn('text-[11px]', isMine ? 'text-white' : isDark ? 'text-slate-300' : 'text-slate-500')}>
                       {new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {isMine && room && (() => {
@@ -260,7 +292,7 @@ export default function ChatBubbleList({
                       const readCount = m.readCount ?? 0;
                       const unreadCount = Math.max(0, totalReaders - readCount);
                       if (unreadCount === 0) return null;
-                      return <span style={s.readStatusMineBubble()}>{unreadCount}</span>;
+                      return <span className="text-xs font-bold text-slate-100">{unreadCount}</span>;
                     })()}
                   </div>
                 </div>
@@ -275,11 +307,11 @@ export default function ChatBubbleList({
                     gap: 2,
                     alignItems: 'center',
                   }}>
-                    <button type="button" onClick={() => setReplyTo(m)} style={s.hoverActionBtn(isDark)} title="답장">
+                    <button type="button" onClick={() => setReplyTo(m)} className={cn('w-8 h-8 rounded-full border-none cursor-pointer flex items-center justify-center text-sm p-0', isDark ? 'bg-slate-500 text-slate-100 shadow-sm' : 'bg-slate-100 text-slate-600')} title="답장">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10l7-7v4c8 0 11 4 11 11-2-5-5-7-11-7v4l-7-5z"/></svg>
                     </button>
                     <div style={{ position: 'relative' }}>
-                      <button type="button" onClick={() => setEmojiPickerMsg(emojiPickerMsg === m.id ? null : m.id)} style={s.hoverActionBtn(isDark)} title="반응">
+                      <button type="button" onClick={() => setEmojiPickerMsg(emojiPickerMsg === m.id ? null : m.id)} className={cn('w-8 h-8 rounded-full border-none cursor-pointer flex items-center justify-center text-sm p-0', isDark ? 'bg-slate-500 text-slate-100 shadow-sm' : 'bg-slate-100 text-slate-600')} title="반응">
                         {'\uD83D\uDE0A'}
                       </button>
                       {emojiPickerMsg === m.id && (
@@ -292,13 +324,18 @@ export default function ChatBubbleList({
             </div>
 
             {m.reactions && m.reactions.length > 0 && (
-              <div style={s.reactionsRow(isMine)}>
+              <div className={cn('flex gap-1 flex-wrap mt-1', isMine ? 'ml-0' : 'ml-[42px]')}>
                 {m.reactions.map((r: ReactionGroup) => (
                   <button
                     key={r.emoji}
                     type="button"
                     onClick={() => handleReaction(m.id, r.emoji)}
-                    style={s.reactionBadge(isDark, myId ? r.userIds.includes(myId) : false)}
+                    className={cn(
+                      'border rounded-xl py-0.5 px-2 text-[13px] cursor-pointer flex items-center gap-1',
+                      myId && r.userIds.includes(myId)
+                        ? (isDark ? 'border-blue-400 bg-blue-400/15' : 'border-blue-600 bg-blue-600/10')
+                        : (isDark ? 'border-slate-600 bg-transparent' : 'border-slate-200 bg-transparent'),
+                    )}
                   >
                     {r.emoji} {r.count}
                   </button>

@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { foldersApi, type Folder, type Room } from '../api';
 import { useAuthStore, useThemeStore } from '../store';
-import { getThemeTokens } from './ui/themeTokens';
 import UICloseButton from './ui/UICloseButton';
+import { cn } from '../utils/cn';
 
 function FolderIcon({ size = 16 }: { size?: number }) {
   return (
@@ -33,7 +33,6 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
     setRoomFolderMap((prev) => {
       const next: Record<string, string | null> = {};
       for (const r of topicRooms) {
-        // 이미 사용자가 변경한 방은 로컬 값 유지 (refetch로 이전 데이터가 오면 덮어쓰지 않음)
         next[r.id] = r.id in prev ? prev[r.id] : (r.folderId ?? null);
       }
       return next;
@@ -108,7 +107,6 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
           });
         }
       }
-      // invalidate 제거: refetch가 이전 데이터로 덮어써서 미분류로 되돌아가는 현상 방지
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : '저장 실패';
@@ -133,43 +131,61 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
     onClose();
   };
 
-  const st = getStyles(isDark);
+  const borderColor = isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]';
+  const textColor = isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]';
+  const mutedColor = isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]';
+  const inputBg = isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]';
 
   return (
-    <div style={st.overlay} onClick={handleOverlayClick}>
-      <div style={st.modal} onClick={(e) => e.stopPropagation()}>
-        <div style={st.header}>
-          <h3 style={st.title}>폴더 관리</h3>
+    <div className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-6" onClick={handleOverlayClick}>
+      <div
+        className={cn(
+          'rounded-xl max-w-[440px] w-full max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)]',
+          isDark ? 'bg-[#222529]' : 'bg-white',
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={cn('flex items-center justify-between px-5 py-4 border-b', borderColor)}>
+          <h3 className={cn('m-0 text-lg font-semibold', textColor)}>폴더 관리</h3>
           <UICloseButton onClick={handleOverlayClick} />
         </div>
 
-        {error && <div style={st.error}>{error}</div>}
+        {error && (
+          <div className="mx-5 my-2 px-3 py-2 bg-red-500/10 rounded-lg text-red-500 text-[13px]">
+            {error}
+          </div>
+        )}
 
-        <div style={st.section}>
-          <div style={st.sectionTitle}>폴더 추가</div>
-          <div style={st.addRow}>
+        <div className={cn('px-5 py-4 border-b', borderColor)}>
+          <div className={cn('text-[13px] font-semibold mb-2.5', mutedColor)}>폴더 추가</div>
+          <div className="flex gap-2">
             <input
               type="text"
               placeholder="폴더 이름"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-              style={st.input}
+              className={cn('flex-1 px-3 py-2 border rounded-lg text-sm outline-none', inputBg, textColor, borderColor)}
             />
-            <button type="button" style={st.addBtn} onClick={handleCreateFolder} disabled={loading || !newFolderName.trim()}>
+            <button
+              type="button"
+              className="px-4 py-2 border-none rounded-lg bg-slate-600 text-white text-[13px] font-semibold cursor-pointer"
+              onClick={handleCreateFolder}
+              disabled={loading || !newFolderName.trim()}
+            >
               추가
             </button>
           </div>
         </div>
 
-        <div style={st.section}>
-          <div style={st.sectionTitle}>폴더 목록</div>
+        <div className={cn('px-5 py-4 border-b', borderColor)}>
+          <div className={cn('text-[13px] font-semibold mb-2.5', mutedColor)}>폴더 목록</div>
           {folders.length === 0 ? (
-            <div style={st.empty}>폴더가 없습니다</div>
+            <div className={cn('text-[13px] py-2', mutedColor)}>폴더가 없습니다</div>
           ) : (
-            <ul style={st.folderList}>
+            <ul className="list-none m-0 p-0">
               {folders.map((f) => (
-                <li key={f.id} style={st.folderItem}>
+                <li key={f.id} className={cn('flex items-center gap-2 py-2 border-b', borderColor)}>
                   {editingId === f.id ? (
                     <>
                       <input
@@ -178,16 +194,42 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
                         onChange={(e) => setEditingName(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleRename(f.id); if (e.key === 'Escape') setEditingId(null); }}
                         autoFocus
-                        style={st.editInput}
+                        className={cn('flex-1 px-2.5 py-1.5 border rounded-md text-[13px] outline-none', inputBg, textColor, borderColor)}
                       />
-                      <button type="button" style={st.smBtn} onClick={() => handleRename(f.id)}>저장</button>
-                      <button type="button" style={st.smBtn} onClick={() => setEditingId(null)}>취소</button>
+                      <button
+                        type="button"
+                        className={cn('px-2.5 py-1 border rounded-md bg-transparent text-xs cursor-pointer', mutedColor, borderColor)}
+                        onClick={() => handleRename(f.id)}
+                      >
+                        저장
+                      </button>
+                      <button
+                        type="button"
+                        className={cn('px-2.5 py-1 border rounded-md bg-transparent text-xs cursor-pointer', mutedColor, borderColor)}
+                        onClick={() => setEditingId(null)}
+                      >
+                        취소
+                      </button>
                     </>
                   ) : (
                     <>
-                      <span style={st.folderName}><FolderIcon size={16} /> {f.name}</span>
-                      <button type="button" style={st.smBtn} onClick={() => { setEditingId(f.id); setEditingName(f.name); }}>이름 변경</button>
-                      <button type="button" style={{ ...st.smBtn, color: '#c62828' }} onClick={() => handleDelete(f.id)}>삭제</button>
+                      <span className={cn('flex-1 text-sm flex items-center gap-2', textColor)}>
+                        <FolderIcon size={16} /> {f.name}
+                      </span>
+                      <button
+                        type="button"
+                        className={cn('px-2.5 py-1 border rounded-md bg-transparent text-xs cursor-pointer', mutedColor, borderColor)}
+                        onClick={() => { setEditingId(f.id); setEditingName(f.name); }}
+                      >
+                        이름 변경
+                      </button>
+                      <button
+                        type="button"
+                        className={cn('px-2.5 py-1 border rounded-md bg-transparent text-xs cursor-pointer text-[#c62828]', borderColor)}
+                        onClick={() => handleDelete(f.id)}
+                      >
+                        삭제
+                      </button>
                     </>
                   )}
                 </li>
@@ -196,22 +238,25 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
           )}
         </div>
 
-        <div style={st.section}>
-          <div style={st.sectionTitle}>아젠다 폴더 배치</div>
+        <div className={cn('px-5 py-4 border-b', borderColor)}>
+          <div className={cn('text-[13px] font-semibold mb-2.5', mutedColor)}>아젠다 폴더 배치</div>
           {topicRooms.length === 0 ? (
-            <div style={st.empty}>아젠다가 없습니다</div>
+            <div className={cn('text-[13px] py-2', mutedColor)}>아젠다가 없습니다</div>
           ) : (
-            <ul style={st.roomList}>
+            <ul className="list-none m-0 p-0">
               {topicRooms.map((r) => (
-                <li key={r.id} style={st.roomItem}>
-                  <span style={st.roomName}>{r.name}</span>
+                <li key={r.id} className={cn('flex items-center gap-3 py-2 border-b', borderColor)}>
+                  <span className={cn('flex-1 text-sm truncate', textColor)}>{r.name}</span>
                   <select
                     value={folderIdForRoom(r)}
                     onChange={(e) => {
                       const val = e.target.value;
                       setRoomFolder(r.id, val === '' ? null : val);
                     }}
-                    style={st.select}
+                    className={cn(
+                      'pl-3 pr-8 py-2 border rounded-lg text-[13px] min-w-[140px] cursor-pointer appearance-auto',
+                      inputBg, textColor, borderColor,
+                    )}
                     title="폴더 선택"
                   >
                     <option value="">미분류</option>
@@ -225,54 +270,17 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
           )}
         </div>
 
-        <div style={st.footer}>
-          <button type="button" style={st.doneBtn} onClick={handleDone} disabled={loading}>{loading ? '저장 중...' : '완료'}</button>
+        <div className={cn('p-4 border-t', borderColor)}>
+          <button
+            type="button"
+            className="w-full px-4 py-2.5 border-none rounded-lg bg-slate-600 text-white text-sm font-semibold cursor-pointer"
+            onClick={handleDone}
+            disabled={loading}
+          >
+            {loading ? '저장 중...' : '완료'}
+          </button>
         </div>
       </div>
     </div>
   );
-}
-
-function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  const t = getThemeTokens(isDark);
-  const bg = t.bgSurface;
-  const border = t.border;
-  const text = t.text;
-  const sub = t.textMuted;
-  return {
-    overlay: { position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 },
-    modal: { background: bg, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', maxWidth: 440, width: '100%', maxHeight: '85vh', overflow: 'auto' },
-    header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${border}` },
-    title: { margin: 0, fontSize: 18, fontWeight: 600, color: text },
-    error: { margin: '8px 20px', padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: 8, color: '#ef4444', fontSize: 13 },
-    section: { padding: '16px 20px', borderBottom: `1px solid ${border}` },
-    sectionTitle: { fontSize: 13, fontWeight: 600, color: sub, marginBottom: 10 },
-    addRow: { display: 'flex', gap: 8 },
-    input: { flex: 1, padding: '8px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 14, background: t.bgMuted, color: text, outline: 'none' },
-    addBtn: { padding: '8px 16px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-    empty: { fontSize: 13, color: sub, padding: '8px 0' },
-    folderList: { listStyle: 'none', margin: 0, padding: 0 },
-    folderItem: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: `1px solid ${border}` },
-    folderName: { flex: 1, fontSize: 14, color: text, display: 'flex', alignItems: 'center', gap: 8 },
-    editInput: { flex: 1, padding: '6px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, background: t.bgMuted, color: text },
-    smBtn: { padding: '4px 10px', border: `1px solid ${border}`, borderRadius: 6, background: 'transparent', color: sub, fontSize: 12, cursor: 'pointer' },
-    roomList: { listStyle: 'none', margin: 0, padding: 0 },
-    roomItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: `1px solid ${border}` },
-    roomName: { flex: 1, fontSize: 14, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-    select: {
-      padding: '8px 32px 8px 12px',
-      border: `1px solid ${border}`,
-      borderRadius: 8,
-      fontSize: 13,
-      background: t.bgMuted,
-      color: text,
-      minWidth: 140,
-      cursor: 'pointer',
-      appearance: 'auto',
-      WebkitAppearance: 'menulist',
-      MozAppearance: 'menulist',
-    },
-    footer: { padding: 16, borderTop: `1px solid ${border}` },
-    doneBtn: { width: '100%', padding: '10px 16px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  };
 }

@@ -1,8 +1,9 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import type { CSSProperties, Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { Event } from '../../../api';
 import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
 import { addMonths, daysInMonth, startOfMonth, toLocalDateKey } from '../utils/date';
+import { cn } from '../../../utils/cn';
 
 type EventFormState = {
   title: string;
@@ -14,10 +15,9 @@ type EventFormState = {
 type CreateTab = 'normal' | 'period' | 'repeat';
 
 type SchedulePanelProps = {
-  st: Record<string, CSSProperties>;
   isDark: boolean;
   isNarrowLayout: boolean;
-  panelWrapStyle: (maxWidth: number) => CSSProperties;
+  panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   calendarMonth: Date;
   selectedDate: string;
   eventsByDate: Map<string, Event[]>;
@@ -35,9 +35,6 @@ type SchedulePanelProps = {
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const QUICK_TIME_PRESETS = ['09:00', '10:00', '13:00', '18:00'];
-
-const cn = (...classes: Array<string | false | null | undefined>) =>
-  classes.filter(Boolean).join(' ');
 
 const inputBase =
   'w-full rounded-xl border px-3 py-2 text-sm outline-none transition-colors';
@@ -112,7 +109,6 @@ function ClockIcon({ className }: { className?: string }) {
 }
 
 function SchedulePanel({
-  st,
   isDark,
   isNarrowLayout,
   panelWrapStyle,
@@ -516,15 +512,27 @@ function SchedulePanel({
     return layout;
   }, [calendarMonth, eventsByDate]);
 
+  const wrap = panelWrapStyle(900);
   return (
-    <section style={panelWrapStyle(900)}>
-      <header style={st.panelHeader}>
-        <h3 style={st.panelTitle}>일정</h3>
+    <section className={wrap.className} style={wrap.style}>
+      <header
+        className={cn(
+          'shrink-0 flex items-center justify-between border-b flex-wrap gap-2',
+          isNarrowLayout ? 'px-3.5 py-3' : 'px-5 py-3.5',
+          isDark ? 'border-slate-700' : 'border-slate-200',
+        )}
+      >
+        <h3 className={cn('m-0 text-base font-bold', isDark ? 'text-slate-100' : 'text-slate-800')}>
+          일정
+        </h3>
       </header>
 
       <div
-        style={{ ...st.panelBody, padding: isNarrowLayout ? 14 : 24 }}
-        className={cn(isDark ? 'bg-slate-900' : 'bg-slate-50')}
+        className={cn(
+          'flex-1 min-h-0 overflow-auto',
+          isNarrowLayout ? 'p-3.5' : 'p-6',
+          isDark ? 'bg-slate-900' : 'bg-slate-50',
+        )}
       >
         <article
           className={cn(

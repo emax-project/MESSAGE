@@ -5,7 +5,7 @@ import { useThemeStore } from '../store';
 import TaskCreateModal from './TaskCreateModal';
 import TaskDetailModal from './TaskDetailModal';
 import TitleBar from './TitleBar';
-import { getThemeTokens } from './ui/themeTokens';
+import { cn } from '../utils/cn';
 
 type Props = {
   roomId: string;
@@ -40,16 +40,6 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
   const [editingBoardName, setEditingBoardName] = useState('');
   const [addingBoard, setAddingBoard] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
-
-  const t = getThemeTokens(isDark);
-  const bg = t.bgBase;
-  const headerBg = isDark ? '#1e293b' : '#475569';
-  const cardBg = t.bgSurface;
-  const columnBg = isDark ? '#1e293b80' : '#e2e8f0';
-  const text = t.text;
-  const sub = t.textMuted;
-  const border = t.border;
-  const inputBg = t.bgMuted;
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects', roomId],
@@ -186,33 +176,38 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
   const hasElectron = !!window.electronAPI;
 
   return (
-    <div style={{ width: '100%', height: '100vh', background: bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className={cn('w-full h-screen flex flex-col overflow-hidden', isDark ? 'bg-gray-900' : 'bg-white')}>
       {/* Electron title bar */}
       {hasElectron && (
         <TitleBar title="프로젝트 보드" isDark={isDark} />
       )}
       {/* Header */}
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', height: 50, background: headerBg }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button type="button" onClick={onClose} aria-label="뒤로" style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className={cn('shrink-0 flex items-center justify-between px-4 h-[50px]', isDark ? 'bg-slate-800' : 'bg-slate-600')}>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="뒤로"
+            className="border-none bg-transparent text-white cursor-pointer py-1 px-2 flex items-center justify-center"
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
           </button>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#fff' }}>
+          <h2 className="m-0 text-base font-bold text-white">
             {project ? project.name : '프로젝트 관리'}
           </h2>
           {projects.length > 1 && (
             <select
               value={selectedProjectId || ''}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: 13, outline: 'none' }}
+              className="py-1 px-2 rounded-md border-none bg-white/15 text-white text-[13px] outline-none"
             >
               {projects.map((p) => (
-                <option key={p.id} value={p.id} style={{ color: '#333' }}>{p.name}</option>
+                <option key={p.id} value={p.id} className="text-gray-700">{p.name}</option>
               ))}
             </select>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => {
@@ -222,14 +217,14 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                 window.open(`${window.location.origin}/gantt/${roomId}`, '_blank', 'width=1200,height=700');
               }
             }}
-            style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, background: 'none', color: '#fff', fontSize: 12, cursor: 'pointer' }}
+            className="py-1.5 px-3 border border-white/30 rounded-md bg-transparent text-white text-xs cursor-pointer"
           >
             간트 차트
           </button>
           <button
             type="button"
             onClick={() => setShowCreateProject(true)}
-            style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, background: 'none', color: '#fff', fontSize: 12, cursor: 'pointer' }}
+            className="py-1.5 px-3 border border-white/30 rounded-md bg-transparent text-white text-xs cursor-pointer"
           >
             + 프로젝트
           </button>
@@ -237,7 +232,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
             <button
               type="button"
               onClick={handleDeleteProject}
-              style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, background: 'none', color: '#fca5a5', fontSize: 12, cursor: 'pointer' }}
+              className="py-1.5 px-3 border border-white/30 rounded-md bg-transparent text-red-300 text-xs cursor-pointer"
             >
               삭제
             </button>
@@ -247,20 +242,35 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
 
       {/* Create project modal */}
       {showCreateProject && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 10010, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowCreateProject(false)}>
-          <div style={{ background: cardBg, borderRadius: 12, padding: 24, width: 360, maxWidth: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600, color: text }}>새 프로젝트</h3>
+        <div className="fixed inset-0 z-[10010] bg-black/50 flex items-center justify-center" onClick={() => setShowCreateProject(false)}>
+          <div
+            className={cn('rounded-xl p-6 w-[360px] max-w-[90%] shadow-[0_8px_32px_rgba(0,0,0,0.3)]', isDark ? 'bg-slate-800' : 'bg-white')}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className={cn('mb-4 text-base font-semibold', isDark ? 'text-gray-100' : 'text-gray-900')}>새 프로젝트</h3>
             <input
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
               placeholder="프로젝트 이름"
               autoFocus
-              style={{ width: '100%', padding: '10px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 14, background: inputBg, color: text, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+              className={cn(
+                'w-full py-2.5 px-3 border rounded-lg text-sm outline-none mb-3 box-border',
+                isDark ? 'border-gray-700 bg-gray-700 text-gray-100' : 'border-gray-300 bg-gray-100 text-gray-900'
+              )}
             />
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setShowCreateProject(false)} style={{ padding: '8px 16px', border: `1px solid ${border}`, borderRadius: 8, background: 'none', color: sub, fontSize: 13, cursor: 'pointer' }}>취소</button>
-              <button type="button" onClick={handleCreateProject} style={{ padding: '8px 16px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>만들기</button>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCreateProject(false)}
+                className={cn(
+                  'py-2 px-4 border rounded-lg bg-transparent text-[13px] cursor-pointer',
+                  isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+                )}
+              >
+                취소
+              </button>
+              <button type="button" onClick={handleCreateProject} className="py-2 px-4 border-none rounded-lg bg-slate-600 text-white text-[13px] font-semibold cursor-pointer">만들기</button>
             </div>
           </div>
         </div>
@@ -268,40 +278,35 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
 
       {/* Board content */}
       {!project ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-          <p style={{ fontSize: 16, color: sub }}>프로젝트가 없습니다</p>
+        <div className="flex-1 flex items-center justify-center flex-col gap-4">
+          <p className={cn('text-base', isDark ? 'text-gray-400' : 'text-gray-500')}>프로젝트가 없습니다</p>
           <button
             type="button"
             onClick={() => setShowCreateProject(true)}
-            style={{ padding: '12px 24px', border: 'none', borderRadius: 8, background: '#475569', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+            className="py-3 px-6 border-none rounded-lg bg-slate-600 text-white text-sm font-semibold cursor-pointer"
           >
             프로젝트 만들기
           </button>
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'flex', gap: 12, padding: 16, overflow: 'hidden' }}>
+        <div className="flex-1 flex gap-3 p-4 overflow-hidden">
           {boards.map((board) => {
             const boardTasks = getTasksForBoard(board.id);
             const isDragOver = dragOverBoardId === board.id;
             return (
               <div
                 key={board.id}
-                style={{
-                  flex: 1,
-                  minWidth: 200,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  background: columnBg,
-                  borderRadius: 12,
-                  border: isDragOver ? '2px dashed #171717' : '2px solid transparent',
-                  overflow: 'hidden',
-                }}
+                className={cn(
+                  'flex-1 min-w-[200px] flex flex-col rounded-xl overflow-hidden border-2',
+                  isDragOver ? 'border-dashed border-neutral-900' : 'border-transparent',
+                  isDark ? 'bg-slate-800/50' : 'bg-slate-200'
+                )}
                 onDragOver={(e) => { e.preventDefault(); setDragOverBoardId(board.id); }}
                 onDragLeave={() => setDragOverBoardId(null)}
                 onDrop={(e) => { e.preventDefault(); handleDrop(board.id); }}
               >
                 {/* Column header */}
-                <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="py-3 px-3.5 flex items-center justify-between">
                   {editingBoardId === board.id ? (
                     <input
                       value={editingBoardName}
@@ -309,21 +314,24 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                       onBlur={() => handleUpdateBoard(board.id)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateBoard(board.id); if (e.key === 'Escape') setEditingBoardId(null); }}
                       autoFocus
-                      style={{ flex: 1, padding: '4px 8px', border: `1px solid ${border}`, borderRadius: 4, fontSize: 13, fontWeight: 600, background: inputBg, color: text, outline: 'none' }}
+                      className={cn(
+                        'flex-1 py-1 px-2 border rounded text-[13px] font-semibold outline-none',
+                        isDark ? 'border-gray-700 bg-gray-700 text-gray-100' : 'border-gray-300 bg-gray-100 text-gray-900'
+                      )}
                     />
                   ) : (
                     <span
-                      style={{ fontSize: 13, fontWeight: 700, color: text, cursor: 'pointer' }}
+                      className={cn('text-[13px] font-bold cursor-pointer', isDark ? 'text-gray-100' : 'text-gray-900')}
                       onDoubleClick={() => { setEditingBoardId(board.id); setEditingBoardName(board.name); }}
                     >
                       {board.name} ({boardTasks.length})
                     </span>
                   )}
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div className="flex gap-1">
                     <button
                       type="button"
                       onClick={() => setShowCreateTask(board.id)}
-                      style={{ border: 'none', background: 'none', color: sub, fontSize: 18, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
+                      className={cn('border-none bg-transparent text-lg cursor-pointer px-1 leading-none', isDark ? 'text-gray-400' : 'text-gray-500')}
                       title="태스크 추가"
                     >
                       +
@@ -332,7 +340,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                       <button
                         type="button"
                         onClick={() => handleDeleteBoard(board.id)}
-                        style={{ border: 'none', background: 'none', color: sub, fontSize: 14, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
+                        className={cn('border-none bg-transparent text-sm cursor-pointer px-1 leading-none', isDark ? 'text-gray-400' : 'text-gray-500')}
                         title="보드 삭제"
                       >
                         ×
@@ -342,7 +350,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                 </div>
 
                 {/* Tasks */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="flex-1 overflow-y-auto px-2 pb-2 flex flex-col gap-2">
                   {boardTasks.map((task) => (
                     <div
                       key={task.id}
@@ -350,43 +358,40 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                       onDragStart={(e) => { e.dataTransfer.setData('text/plain', task.id); setDragTaskId(task.id); }}
                       onDragEnd={() => { setDragTaskId(null); setDragOverBoardId(null); }}
                       onClick={() => setSelectedTask(task)}
-                      style={{
-                        padding: '10px 12px',
-                        background: cardBg,
-                        borderRadius: 8,
-                        cursor: 'grab',
-                        border: `1px solid ${border}`,
-                        opacity: dragTaskId === task.id ? 0.5 : 1,
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                      }}
+                      className={cn(
+                        'py-2.5 px-3 rounded-lg cursor-grab border shadow-sm',
+                        dragTaskId === task.id ? 'opacity-50' : 'opacity-100',
+                        isDark ? 'bg-slate-800 border-gray-700' : 'bg-white border-gray-300'
+                      )}
                     >
-                      <div style={{ fontSize: 13, fontWeight: 600, color: text, marginBottom: 6 }}>
+                      <div className={cn('text-[13px] font-semibold mb-1.5', isDark ? 'text-gray-100' : 'text-gray-900')}>
                         {task.title}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 600,
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          background: PRIORITY_COLORS[task.priority] + '20',
-                          color: PRIORITY_COLORS[task.priority],
-                        }}>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className="text-[10px] font-semibold py-0.5 px-1.5 rounded"
+                          style={{
+                            backgroundColor: PRIORITY_COLORS[task.priority] + '20',
+                            color: PRIORITY_COLORS[task.priority],
+                          }}
+                        >
                           {PRIORITY_LABELS[task.priority]}
                         </span>
                         {task.assigneeName && (
-                          <span style={{ fontSize: 11, color: sub }}>@{task.assigneeName}</span>
+                          <span className={cn('text-[11px]', isDark ? 'text-gray-400' : 'text-gray-500')}>@{task.assigneeName}</span>
                         )}
                         {task.dueDate && (
-                          <span style={{
-                            fontSize: 11, color: sub,
-                            ...(new Date(task.dueDate) < new Date() ? { color: '#ef4444' } : {}),
-                          }}>
+                          <span className={cn(
+                            'text-[11px]',
+                            new Date(task.dueDate) < new Date()
+                              ? 'text-red-500'
+                              : isDark ? 'text-gray-400' : 'text-gray-500'
+                          )}>
                             {new Date(task.dueDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                           </span>
                         )}
                         {(task._count?.comments ?? 0) > 0 && (
-                          <span style={{ fontSize: 11, color: sub }}>
+                          <span className={cn('text-[11px]', isDark ? 'text-gray-400' : 'text-gray-500')}>
                             {'\uD83D\uDCAC'}{task._count!.comments}
                           </span>
                         )}
@@ -399,17 +404,10 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowCreateTask(board.id)}
-                  style={{
-                    margin: '0 8px 8px',
-                    padding: '8px',
-                    border: `1px dashed ${border}`,
-                    borderRadius: 8,
-                    background: 'none',
-                    color: sub,
-                    fontSize: 12,
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                  }}
+                  className={cn(
+                    'mx-2 mb-2 p-2 border border-dashed rounded-lg bg-transparent text-xs cursor-pointer text-center',
+                    isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+                  )}
                 >
                   + 태스크 추가
                 </button>
@@ -418,37 +416,42 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
           })}
 
           {/* Add board column */}
-          <div style={{ flex: 1, minWidth: 200 }}>
+          <div className="flex-1 min-w-[200px]">
             {addingBoard ? (
-              <div style={{ background: columnBg, borderRadius: 12, padding: 12 }}>
+              <div className={cn('rounded-xl p-3', isDark ? 'bg-slate-800/50' : 'bg-slate-200')}>
                 <input
                   value={newBoardName}
                   onChange={(e) => setNewBoardName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddBoard(); if (e.key === 'Escape') setAddingBoard(false); }}
                   placeholder="보드 이름"
                   autoFocus
-                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, background: inputBg, color: text, outline: 'none', marginBottom: 8, boxSizing: 'border-box' }}
+                  className={cn(
+                    'w-full py-2 px-2.5 border rounded-md text-[13px] outline-none mb-2 box-border',
+                    isDark ? 'border-gray-700 bg-gray-700 text-gray-100' : 'border-gray-300 bg-gray-100 text-gray-900'
+                  )}
                 />
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button type="button" onClick={handleAddBoard} style={{ padding: '6px 12px', border: 'none', borderRadius: 6, background: '#475569', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>추가</button>
-                  <button type="button" onClick={() => setAddingBoard(false)} style={{ padding: '6px 12px', border: `1px solid ${border}`, borderRadius: 6, background: 'none', color: sub, fontSize: 12, cursor: 'pointer' }}>취소</button>
+                <div className="flex gap-1.5">
+                  <button type="button" onClick={handleAddBoard} className="py-1.5 px-3 border-none rounded-md bg-slate-600 text-white text-xs font-semibold cursor-pointer">추가</button>
+                  <button
+                    type="button"
+                    onClick={() => setAddingBoard(false)}
+                    className={cn(
+                      'py-1.5 px-3 border rounded-md bg-transparent text-xs cursor-pointer',
+                      isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+                    )}
+                  >
+                    취소
+                  </button>
                 </div>
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setAddingBoard(true)}
-                style={{
-                  width: '100%',
-                  padding: 16,
-                  border: `2px dashed ${border}`,
-                  borderRadius: 12,
-                  background: 'none',
-                  color: sub,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                }}
+                className={cn(
+                  'w-full p-4 border-2 border-dashed rounded-xl bg-transparent text-[13px] cursor-pointer text-center',
+                  isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+                )}
               >
                 + 보드 추가
               </button>

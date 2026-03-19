@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usersApi, type User } from '../api';
 import { useThemeStore } from '../store';
+import { cn } from '../utils/cn';
 
 type Props = { onSelect: (userId: string) => void; compact?: boolean };
 
@@ -24,14 +25,22 @@ export default function UserPicker({ onSelect, compact }: Props) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  const st = getPickerStyles(isDark);
-
   return (
-    <div ref={wrapRef} style={compact ? st.wrapCompact : st.wrap}>
+    <div
+      ref={wrapRef}
+      className={cn(
+        'relative',
+        !compact && cn('px-4 py-3 border-b', isDark ? 'border-slate-700' : 'border-slate-200'),
+      )}
+    >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        style={compact ? st.triggerCompact : st.trigger}
+        className={cn(
+          compact
+            ? 'w-[30px] h-[30px] p-0 border-none rounded-full bg-white/20 text-white cursor-pointer text-base font-semibold leading-none flex items-center justify-center'
+            : 'w-full px-3.5 py-2.5 border-none rounded-[10px] bg-slate-600 cursor-pointer text-sm font-semibold text-white',
+        )}
         aria-label="새 채팅"
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -39,9 +48,18 @@ export default function UserPicker({ onSelect, compact }: Props) {
         {compact ? '+' : '+ 새 채팅'}
       </button>
       {open && (
-        <div style={compact ? { ...st.dropdown, ...st.dropdownCompact } : st.dropdown} role="listbox">
+        <div
+          className={cn(
+            'absolute top-full mt-1.5 rounded-xl max-h-[280px] overflow-auto border z-[10000]',
+            isDark ? 'bg-slate-800 border-slate-700 shadow-[0_4px_20px_rgba(0,0,0,0.3)]' : 'bg-white border-slate-200 shadow-[0_4px_16px_rgba(0,0,0,0.1)]',
+            compact ? 'left-auto right-0 min-w-[260px]' : 'left-3 right-3',
+          )}
+          role="listbox"
+        >
           {users.length === 0 ? (
-            <p style={st.empty}>다른 사용자가 없습니다. 회원가입한 사용자와 새 채팅을 만들 수 있습니다.</p>
+            <p className={cn('p-4 m-0 text-sm', isDark ? 'text-slate-400' : 'text-[#888]')}>
+              다른 사용자가 없습니다. 회원가입한 사용자와 새 채팅을 만들 수 있습니다.
+            </p>
           ) : (
             users.map((u: User) => (
               <button
@@ -51,12 +69,26 @@ export default function UserPicker({ onSelect, compact }: Props) {
                   onSelect(u.id);
                   setOpen(false);
                 }}
-                style={st.userItem}
+                className={cn(
+                  'flex items-center w-full px-4 py-3 border-0 border-b bg-transparent text-left cursor-pointer gap-3',
+                  isDark ? 'border-slate-700' : 'border-slate-100',
+                )}
               >
-                <div style={st.userAvatar}>{u.name.trim()[0]?.toUpperCase() || '?'}</div>
+                <div
+                  className={cn(
+                    'w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0',
+                    isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-600',
+                  )}
+                >
+                  {u.name.trim()[0]?.toUpperCase() || '?'}
+                </div>
                 <div>
-                  <span style={st.userName}>{u.name}</span>
-                  <span style={st.userEmail}>{u.email}</span>
+                  <span className={cn('block font-semibold text-sm', isDark ? 'text-slate-200' : 'text-slate-800')}>
+                    {u.name}
+                  </span>
+                  <span className={cn('block text-xs mt-0.5', isDark ? 'text-slate-500' : 'text-[#888]')}>
+                    {u.email}
+                  </span>
                 </div>
               </button>
             ))
@@ -65,85 +97,4 @@ export default function UserPicker({ onSelect, compact }: Props) {
       )}
     </div>
   );
-}
-
-function getPickerStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  return {
-    wrap: { position: 'relative', padding: '12px 16px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}` },
-    wrapCompact: { position: 'relative' },
-    trigger: {
-      width: '100%',
-      padding: '10px 14px',
-      border: 'none',
-      borderRadius: 10,
-      background: '#475569',
-      cursor: 'pointer',
-      fontSize: 14,
-      fontWeight: 600,
-      color: '#fff',
-    },
-    triggerCompact: {
-      width: 30,
-      height: 30,
-      padding: 0,
-      border: 'none',
-      borderRadius: '50%',
-      background: 'rgba(255,255,255,0.2)',
-      color: '#fff',
-      cursor: 'pointer',
-      fontSize: 16,
-      fontWeight: 600,
-      lineHeight: 1,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    dropdown: {
-      position: 'absolute',
-      top: '100%',
-      left: 12,
-      right: 12,
-      marginTop: 6,
-      background: isDark ? '#1e293b' : '#fff',
-      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-      borderRadius: 12,
-      boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 16px rgba(0,0,0,0.1)',
-      maxHeight: 280,
-      overflow: 'auto',
-      zIndex: 10000,
-    },
-    dropdownCompact: {
-      left: 'auto',
-      right: 0,
-      minWidth: 260,
-    },
-    empty: { padding: 16, margin: 0, color: isDark ? '#94a3b8' : '#888', fontSize: 14 },
-    userItem: {
-      display: 'flex',
-      alignItems: 'center',
-      width: '100%',
-      padding: '12px 16px',
-      border: 'none',
-      background: 'none',
-      textAlign: 'left',
-      cursor: 'pointer',
-      gap: 12,
-      borderBottom: `1px solid ${isDark ? '#334155' : '#f1f5f9'}`,
-    },
-    userAvatar: {
-      width: 36,
-      height: 36,
-      borderRadius: '50%',
-      background: isDark ? '#334155' : '#e2e8f0',
-      color: isDark ? '#94a3b8' : '#475569',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 14,
-      fontWeight: 700,
-      flexShrink: 0,
-    },
-    userName: { display: 'block', fontWeight: 600, fontSize: 14, color: isDark ? '#e2e8f0' : '#1e293b' },
-    userEmail: { display: 'block', fontSize: 12, color: isDark ? '#64748b' : '#888', marginTop: 2 },
-  };
 }

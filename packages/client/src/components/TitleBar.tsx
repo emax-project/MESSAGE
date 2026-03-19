@@ -3,7 +3,7 @@
  * - Mac: 타이틀만 표시 (시스템 트래픽 라이트 사용, 커스텀 버튼 없음)
  * - Windows: 좌측 타이틀 + 우측 최소화/최대화/닫기
  */
-import { getThemeTokens } from './ui/themeTokens';
+import { cn } from '../utils/cn';
 
 export default function TitleBar({
   title,
@@ -16,70 +16,42 @@ export default function TitleBar({
   const platform = api?.platform ?? 'darwin';
   const isMac = platform === 'darwin';
 
-  const t = getThemeTokens(isDark);
-  const bg = t.bgSurface;
-  const border = t.border;
-  const textColor = t.text;
+  const barClass = cn(
+    'shrink-0 h-[38px] min-h-[38px] flex items-center px-3 gap-2 border-b',
+    isDark ? 'bg-[#222529] border-[#3a3f46]' : 'bg-white border-[#dde1e6]',
+  );
 
-  const baseBar = {
-    flexShrink: 0,
-    height: 38,
-    minHeight: 38,
-    display: 'flex',
-    alignItems: 'center',
-    paddingLeft: 12,
-    paddingRight: 12,
-    gap: 8,
-    background: bg,
-    borderBottom: `1px solid ${border}`,
-    WebkitAppRegion: 'drag',
-  } as React.CSSProperties;
-
-  const buttonsWrap = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: isMac ? 8 : 2,
-    WebkitAppRegion: 'no-drag',
-  } as React.CSSProperties;
-
-  const titleStyle: React.CSSProperties = {
-    flex: 1,
-    textAlign: isMac ? 'center' : 'left',
-    fontSize: 13,
-    fontWeight: 600,
-    color: textColor,
-    pointerEvents: 'none',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  };
+  const titleClass = cn(
+    'flex-1 text-[13px] font-semibold pointer-events-none truncate',
+    isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]',
+  );
 
   if (isMac) {
     return (
-      <div style={baseBar}>
-        <span style={titleStyle}>{title}</span>
+      <div className={cn(barClass, 'justify-center')} style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+        <span className={cn(titleClass, 'text-center')}>{title}</span>
       </div>
     );
   }
 
-  // Windows: 타이틀 좌측, 우측에 작은 아이콘 버튼 (최소화 · 최대화 · 닫기)
-  const winBtnBg = isDark ? '#3d4451' : '#f0f0f0';
-  const winBtnHover = isDark ? '#4b5563' : '#d0d0d0';
+  const winBtnClass = cn(
+    'w-9 h-7 border-none cursor-pointer p-0 flex items-center justify-center shadow-none outline-none appearance-none transition-[background,color] duration-150',
+    isDark ? 'bg-[#3d4451] text-[#d1d2d3] hover:bg-slate-600' : 'bg-[#f0f0f0] text-[#1d1c1d] hover:bg-[#d0d0d0]',
+  );
+
+  const closeBtnClass = cn(winBtnClass, 'hover:!bg-[#e81123] hover:!text-white');
+
   return (
     <>
-      <style>{`
-        .titlebar-win-btn { transition: background 0.15s ease, color 0.15s ease; }
-        .titlebar-win-btn:hover { background: ${winBtnHover} !important; }
-        .titlebar-win-btn-close:hover { background: #e81123 !important; color: #fff !important; }
-        .titlebar-win-btn-close:hover svg { stroke: #fff; }
-      `}</style>
-      <div style={baseBar}>
-        <span style={{ ...titleStyle, flex: 1, textAlign: 'left' }}>{title}</span>
-        <div style={{ ...buttonsWrap, gap: 0, borderRadius: 6, overflow: 'hidden' }}>
+      <div className={barClass} style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+        <span className={cn(titleClass, 'text-left')}>{title}</span>
+        <div
+          className="flex items-center gap-0 rounded-md overflow-hidden"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
           <button
             type="button"
-            className="titlebar-win-btn"
-            style={winBtnStyle(winBtnBg, textColor)}
+            className={winBtnClass}
             onClick={() => api?.windowMinimize?.()}
             aria-label="최소화"
           >
@@ -89,8 +61,7 @@ export default function TitleBar({
           </button>
           <button
             type="button"
-            className="titlebar-win-btn"
-            style={winBtnStyle(winBtnBg, textColor)}
+            className={winBtnClass}
             onClick={() => api?.windowMaximize?.()}
             aria-label="최대화"
           >
@@ -100,8 +71,7 @@ export default function TitleBar({
           </button>
           <button
             type="button"
-            className="titlebar-win-btn titlebar-win-btn-close"
-            style={winBtnStyle(winBtnBg, textColor)}
+            className={closeBtnClass}
             onClick={() => api?.windowClose?.()}
             aria-label="닫기"
           >
@@ -113,23 +83,4 @@ export default function TitleBar({
       </div>
     </>
   );
-}
-
-function winBtnStyle(bg: string, iconColor: string): React.CSSProperties {
-  return {
-    width: 36,
-    height: 28,
-    border: 'none',
-    background: bg,
-    color: iconColor,
-    cursor: 'pointer',
-    padding: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: 'none',
-    outline: 'none',
-    WebkitAppearance: 'none',
-    appearance: 'none',
-  };
 }

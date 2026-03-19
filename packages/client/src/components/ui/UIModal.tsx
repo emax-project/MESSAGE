@@ -1,4 +1,5 @@
 import { useThemeStore } from '../../store';
+import { cn } from '../../utils/cn';
 import UICloseButton from './UICloseButton';
 
 type Props = {
@@ -19,60 +20,46 @@ export default function UIModal({
   zIndex = 10001,
 }: Props) {
   const isDark = useThemeStore((s) => s.isDark);
-  const st = getStyles(isDark, width, overlayPosition, zIndex);
 
   return (
-    <div style={st.overlay} onClick={onClose}>
-      <div style={st.modal} onClick={(e) => e.stopPropagation()}>
+    <div
+      className={cn(
+        'inset-0 flex items-center justify-center bg-black/50',
+        overlayPosition === 'fixed' ? 'fixed' : 'absolute',
+      )}
+      style={{ zIndex }}
+      onClick={onClose}
+    >
+      <div
+        className={cn(
+          'flex max-h-[80vh] max-w-[95vw] flex-col rounded-xl border',
+          isDark
+            ? 'border-slate-700 bg-slate-800 shadow-[0_8px_32px_rgba(0,0,0,0.4)]'
+            : 'border-slate-200 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.15)]',
+        )}
+        style={{ width }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {title && (
-          <div style={st.header}>
-            <h3 style={st.title}>{title}</h3>
+          <div
+            className={cn(
+              'flex shrink-0 items-center justify-between border-b px-5 py-4',
+              isDark ? 'border-slate-700' : 'border-slate-200',
+            )}
+          >
+            <h3
+              className={cn(
+                'm-0 text-lg font-semibold',
+                isDark ? 'text-slate-100' : 'text-slate-800',
+              )}
+            >
+              {title}
+            </h3>
             <UICloseButton onClick={onClose} />
           </div>
         )}
-        <div style={st.body}>{children}</div>
+        <div className="min-h-0 overflow-auto p-5">{children}</div>
       </div>
     </div>
   );
 }
-
-function getStyles(
-  isDark: boolean,
-  width: number,
-  overlayPosition: 'fixed' | 'absolute',
-  zIndex: number
-): Record<string, React.CSSProperties> {
-  return {
-    overlay: {
-      position: overlayPosition,
-      inset: 0,
-      zIndex,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    modal: {
-      background: isDark ? '#1e293b' : '#fff',
-      borderRadius: 12,
-      boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.15)',
-      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-      width,
-      maxWidth: '95vw',
-      maxHeight: '80vh',
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    header: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '16px 20px',
-      borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-      flexShrink: 0,
-    },
-    title: { margin: 0, fontSize: 18, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' },
-    body: { padding: 20, overflow: 'auto', minHeight: 0 },
-  };
-}
-

@@ -1,27 +1,33 @@
 import { memo } from 'react';
-import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
 import type { Room } from '../../../api';
 import GroupAvatar from '../../../components/GroupAvatar';
 import RoomAvatar from '../../../components/RoomAvatar';
 import UserAvatar from '../../../components/UserAvatar';
+import { useThemeStore } from '../../../store';
+import { cn } from '../../../utils/cn';
 
 type RoomListItemProps = {
   room: Room;
-  st: Record<string, CSSProperties>;
   myId?: string;
   mutedRoomIds: Set<string>;
   onOpenRoom: (room: Room) => void;
   onContextMenu: (e: MouseEvent<HTMLLIElement>, room: Room) => void;
 };
 
+const avatarImgStyle = { width: '100%', height: '100%', objectFit: 'cover' as const, borderRadius: 10 };
+
 function RoomListItem({
   room,
-  st,
   myId,
   mutedRoomIds,
   onOpenRoom,
   onContextMenu,
 }: RoomListItemProps) {
+  const isDark = useThemeStore((s) => s.isDark);
+
+  const initialStyle = { fontSize: 12, fontWeight: 700 as const, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' };
+
   const onKeyDown = (e: KeyboardEvent<HTMLLIElement>) => {
     if (e.key === 'Enter') onOpenRoom(room);
   };
@@ -34,16 +40,28 @@ function RoomListItem({
       onClick={() => onOpenRoom(room)}
       onKeyDown={onKeyDown}
       onContextMenu={(e) => onContextMenu(e, room)}
-      style={st.roomItem}
+      className={cn(
+        'px-3.5 py-2 border-b cursor-pointer flex items-center gap-2',
+        isDark ? 'border-b-[#334155]' : 'border-b-[#f0f0f0]',
+      )}
     >
       {room.isFavorite && (
-        <span style={st.roomFavoriteIcon} aria-label="즐겨찾기">
+        <span
+          className={cn('w-5 h-5 shrink-0 flex items-center justify-center', isDark ? 'text-[#fbbf24]' : 'text-[#f59e0b]')}
+          aria-label="즐겨찾기"
+        >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
           </svg>
         </span>
       )}
-      <div style={st.roomAvatar} aria-hidden>
+      <div
+        className={cn(
+          'w-8 h-8 rounded-[10px] shrink-0 flex items-center justify-center overflow-hidden',
+          isDark ? 'bg-[#475569]' : 'bg-[#e2e8f0]',
+        )}
+        aria-hidden
+      >
         {room.isGroup && !room.isTopic && Array.isArray(room.members) && room.members.length > 0 ? (
           <GroupAvatar
             members={room.members.map((m) => ({
@@ -66,8 +84,8 @@ function RoomListItem({
                 userId={otherId || ''}
                 name={otherName || room.name || ''}
                 avatarUrlPath={(other as { avatarUrl?: string }).avatarUrl}
-                imgStyle={st.roomAvatarImg}
-                initialStyle={st.roomAvatarInitial}
+                imgStyle={avatarImgStyle}
+                initialStyle={initialStyle}
               />
             ) : (
               <RoomAvatar
@@ -76,8 +94,8 @@ function RoomListItem({
                 initials={null}
                 hasAvatar={false}
                 avatarUrlPath={null}
-                imgStyle={st.roomAvatarImg}
-                initialStyle={st.roomAvatarInitial}
+                imgStyle={avatarImgStyle}
+                initialStyle={initialStyle}
               />
             );
           })()
@@ -88,26 +106,42 @@ function RoomListItem({
             initials={room.initials}
             hasAvatar={!!room.avatarUrl}
             avatarUrlPath={room.avatarUrl}
-            imgStyle={st.roomAvatarImg}
-            initialStyle={st.roomAvatarInitial}
+            imgStyle={avatarImgStyle}
+            initialStyle={initialStyle}
           />
         )}
       </div>
-      <div style={st.roomInfo}>
-        <div style={st.roomName}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 0', minWidth: 0 }}>{room.name}</span>
+      <div className="flex-1 min-w-0">
+        <div className={cn('font-semibold text-xs mb-px flex items-center gap-1.5', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap flex-1 min-w-0">{room.name}</span>
           {room.isGroup && room.isTopic && room.viewMode && (
-            <span style={st.roomViewModeBadge} title={room.viewMode === 'board' ? '보드뷰: 게시글 기반' : '챗뷰: 메시지 기반'}>
+            <span
+              className={cn(
+                'text-[10px] shrink-0 py-px px-[5px] rounded',
+                isDark ? 'text-[#a7adb4] bg-white/[0.08]' : 'text-[#5e6470] bg-black/[0.06]',
+              )}
+              title={room.viewMode === 'board' ? '보드뷰: 게시글 기반' : '챗뷰: 메시지 기반'}
+            >
               {room.viewMode === 'board' ? '보드뷰' : '챗뷰'}
             </span>
           )}
         </div>
-        <div style={st.roomPreview}>{room.lastMessage ? room.lastMessage.content : ''}</div>
+        <div className={cn('text-[11px] overflow-hidden text-ellipsis whitespace-nowrap', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
+          {room.lastMessage ? room.lastMessage.content : ''}
+        </div>
       </div>
-      <div style={st.roomMeta}>
-        {room.lastMessage && <span style={st.roomTime}>{new Date(room.lastMessage.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>}
-        {mutedRoomIds.has(room.id) && <span style={st.roomMuted} title="알림 꺼짐">음소거</span>}
-        {(room.unreadCount ?? 0) > 0 && <span style={st.roomUnreadBadge}>{room.unreadCount! > 99 ? '99+' : room.unreadCount}</span>}
+      <div className="shrink-0 flex flex-col items-end gap-[3px]">
+        {room.lastMessage && (
+          <span className={cn('text-[10px]', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
+            {new Date(room.lastMessage.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+        {mutedRoomIds.has(room.id) && <span className="text-[10px] text-[#94a3b8]" title="알림 꺼짐">음소거</span>}
+        {(room.unreadCount ?? 0) > 0 && (
+          <span className="min-w-[18px] h-[18px] px-[5px] rounded-[9px] bg-[#9a58a8] text-white text-[10px] font-bold flex items-center justify-center">
+            {room.unreadCount! > 99 ? '99+' : room.unreadCount}
+          </span>
+        )}
       </div>
     </li>
   );

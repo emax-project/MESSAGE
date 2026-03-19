@@ -1,9 +1,10 @@
 import { memo } from 'react';
-import type { CSSProperties, Dispatch, ReactNode, SetStateAction } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import UserAvatar from '../../../components/UserAvatar';
 import { EmaxLogo } from '../../../components/EmaxLogo';
 import UICloseButton from '../../../components/ui/UICloseButton';
 import RoomSections, { type RoomSectionsProps } from './RoomSections';
+import { cn } from '../../../utils/cn';
 
 type LeftSidebarUser = {
   id: string;
@@ -12,7 +13,6 @@ type LeftSidebarUser = {
 } | null | undefined;
 
 type LeftSidebarProps = RoomSectionsProps & {
-  st: Record<string, CSSProperties>;
   isDark: boolean;
   user: LeftSidebarUser;
   statusInput: string;
@@ -25,7 +25,6 @@ type LeftSidebarProps = RoomSectionsProps & {
 };
 
 function LeftSidebar({
-  st,
   isDark,
   user,
   statusInput,
@@ -38,54 +37,98 @@ function LeftSidebar({
   ...roomSectionsProps
 }: LeftSidebarProps) {
   return (
-    <div style={st.sidebar}>
-      <div style={st.sidebarHeader}>
+    <div className={cn(
+      'w-[260px] shrink-0 flex flex-col border-r',
+      isDark ? 'bg-[#222529] border-r-[#3a3f46]' : 'bg-white border-r-[#dde1e6]',
+    )}>
+      <div className={cn(
+        'shrink-0 h-[46px] flex items-center justify-between px-4 border-b',
+        isDark ? 'bg-[#222529] border-b-[#3a3f46]' : 'bg-white border-b-[#dde1e6]',
+      )}>
         <button
           type="button"
           onClick={onNavigateHome}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: 'transparent', padding: 0, margin: 0, cursor: 'pointer' }}
+          className="flex items-center gap-2 border-none bg-transparent p-0 m-0 cursor-pointer"
           title="대시보드로 이동"
         >
           <EmaxLogo variant={isDark ? 'light' : 'accent'} size="sm" />
         </button>
       </div>
 
-      <div style={st.profileSection}>
-        <div style={{ position: 'relative' as const, flexShrink: 0 }}>
-          <div style={st.profileAvatar}>
+      <div className={cn(
+        'shrink-0 flex items-center gap-2.5 px-4 py-2.5 border-b',
+        isDark ? 'border-b-[#3a3f46]' : 'border-b-[#dde1e6]',
+      )}>
+        <div className="relative shrink-0">
+          <div className={cn(
+            'w-[34px] h-[34px] rounded-[10px] shrink-0 flex items-center justify-center overflow-hidden',
+            isDark ? 'bg-[#475569]' : 'bg-[#e2e8f0]',
+          )}>
             {user?.avatarUrl ? (
-              <UserAvatar userId={user.id} name={user.name || ''} avatarUrlPath={user.avatarUrl} imgStyle={st.profileAvatarImg} initialStyle={st.profileInitial} />
+              <UserAvatar
+                userId={user.id}
+                name={user.name || ''}
+                avatarUrlPath={user.avatarUrl}
+                imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
+                initialStyle={{ fontSize: 13, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}
+              />
             ) : (
-              <span style={st.profileInitial}>{user?.name?.trim()[0]?.toUpperCase() || '?'}</span>
+              <span className={cn(
+                'text-[13px] font-bold',
+                isDark ? 'text-[#e2e8f0]' : 'text-[#3c1e1ed9]',
+              )}>
+                {user?.name?.trim()[0]?.toUpperCase() || '?'}
+              </span>
             )}
           </div>
           {showStatusBadge && (
-            <span style={{ position: 'absolute' as const, top: -2, right: -2, display: 'block', borderRadius: '50%', border: `1.5px solid ${isDark ? '#1e293b' : '#f1f5f9'}`, lineHeight: 0 }}>
+            <span
+              className="absolute -top-0.5 -right-0.5 block rounded-full leading-[0]"
+              style={{ border: `1.5px solid ${isDark ? '#1e293b' : '#f1f5f9'}` }}
+            >
               {statusBadge}
             </span>
           )}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={st.profileName}>{user?.name || '사용자'}</div>
-          {statusInput && <div style={st.profileStatus}>{statusLabel}</div>}
+        <div className="flex-1 min-w-0">
+          <div className={cn(
+            'text-[13px] font-semibold overflow-hidden text-ellipsis whitespace-nowrap',
+            isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]',
+          )}>
+            {user?.name || '사용자'}
+          </div>
+          {statusInput && (
+            <div className={cn(
+              'text-[11px] overflow-hidden text-ellipsis whitespace-nowrap',
+              isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]',
+            )}>
+              {statusLabel}
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={st.searchWrap}>
+      <div className={cn(
+        'shrink-0 flex items-center px-3 py-2 border-b',
+        isDark ? 'border-b-[#3a3f46]' : 'border-b-[#dde1e6]',
+      )}>
         <input
           type="text"
           placeholder="대화방 검색"
           aria-label="대화방 검색"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={st.searchInput}
+          className={cn(
+            'flex-1 px-2 py-1.5 border-none rounded-[6px] text-[13px] outline-none min-w-0',
+            isDark ? 'bg-[#2a2d31] text-[#d1d2d3]' : 'bg-[#f1f3f5] text-[#1d1c1d]',
+          )}
         />
         {searchQuery.trim().length > 0 && (
           <UICloseButton
             size="sm"
             variant="subtle"
             onClick={() => setSearchQuery('')}
-            style={st.searchClearBtn}
+            className="ml-1"
             aria-label="검색어 지우기"
             title="검색어 지우기"
           />
@@ -93,7 +136,6 @@ function LeftSidebar({
       </div>
 
       <RoomSections
-        st={st}
         isDark={isDark}
         {...roomSectionsProps}
       />

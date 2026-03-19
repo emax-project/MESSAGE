@@ -20,17 +20,9 @@ const sampleEvent: Event = {
 };
 
 const baseProps = () => ({
-  st: {
-    panelHeader: {},
-    panelTitle: {},
-    panelBody: {},
-    formInput: {},
-    formBtn: {},
-    formBtnCancel: {},
-  },
   isDark: false,
   isNarrowLayout: false,
-  panelWrapStyle: () => ({}),
+  panelWrapStyle: () => ({ className: '', style: {} }),
   calendarMonth: new Date('2026-03-01T00:00:00'),
   selectedDate: '2026-03-18',
   eventsByDate: new Map<string, Event[]>([['2026-03-18', [sampleEvent]]]),

@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useThemeStore } from '../store';
+import { cn } from '../utils/cn';
 
 const MAX_SIZE = 20 * 1024 * 1024 * 1024; // 20GB
 
@@ -24,46 +25,29 @@ export default function FileUploadButton({ disabled, onFileSelected }: Props) {
     if (valid.length > 0) onFileSelected(valid);
   };
 
-  const st = getUploadStyles(isDark);
-
   return (
-    <div style={st.wrapper}>
+    <div className="relative flex items-center">
       <input
         ref={inputRef}
         type="file"
         multiple
-        style={{ display: 'none' }}
+        className="hidden"
         onChange={handleFileChange}
       />
       <button
         type="button"
         onClick={handleClick}
         disabled={disabled}
-        style={st.button}
+        className={cn(
+          'flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none',
+          isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600',
+        )}
         title="파일 첨부"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
         </svg>
       </button>
     </div>
   );
-}
-
-function getUploadStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  return {
-    wrapper: { position: 'relative', display: 'flex', alignItems: 'center' },
-    button: {
-      width: 40,
-      height: 40,
-      borderRadius: '50%',
-      border: 'none',
-      background: isDark ? '#334155' : '#f1f5f9',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-  };
 }

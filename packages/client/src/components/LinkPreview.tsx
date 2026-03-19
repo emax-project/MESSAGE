@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { linkPreviewApi } from '../api';
+import { cn } from '../utils/cn';
 
 const URL_REGEX = /https?:\/\/[^\s<>"']+/i;
 
@@ -16,7 +17,7 @@ export default function LinkPreview({ url, isDark }: Props) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['link-preview', url],
     queryFn: () => linkPreviewApi.get(url),
-    staleTime: 1000 * 60 * 60, // 1시간 캐시
+    staleTime: 1000 * 60 * 60,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
@@ -52,119 +53,88 @@ export default function LinkPreview({ url, isDark }: Props) {
 
   const openExternal = window.electronAPI?.openExternal;
 
-  // API 실패 또는 메타 없음 시에도 링크 카드만이라도 표시
+  const cardClasses = cn(
+    'mt-2 block max-w-[360px] overflow-hidden rounded-[10px] border text-inherit no-underline',
+    isDark ? 'border-slate-600 bg-slate-800' : 'border-slate-200 bg-slate-50',
+  );
+
+  const handleClick = (e: React.MouseEvent, targetUrl: string) => {
+    e.stopPropagation();
+    if (openExternal) {
+      e.preventDefault();
+      openExternal(targetUrl);
+    }
+  };
+
   if (isError || !data) {
-    const styles = getStyles(isDark);
     return (
       <a
         href={displayUrl}
         target="_blank"
         rel="noopener noreferrer"
-        style={styles.card}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (openExternal) {
-            e.preventDefault();
-            openExternal(displayUrl);
-          }
-        }}
+        className={cardClasses}
+        onClick={(e) => handleClick(e, displayUrl)}
       >
-        <div style={styles.body}>
-          <div style={{ ...styles.title, color: isDark ? '#94a3b8' : '#64748b', fontWeight: 500 }}>링크 미리보기를 불러올 수 없습니다</div>
-          <div style={styles.url}>{hostname}</div>
+        <div className="px-3 py-2.5">
+          <div className={cn('text-sm font-medium', isDark ? 'text-slate-400' : 'text-slate-500')}>
+            링크 미리보기를 불러올 수 없습니다
+          </div>
+          <div className={cn('text-[11px]', isDark ? 'text-slate-500' : 'text-slate-400')}>
+            {hostname}
+          </div>
         </div>
       </a>
     );
   }
 
   const imageSrc = proxyImageUrl || data.imageUrl;
-  const styles = getStyles(isDark);
   return (
     <a
       href={data.url}
       target="_blank"
       rel="noopener noreferrer"
-      style={styles.card}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (openExternal) {
-          e.preventDefault();
-          openExternal(data.url);
-        }
-      }}
+      className={cardClasses}
+      onClick={(e) => handleClick(e, data.url)}
     >
       {data.imageUrl && (
-        <div style={styles.imageWrap}>
+        <div className={cn('w-full max-h-[180px] overflow-hidden', isDark ? 'bg-slate-700' : 'bg-slate-200')}>
           <img
             src={imageSrc || undefined}
             alt=""
-            style={styles.image}
+            className="block h-auto max-h-[180px] w-full object-cover"
             loading="lazy"
             referrerPolicy="no-referrer"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
       )}
-      <div style={styles.body}>
-        {data.title && <div style={styles.title}>{data.title}</div>}
-        {data.description && <div style={styles.description}>{data.description}</div>}
-        <div style={styles.url}>{hostname}</div>
+      <div className="px-3 py-2.5">
+        {data.title && (
+          <div
+            className={cn(
+              'mb-1 text-sm font-semibold leading-snug',
+              'line-clamp-2',
+              isDark ? 'text-slate-100' : 'text-slate-800',
+            )}
+          >
+            {data.title}
+          </div>
+        )}
+        {data.description && (
+          <div
+            className={cn(
+              'mb-1 text-xs leading-relaxed',
+              'line-clamp-2',
+              isDark ? 'text-slate-400' : 'text-slate-500',
+            )}
+          >
+            {data.description}
+          </div>
+        )}
+        <div className={cn('text-[11px]', isDark ? 'text-slate-500' : 'text-slate-400')}>
+          {hostname}
+        </div>
       </div>
     </a>
   );
-}
-
-function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  return {
-    card: {
-      display: 'block',
-      marginTop: 8,
-      maxWidth: 360,
-      borderRadius: 10,
-      overflow: 'hidden',
-      border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
-      background: isDark ? '#1e293b' : '#f8fafc',
-      textDecoration: 'none',
-      color: 'inherit',
-    },
-    imageWrap: {
-      width: '100%',
-      maxHeight: 180,
-      overflow: 'hidden',
-      background: isDark ? '#334155' : '#e2e8f0',
-    },
-    image: {
-      width: '100%',
-      height: 'auto',
-      maxHeight: 180,
-      objectFit: 'cover',
-      display: 'block',
-    },
-    body: { padding: '10px 12px' },
-    title: {
-      fontSize: 14,
-      fontWeight: 600,
-      color: isDark ? '#f1f5f9' : '#1e293b',
-      marginBottom: 4,
-      lineHeight: 1.3,
-      display: '-webkit-box',
-      WebkitLineClamp: 2,
-      WebkitBoxOrient: 'vertical' as const,
-      overflow: 'hidden',
-    },
-    description: {
-      fontSize: 12,
-      color: isDark ? '#94a3b8' : '#64748b',
-      lineHeight: 1.4,
-      display: '-webkit-box',
-      WebkitLineClamp: 2,
-      WebkitBoxOrient: 'vertical' as const,
-      overflow: 'hidden',
-      marginBottom: 4,
-    },
-    url: {
-      fontSize: 11,
-      color: isDark ? '#64748b' : '#94a3b8',
-    },
-  };
 }

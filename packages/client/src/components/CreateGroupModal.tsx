@@ -4,8 +4,8 @@ import { usersApi, roomsApi, foldersApi, type User, type Folder, type Room } fro
 import { useAuthStore, useThemeStore } from '../store';
 import UserAvatar from './UserAvatar';
 import AvatarEditModal from './AvatarEditModal';
-import { getThemeTokens } from './ui/themeTokens';
 import UICloseButton from './ui/UICloseButton';
+import { cn } from '../utils/cn';
 
 type Props = {
   mode: 'topic' | 'chat';
@@ -188,28 +188,35 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
     }
   };
 
-  const st = getStyles(isDark);
   const isTopic = mode === 'topic';
   const title = isTopic ? '새 아젠다 생성' : '새 채팅';
   const canCreate = isTopic ? topicName.trim().length > 0 : selected.size > 0;
 
   return (
-    <div style={st.overlay} onClick={onClose}>
-      <div style={st.modal} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center" onClick={onClose}>
+      <div
+        className={cn(
+          'rounded-xl border flex flex-col w-[460px] max-w-[95vw] max-h-[85vh]',
+          isDark
+            ? 'bg-[#222529] border-[#3a3f46] shadow-[0_8px_32px_rgba(0,0,0,0.4)]'
+            : 'bg-white border-[#dde1e6] shadow-[0_8px_32px_rgba(0,0,0,0.15)]'
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div style={st.header}>
-          <h3 style={st.title}>{title}</h3>
+        <div className={cn('flex items-center justify-between px-5 py-4 border-b shrink-0', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
+          <h3 className={cn('m-0 text-lg font-semibold', isDark ? 'text-white' : 'text-[#161616]')}>{title}</h3>
           <UICloseButton onClick={onClose} />
         </div>
 
         {/* Topic Form Step */}
         {isTopic && step === 'form' && (
-          <div style={st.formBody}>
+          <div className="px-5 py-4 overflow-y-auto flex-1 min-h-0">
             {/* Name */}
-            <div style={st.fieldGroup}>
-              <div style={st.labelRow}>
-                <label style={st.label}>이름 <span style={st.required}>*</span></label>
-                <span style={{ ...st.charCount, ...(topicName.length > 60 ? { color: '#ef4444' } : {}) }}>{topicName.length}/60</span>
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>이름 <span className="text-red-500 ml-0.5">*</span></label>
+                <span className={cn('text-[11px]', topicName.length > 60 ? 'text-red-500' : (isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]'))}>{topicName.length}/60</span>
               </div>
               <input
                 type="text"
@@ -217,37 +224,33 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                 value={topicName}
                 onChange={(e) => setTopicName(e.target.value.slice(0, 60))}
                 maxLength={60}
-                style={st.input}
+                className={cn(
+                  'w-full px-3 py-2.5 border rounded-lg text-sm outline-none box-border',
+                  isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                )}
                 autoFocus
               />
             </div>
 
             {/* Room Profile Photo */}
-            <div style={st.fieldGroup}>
-              <label style={st.label}>방 프로필 사진</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+            <div className="mb-4">
+              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>방 프로필 사진</label>
+              <div className="flex items-center gap-3 mt-1.5">
                 <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: '50%',
-                    background: isDark ? '#334155' : '#e2e8f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                  }}
+                  className={cn(
+                    'w-14 h-14 rounded-full flex items-center justify-center overflow-hidden shrink-0',
+                    isDark ? 'bg-slate-700' : 'bg-slate-200'
+                  )}
                 >
                   {roomAvatarPreview ? (
-                    <img src={roomAvatarPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={roomAvatarPreview} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <span style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#94a3b8' : '#475569' }}>
+                    <span className={cn('text-lg font-bold', isDark ? 'text-slate-400' : 'text-slate-600')}>
                       {(roomInitials || topicName.trim()).slice(0, 2).toUpperCase() || '?'}
                     </span>
                   )}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="flex flex-col gap-1.5">
                   {!roomAvatarFile && (
                     <input
                       type="text"
@@ -255,20 +258,22 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                       value={roomInitials}
                       onChange={(e) => setRoomInitials(e.target.value.slice(0, 2))}
                       maxLength={2}
-                      style={{
-                        ...st.input,
-                        width: 100,
-                        padding: '6px 10px',
-                        fontSize: 13,
-                        marginBottom: 0,
-                      }}
+                      className={cn(
+                        'w-[100px] px-2.5 py-1.5 border rounded-lg text-[13px] outline-none box-border',
+                        isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                      )}
                     />
                   )}
-                  <label style={{ ...st.avatarUploadBtn, cursor: 'pointer' }}>
+                  <label
+                    className={cn(
+                      'px-3 py-1.5 border rounded-lg text-xs cursor-pointer',
+                      isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                    )}
+                  >
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/gif,image/webp"
-                      style={{ display: 'none' }}
+                      className="hidden"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (f && f.type.startsWith('image/')) {
@@ -282,7 +287,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                   {(roomAvatarFile || roomAvatarFileToCrop) && (
                     <button
                       type="button"
-                      style={{ ...st.avatarRemoveBtn, color: '#ef4444' }}
+                      className="py-1 px-3 border-none bg-transparent text-[11px] cursor-pointer text-red-500"
                       onClick={() => {
                         setRoomAvatarFile(null);
                         setRoomAvatarFileToCrop(null);
@@ -311,95 +316,133 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                   }}
                 />
               )}
-              <p style={st.fieldHint}>
+              <p className={cn('mt-1.5 text-[11px] italic', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
                 {roomAvatarFile ? 'jpg, png, gif, webp (최대 10MB)' : '이니셜은 사진 없을 때 표시됩니다'}
               </p>
             </div>
 
             {/* Description */}
-            <div style={st.fieldGroup}>
-              <div style={st.labelRow}>
-                <label style={st.label}>아젠다 설명</label>
-                <span style={{ ...st.charCount, ...(topicDesc.length > 300 ? { color: '#ef4444' } : {}) }}>{topicDesc.length}/300</span>
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>아젠다 설명</label>
+                <span className={cn('text-[11px]', topicDesc.length > 300 ? 'text-red-500' : (isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]'))}>{topicDesc.length}/300</span>
               </div>
               <textarea
                 placeholder="아젠다에 대한 설명을 입력하세요 (선택)"
                 value={topicDesc}
                 onChange={(e) => setTopicDesc(e.target.value.slice(0, 300))}
                 maxLength={300}
-                style={st.textarea}
+                className={cn(
+                  'w-full px-3 py-2.5 border rounded-lg text-sm outline-none box-border resize-y leading-normal',
+                  isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                )}
                 rows={3}
               />
             </div>
 
             {/* Public/Private */}
-            <div style={st.fieldGroup}>
-              <label style={st.label}>공개 여부</label>
-              <div style={st.radioGroup}>
-                <label style={{ ...st.radioCard, ...(isPublic ? st.radioCardActive : {}) }}>
-                  <input type="radio" name="visibility" checked={isPublic} onChange={() => setIsPublic(true)} style={st.radioHidden} />
-                  <div style={st.radioCardCheck}>{isPublic ? '\u25C9' : '\u25CB'}</div>
+            <div className="mb-4">
+              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>공개 여부</label>
+              <div className="flex gap-2.5 mt-1">
+                <label
+                  className={cn(
+                    'flex items-start gap-2 cursor-pointer flex-1 px-3 py-2.5 rounded-lg border',
+                    isPublic ? 'border-neutral-900' : (isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]'),
+                    isPublic
+                      ? (isDark ? 'bg-[rgba(99,102,241,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
+                      : (isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]')
+                  )}
+                >
+                  <input type="radio" name="visibility" checked={isPublic} onChange={() => setIsPublic(true)} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
+                  <div className="text-base text-neutral-900 shrink-0 mt-px">{isPublic ? '\u25C9' : '\u25CB'}</div>
                   <div>
-                    <div style={st.radioText}>공개</div>
-                    <div style={st.radioHint}>누구나 검색하여 참가 가능</div>
+                    <div className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>공개</div>
+                    <div className={cn('text-[11px] mt-0.5', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>누구나 검색하여 참가 가능</div>
                   </div>
                 </label>
-                <label style={{ ...st.radioCard, ...(!isPublic ? st.radioCardActive : {}) }}>
-                  <input type="radio" name="visibility" checked={!isPublic} onChange={() => setIsPublic(false)} style={st.radioHidden} />
-                  <div style={st.radioCardCheck}>{!isPublic ? '\u25C9' : '\u25CB'}</div>
+                <label
+                  className={cn(
+                    'flex items-start gap-2 cursor-pointer flex-1 px-3 py-2.5 rounded-lg border',
+                    !isPublic ? 'border-neutral-900' : (isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]'),
+                    !isPublic
+                      ? (isDark ? 'bg-[rgba(99,102,241,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
+                      : (isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]')
+                  )}
+                >
+                  <input type="radio" name="visibility" checked={!isPublic} onChange={() => setIsPublic(false)} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
+                  <div className="text-base text-neutral-900 shrink-0 mt-px">{!isPublic ? '\u25C9' : '\u25CB'}</div>
                   <div>
-                    <div style={st.radioText}>비공개</div>
-                    <div style={st.radioHint}>초대된 멤버만 참가 가능</div>
+                    <div className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>비공개</div>
+                    <div className={cn('text-[11px] mt-0.5', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>초대된 멤버만 참가 가능</div>
                   </div>
                 </label>
               </div>
-              <p style={st.fieldHint}>아젠다 생성 이후 변경 불가</p>
+              <p className={cn('mt-1.5 text-[11px] italic', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>아젠다 생성 이후 변경 불가</p>
             </div>
 
             {/* View Mode: 챗뷰(메시지 기반) vs 보드뷰(게시글 기반) - JANDI 참고 */}
-            <div style={st.fieldGroup}>
-              <div style={st.labelRow}>
-                <label style={st.label}>보기 방식 <span style={st.required}>*</span></label>
-                <span style={st.fieldHintInline}>아젠다 생성 이후 변경 불가</span>
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>보기 방식 <span className="text-red-500 ml-0.5">*</span></label>
+                <span className="text-[11px] text-red-500 font-medium">아젠다 생성 이후 변경 불가</span>
               </div>
-              <div style={st.viewModeGroup}>
-                <label style={{ ...st.viewModeCard, ...(viewMode === 'chat' ? st.viewModeCardActive : {}) }}>
-                  <input type="radio" name="viewMode" checked={viewMode === 'chat'} onChange={() => setViewMode('chat')} style={st.radioHidden} />
-                  <div style={st.viewModeIcon}>
+              <div className="flex gap-2.5 mt-1">
+                <label
+                  className={cn(
+                    'flex flex-col items-center gap-1.5 cursor-pointer flex-1 pt-3.5 px-3 pb-2.5 rounded-lg border-2 text-center',
+                    viewMode === 'chat' ? 'border-neutral-900' : (isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]'),
+                    viewMode === 'chat'
+                      ? (isDark ? 'bg-[rgba(99,102,241,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
+                      : (isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]')
+                  )}
+                >
+                  <input type="radio" name="viewMode" checked={viewMode === 'chat'} onChange={() => setViewMode('chat')} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
+                  <div className={cn('flex items-center justify-center', isDark ? 'text-slate-400' : 'text-gray-500')}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
                   </div>
-                  <div style={st.viewModeRadio}>{viewMode === 'chat' ? '\u25C9' : '\u25CB'}</div>
+                  <div className="text-base text-neutral-900">{viewMode === 'chat' ? '\u25C9' : '\u25CB'}</div>
                   <div>
-                    <span style={st.viewModeLabel}>챗뷰</span>
-                    <div style={st.viewModeHint}>메시지 기반 · 빠른 대화·실시간 논의</div>
+                    <span className={cn('text-xs font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>챗뷰</span>
+                    <div className={cn('text-[10px] mt-0.5 leading-tight', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>메시지 기반 · 빠른 대화·실시간 논의</div>
                   </div>
                 </label>
-                <label style={{ ...st.viewModeCard, ...(viewMode === 'board' ? st.viewModeCardActive : {}) }}>
-                  <input type="radio" name="viewMode" checked={viewMode === 'board'} onChange={() => setViewMode('board')} style={st.radioHidden} />
-                  <div style={st.viewModeIcon}>
+                <label
+                  className={cn(
+                    'flex flex-col items-center gap-1.5 cursor-pointer flex-1 pt-3.5 px-3 pb-2.5 rounded-lg border-2 text-center',
+                    viewMode === 'board' ? 'border-neutral-900' : (isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]'),
+                    viewMode === 'board'
+                      ? (isDark ? 'bg-[rgba(99,102,241,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
+                      : (isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]')
+                  )}
+                >
+                  <input type="radio" name="viewMode" checked={viewMode === 'board'} onChange={() => setViewMode('board')} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
+                  <div className={cn('flex items-center justify-center', isDark ? 'text-slate-400' : 'text-gray-500')}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
                     </svg>
                   </div>
-                  <div style={st.viewModeRadio}>{viewMode === 'board' ? '\u25C9' : '\u25CB'}</div>
+                  <div className="text-base text-neutral-900">{viewMode === 'board' ? '\u25C9' : '\u25CB'}</div>
                   <div>
-                    <span style={st.viewModeLabel}>보드뷰</span>
-                    <div style={st.viewModeHint}>게시글 기반 · 공지·회의록·장문 기록</div>
+                    <span className={cn('text-xs font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>보드뷰</span>
+                    <div className={cn('text-[10px] mt-0.5 leading-tight', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>게시글 기반 · 공지·회의록·장문 기록</div>
                   </div>
                 </label>
               </div>
             </div>
 
             {/* Folder Selection */}
-            <div style={st.fieldGroup}>
-              <label style={st.label}>폴더 선택 (옵션)</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+            <div className="mb-4">
+              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>폴더 선택 (옵션)</label>
+              <div className="flex gap-2 items-center mt-1">
                 <select
                   value={folderId}
                   onChange={(e) => setFolderId(e.target.value)}
-                  style={st.select}
+                  className={cn(
+                    'flex-1 px-3 py-[9px] border rounded-lg text-[13px] outline-none cursor-pointer',
+                    isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                  )}
                 >
                   <option value="">아젠다를 생성할 폴더를 선택해 주세요.</option>
                   {(folders as Folder[]).map((f) => (
@@ -408,25 +451,35 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                 </select>
                 <button
                   type="button"
-                  style={st.newFolderBtn}
+                  className={cn(
+                    'w-[34px] h-[34px] rounded-lg border flex items-center justify-center text-lg cursor-pointer shrink-0',
+                    isDark ? 'border-[#3a3f46] bg-slate-600 text-slate-200' : 'border-[#dde1e6] bg-gray-200 text-[#333]'
+                  )}
                   onClick={() => setShowNewFolder(!showNewFolder)}
                   title="새 폴더 만들기"
                 >+</button>
               </div>
               {showNewFolder && (
-                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <div className="flex gap-1.5 mt-1.5">
                   <input
                     type="text"
                     placeholder="새 폴더 이름"
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-                    style={{ ...st.input, marginBottom: 0, flex: 1 }}
+                    className={cn(
+                      'flex-1 w-full px-3 py-2.5 border rounded-lg text-sm outline-none box-border',
+                      isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                    )}
                   />
-                  <button type="button" style={st.newFolderSaveBtn} onClick={handleCreateFolder}>만들기</button>
+                  <button
+                    type="button"
+                    className="px-3.5 py-2 border-none rounded-lg bg-slate-600 text-white text-xs font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    onClick={handleCreateFolder}
+                  >만들기</button>
                 </div>
               )}
-              <p style={st.fieldHint}>선택한 폴더는 개인에게만 적용됩니다.</p>
+              <p className={cn('mt-1.5 text-[11px] italic', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>선택한 폴더는 개인에게만 적용됩니다.</p>
             </div>
           </div>
         )}
@@ -435,19 +488,22 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
         {(step === 'members' || !isTopic) && (
           <>
             {isTopic && (
-              <div style={st.stepInfo}>
-                <span style={st.stepInfoText}>멤버 초대 (선택)</span>
-                <span style={st.stepInfoSub}>나중에 초대할 수도 있습니다</span>
+              <div className={cn('px-5 py-2.5 border-b shrink-0', isDark ? 'border-[#3a3f46] bg-[#0f172a]' : 'border-[#dde1e6] bg-[#f8fafc]')}>
+                <span className={cn('block text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>멤버 초대 (선택)</span>
+                <span className={cn('block text-[11px] mt-0.5', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>나중에 초대할 수도 있습니다</span>
               </div>
             )}
             {!isTopic && (
-              <p style={st.hint}>대화할 사람을 선택하세요</p>
+              <p className={cn('m-0 px-5 py-2.5 text-[13px] border-b shrink-0', isDark ? 'text-[#a7adb4] bg-[#0f172a] border-[#3a3f46]' : 'text-[#5e6470] bg-[#f8fafc] border-[#dde1e6]')}>대화할 사람을 선택하세요</p>
             )}
-            <div style={st.memberSearch}>
+            <div className={cn('px-5 py-2 border-b shrink-0', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
               <input
                 type="text"
                 placeholder="이름으로 검색"
-                style={st.memberSearchInput}
+                className={cn(
+                  'w-full px-2.5 py-[7px] border rounded-md text-[13px] outline-none box-border',
+                  isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                )}
                 id="member-search"
                 onChange={(e) => {
                   const q = e.target.value.toLowerCase();
@@ -458,27 +514,30 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                 }}
               />
             </div>
-            <div style={st.memberBody}>
+            <div className="flex-1 overflow-auto px-5 py-2 min-h-0 max-h-[280px]">
               {usersLoading ? (
-                <p style={st.loadingText}>사용자 목록 로딩 중...</p>
+                <p className={cn('text-sm m-0', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>사용자 목록 로딩 중...</p>
               ) : !Array.isArray(users) || users.length === 0 ? (
-                <p style={st.loadingText}>초대할 수 있는 사용자가 없습니다.</p>
+                <p className={cn('text-sm m-0', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>초대할 수 있는 사용자가 없습니다.</p>
               ) : (
-                <ul style={st.userList}>
+                <ul className="list-none m-0 p-0">
                   {(Array.isArray(users) ? users : []).map((u: User) => {
                     const displayText = customInitials[u.id] ?? (u.name?.trim().slice(0, 2) || '?').toUpperCase();
                     const isEditing = editingAvatarUserId === u.id;
                     return (
                       <li key={u.id} data-user-item data-user-name={u.name}>
-                        <label style={st.userRow}>
+                        <label className="flex items-center gap-2.5 px-1.5 py-[7px] rounded-lg cursor-pointer">
                           <input
                             type="checkbox"
                             checked={selected.has(u.id)}
                             onChange={() => toggleUser(u.id)}
-                            style={st.checkbox}
+                            className="w-4 h-4 cursor-pointer shrink-0"
                           />
                           <div
-                            style={{ ...st.userAvatar, overflow: 'hidden', position: 'relative' as const }}
+                            className={cn(
+                              'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden relative',
+                              isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-600'
+                            )}
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingAvatarUserId(u.id); }}
                             role="button"
@@ -501,18 +560,18 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                                 onClick={(e) => e.stopPropagation()}
                                 autoFocus
                                 maxLength={2}
-                                style={{
-                                  width: '100%', height: '100%', border: 'none', background: 'transparent', textAlign: 'center', fontSize: 12, fontWeight: 700,
-                                  color: isDark ? '#94a3b8' : '#475569', outline: 'none', padding: 0,
-                                }}
+                                className={cn(
+                                  'w-full h-full border-none bg-transparent text-center text-xs font-bold outline-none p-0',
+                                  isDark ? 'text-slate-400' : 'text-slate-600'
+                                )}
                               />
                             ) : (
-                              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>{displayText}</span>
+                              <span className="flex items-center justify-center w-full h-full">{displayText}</span>
                             )}
                           </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={st.userName}>{u.name}</span>
-                            <span style={st.userEmail}>{u.email}</span>
+                          <div className="flex-1 min-w-0">
+                            <span className={cn('text-[13px] font-medium mr-1.5', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>{u.name}</span>
+                            <span className={cn('text-[11px] overflow-hidden text-ellipsis whitespace-nowrap', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>{u.email}</span>
                           </div>
                         </label>
                       </li>
@@ -525,29 +584,53 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
         )}
 
         {/* Error */}
-        {error && <p style={st.error}>{error}</p>}
+        {error && <p className="text-red-500 text-[13px] px-5 pb-2 m-0">{error}</p>}
 
         {/* Footer */}
-        <div style={st.footer}>
-          <span style={st.selectedCount}>
+        <div className={cn('flex items-center justify-between px-5 py-3 border-t shrink-0', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
+          <span className={cn('text-xs', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
             {selected.size > 0 ? `${selected.size}명 선택됨` : (isTopic && step === 'form' ? '' : '대화할 사람을 선택하세요')}
           </span>
-          <div style={st.footerButtons}>
+          <div className="flex gap-2">
             {isTopic && step === 'members' && (
-              <button type="button" style={st.cancelBtn} onClick={() => setStep('form')}>이전</button>
+              <button
+                type="button"
+                className={cn(
+                  'px-4 py-2 border rounded-lg text-[13px] cursor-pointer',
+                  isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-white text-[#555]'
+                )}
+                onClick={() => setStep('form')}
+              >이전</button>
             )}
-            <button type="button" style={st.cancelBtn} onClick={onClose}>취소</button>
+            <button
+              type="button"
+              className={cn(
+                'px-4 py-2 border rounded-lg text-[13px] cursor-pointer',
+                isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-white text-[#555]'
+              )}
+              onClick={onClose}
+            >취소</button>
             {isTopic && step === 'form' ? (
               <button
                 type="button"
-                style={{ ...st.createBtn, ...(!topicName.trim() ? st.createBtnDisabled : {}) }}
+                className={cn(
+                  'px-5 py-2 border-none rounded-lg text-[13px] font-semibold',
+                  !topicName.trim()
+                    ? cn('cursor-not-allowed', isDark ? 'bg-slate-700 text-slate-500' : 'bg-slate-300 text-white')
+                    : 'cursor-pointer bg-slate-600 text-white'
+                )}
                 disabled={!topicName.trim()}
                 onClick={() => { setFormSnapshot({ folderId, viewMode }); setStep('members'); }}
               >다음</button>
             ) : (
               <button
                 type="button"
-                style={{ ...st.createBtn, ...(!canCreate || loading ? st.createBtnDisabled : {}) }}
+                className={cn(
+                  'px-5 py-2 border-none rounded-lg text-[13px] font-semibold',
+                  !canCreate || loading
+                    ? cn('cursor-not-allowed', isDark ? 'bg-slate-700 text-slate-500' : 'bg-slate-300 text-white')
+                    : 'cursor-pointer bg-slate-600 text-white'
+                )}
                 disabled={!canCreate || loading}
                 onClick={handleCreate}
               >
@@ -559,383 +642,4 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
       </div>
     </div>
   );
-}
-
-function getStyles(isDark: boolean): Record<string, React.CSSProperties> {
-  const t = getThemeTokens(isDark);
-  const border = t.border;
-  const text = t.text;
-  const sub = t.textMuted;
-  const muted = t.textMuted;
-  const inputBg = t.bgMuted;
-  const accent = '#171717';
-
-  return {
-    overlay: {
-      position: 'fixed',
-      inset: 0,
-      zIndex: 10001,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    modal: {
-      background: t.bgSurface,
-      borderRadius: 12,
-      boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.15)',
-      border: `1px solid ${border}`,
-      width: 460,
-      maxWidth: '95vw',
-      maxHeight: '85vh',
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    header: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '16px 20px',
-      borderBottom: `1px solid ${border}`,
-      flexShrink: 0,
-    },
-    title: { margin: 0, fontSize: 18, fontWeight: 600, color: t.textStrong },
-
-    /* Form */
-    formBody: {
-      padding: '16px 20px',
-      overflowY: 'auto' as const,
-      flex: 1,
-      minHeight: 0,
-    },
-    fieldGroup: {
-      marginBottom: 16,
-    },
-    labelRow: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 6,
-    },
-    label: {
-      fontSize: 13,
-      fontWeight: 600,
-      color: text,
-    },
-    required: {
-      color: '#ef4444',
-      marginLeft: 2,
-    },
-    charCount: {
-      fontSize: 11,
-      color: muted,
-    },
-    input: {
-      width: '100%',
-      padding: '10px 12px',
-      border: `1px solid ${border}`,
-      borderRadius: 8,
-      fontSize: 14,
-      background: inputBg,
-      color: text,
-      outline: 'none',
-      boxSizing: 'border-box' as const,
-    },
-    textarea: {
-      width: '100%',
-      padding: '10px 12px',
-      border: `1px solid ${border}`,
-      borderRadius: 8,
-      fontSize: 14,
-      background: inputBg,
-      color: text,
-      outline: 'none',
-      boxSizing: 'border-box' as const,
-      resize: 'vertical' as const,
-      lineHeight: 1.5,
-    },
-    select: {
-      flex: 1,
-      padding: '9px 12px',
-      border: `1px solid ${border}`,
-      borderRadius: 8,
-      fontSize: 13,
-      background: inputBg,
-      color: text,
-      outline: 'none',
-      cursor: 'pointer',
-    },
-
-    /* Radio cards (public/private) */
-    radioGroup: {
-      display: 'flex',
-      gap: 10,
-      marginTop: 4,
-    },
-    radioCard: {
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: 8,
-      cursor: 'pointer',
-      flex: 1,
-      padding: '10px 12px',
-      borderRadius: 8,
-      border: `1px solid ${border}`,
-      background: inputBg,
-    },
-    radioCardActive: {
-      borderColor: accent,
-      background: isDark ? 'rgba(99,102,241,0.08)' : 'rgba(34,197,94,0.04)',
-    },
-    radioHidden: {
-      position: 'absolute' as const,
-      opacity: 0,
-      width: 0,
-      height: 0,
-      pointerEvents: 'none' as const,
-    },
-    radioCardCheck: {
-      fontSize: 16,
-      color: accent,
-      flexShrink: 0,
-      marginTop: 1,
-    },
-    radioText: {
-      fontSize: 13,
-      fontWeight: 600,
-      color: text,
-    },
-    radioHint: {
-      fontSize: 11,
-      color: muted,
-      marginTop: 2,
-    },
-    fieldHint: {
-      margin: '6px 0 0',
-      fontSize: 11,
-      color: muted,
-      fontStyle: 'italic' as const,
-    },
-    avatarUploadBtn: {
-      padding: '6px 12px',
-      border: `1px solid ${border}`,
-      borderRadius: 8,
-      background: inputBg,
-      color: text,
-      fontSize: 12,
-    },
-    avatarRemoveBtn: {
-      padding: '4px 12px',
-      border: 'none',
-      background: 'none',
-      fontSize: 11,
-      cursor: 'pointer',
-    },
-    fieldHintInline: {
-      fontSize: 11,
-      color: '#ef4444',
-      fontWeight: 500,
-    },
-
-    /* View Mode cards */
-    viewModeGroup: {
-      display: 'flex',
-      gap: 10,
-      marginTop: 4,
-    },
-    viewModeCard: {
-      display: 'flex',
-      flexDirection: 'column' as const,
-      alignItems: 'center',
-      gap: 6,
-      cursor: 'pointer',
-      flex: 1,
-      padding: '14px 12px 10px',
-      borderRadius: 8,
-      border: `2px solid ${border}`,
-      background: inputBg,
-      textAlign: 'center' as const,
-    },
-    viewModeCardActive: {
-      borderColor: accent,
-      background: isDark ? 'rgba(99,102,241,0.08)' : 'rgba(34,197,94,0.04)',
-    },
-    viewModeIcon: {
-      color: isDark ? '#94a3b8' : '#6b7280',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    viewModeRadio: {
-      fontSize: 16,
-      color: accent,
-    },
-    viewModeLabel: {
-      fontSize: 12,
-      fontWeight: 600,
-      color: text,
-    },
-    viewModeHint: {
-      fontSize: 10,
-      color: sub,
-      marginTop: 2,
-      lineHeight: 1.3,
-    },
-
-    /* Folder */
-    newFolderBtn: {
-      width: 34,
-      height: 34,
-      borderRadius: 8,
-      border: `1px solid ${border}`,
-      background: isDark ? '#475569' : '#e5e7eb',
-      color: isDark ? '#e2e8f0' : '#333',
-      fontSize: 18,
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    newFolderSaveBtn: {
-      padding: '8px 14px',
-      border: 'none',
-      borderRadius: 8,
-      background: '#475569',
-      color: '#fff',
-      fontSize: 12,
-      fontWeight: 600,
-      cursor: 'pointer',
-      flexShrink: 0,
-      whiteSpace: 'nowrap' as const,
-    },
-
-    /* Step info */
-    stepInfo: {
-      padding: '10px 20px',
-      borderBottom: `1px solid ${border}`,
-      background: isDark ? '#0f172a' : '#f8fafc',
-      flexShrink: 0,
-    },
-    stepInfoText: {
-      display: 'block',
-      fontSize: 13,
-      fontWeight: 600,
-      color: text,
-    },
-    stepInfoSub: {
-      display: 'block',
-      fontSize: 11,
-      color: muted,
-      marginTop: 2,
-    },
-
-    /* Hint (chat mode) */
-    hint: {
-      margin: 0,
-      padding: '10px 20px',
-      fontSize: 13,
-      color: sub,
-      background: isDark ? '#0f172a' : '#f8fafc',
-      borderBottom: `1px solid ${border}`,
-      flexShrink: 0,
-    },
-
-    /* Member search */
-    memberSearch: {
-      padding: '8px 20px',
-      borderBottom: `1px solid ${border}`,
-      flexShrink: 0,
-    },
-    memberSearchInput: {
-      width: '100%',
-      padding: '7px 10px',
-      border: `1px solid ${border}`,
-      borderRadius: 6,
-      fontSize: 13,
-      background: inputBg,
-      color: text,
-      outline: 'none',
-      boxSizing: 'border-box' as const,
-    },
-
-    /* Member list */
-    memberBody: {
-      flex: 1,
-      overflow: 'auto',
-      padding: '8px 20px',
-      minHeight: 0,
-      maxHeight: 280,
-    },
-    loadingText: { color: sub, fontSize: 14, margin: 0 },
-    userList: { listStyle: 'none', margin: 0, padding: 0 },
-    userRow: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '7px 6px',
-      borderRadius: 8,
-      cursor: 'pointer',
-    },
-    checkbox: { width: 16, height: 16, cursor: 'pointer', flexShrink: 0 },
-    userAvatar: {
-      width: 32,
-      height: 32,
-      borderRadius: '50%',
-      background: isDark ? '#334155' : '#e2e8f0',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 12,
-      fontWeight: 700,
-      color: isDark ? '#94a3b8' : '#475569',
-      flexShrink: 0,
-    },
-    userName: { fontSize: 13, fontWeight: 500, color: text, marginRight: 6 },
-    userEmail: { fontSize: 11, color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-
-    /* Error */
-    error: {
-      color: '#ef4444',
-      fontSize: 13,
-      padding: '0 20px 8px',
-      margin: 0,
-    },
-
-    /* Footer */
-    footer: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '12px 20px',
-      borderTop: `1px solid ${border}`,
-      flexShrink: 0,
-    },
-    selectedCount: { fontSize: 12, color: sub },
-    footerButtons: { display: 'flex', gap: 8 },
-    cancelBtn: {
-      padding: '8px 16px',
-      border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
-      borderRadius: 8,
-      background: isDark ? '#334155' : '#fff',
-      color: isDark ? '#e2e8f0' : '#555',
-      fontSize: 13,
-      cursor: 'pointer',
-    },
-    createBtn: {
-      padding: '8px 20px',
-      border: 'none',
-      borderRadius: 8,
-      background: '#475569',
-      color: '#fff',
-      fontSize: 13,
-      fontWeight: 600,
-      cursor: 'pointer',
-    },
-    createBtnDisabled: {
-      background: isDark ? '#334155' : '#cbd5e1',
-      color: isDark ? '#64748b' : '#fff',
-      cursor: 'not-allowed',
-    },
-  };
 }

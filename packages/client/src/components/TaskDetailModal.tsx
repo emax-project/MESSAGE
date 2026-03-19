@@ -6,6 +6,7 @@ import UIModal from './ui/UIModal';
 import UIButton from './ui/UIButton';
 import UITextInput from './ui/UITextInput';
 import ModalFooter from './ui/ModalFooter';
+import { cn } from '../utils/cn';
 
 type Props = {
   task: TaskItem;
@@ -33,12 +34,6 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
   const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split('T')[0] : '');
   const [commentInput, setCommentInput] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const text = isDark ? '#e2e8f0' : '#333';
-  const sub = isDark ? '#94a3b8' : '#666';
-  const inputBg = isDark ? '#334155' : '#f5f5f5';
-  const border = isDark ? '#475569' : '#e5e7eb';
-  const cardBg = isDark ? '#334155' : '#f8fafc';
 
   const { data: comments = [] } = useQuery({
     queryKey: ['taskComments', projectId, task.id],
@@ -88,32 +83,53 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
     startDate !== (task.startDate ? task.startDate.split('T')[0] : '') ||
     dueDate !== (task.dueDate ? task.dueDate.split('T')[0] : '');
 
+  const selectClass = cn(
+    'w-full px-2.5 py-2 border rounded-lg text-[13px] outline-none',
+    isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-gray-200 bg-neutral-100 text-[#333]',
+  );
+
+  const fieldLabelClass = cn(
+    'text-xs font-semibold block mb-1',
+    isDark ? 'text-slate-400' : 'text-[#666]',
+  );
+
   return (
     <UIModal onClose={onClose} width={520} title="태스크 상세" zIndex={10010}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -2 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_LABELS[priority]?.color || '#f59e0b' }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: sub }}>{PRIORITY_LABELS[priority]?.label || '보통'}</span>
+      <div className="flex flex-col gap-3.5">
+        <div className="flex items-center gap-2 -mt-0.5">
+          <span
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: PRIORITY_LABELS[priority]?.color || '#f59e0b' }}
+          />
+          <span className={cn('text-xs font-semibold', isDark ? 'text-slate-400' : 'text-[#666]')}>
+            {PRIORITY_LABELS[priority]?.label || '보통'}
+          </span>
         </div>
         <UITextInput
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={{ padding: '10px 12px', fontSize: 16, fontWeight: 600, background: inputBg, color: text }}
+          className={cn(
+            '!px-3 !py-2.5 !text-base !font-semibold',
+            isDark ? '!bg-slate-700 !text-slate-200' : '!bg-neutral-100 !text-neutral-800',
+          )}
         />
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="설명 추가..."
           rows={3}
-          style={{ width: '100%', padding: '10px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 14, background: inputBg, color: text, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+          className={cn(
+            'w-full px-3 py-2.5 border rounded-lg text-sm outline-none resize-y box-border',
+            isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-gray-200 bg-neutral-100 text-[#333]',
+          )}
         />
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 120 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>담당자</label>
+        <div className="flex gap-3 flex-wrap">
+          <div className="flex-1 min-w-[120px]">
+            <label className={fieldLabelClass}>담당자</label>
             <select
               value={assigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
-              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, background: inputBg, color: text, outline: 'none' }}
+              className={selectClass}
             >
               <option value="">미배정</option>
               {members.map((m) => (
@@ -121,36 +137,42 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
               ))}
             </select>
           </div>
-          <div style={{ flex: 1, minWidth: 120 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>우선순위</label>
+          <div className="flex-1 min-w-[120px]">
+            <label className={fieldLabelClass}>우선순위</label>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value as 'low' | 'medium' | 'high')}
-              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, background: inputBg, color: text, outline: 'none' }}
+              className={selectClass}
             >
               <option value="low">낮음</option>
               <option value="medium">보통</option>
               <option value="high">높음</option>
             </select>
           </div>
-          <div style={{ flex: 1, minWidth: 120 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>시작일</label>
+          <div className="flex-1 min-w-[120px]">
+            <label className={fieldLabelClass}>시작일</label>
             <UITextInput
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              style={{ padding: '8px 10px', fontSize: 13, background: inputBg, color: text }}
+              className={cn(
+                '!px-2.5 !py-2 !text-[13px]',
+                isDark ? '!bg-slate-700 !text-slate-200' : '!bg-neutral-100 !text-neutral-800',
+              )}
             />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 120 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: sub, display: 'block', marginBottom: 4 }}>마감일</label>
+        <div className="flex gap-3 flex-wrap">
+          <div className="flex-1 min-w-[120px]">
+            <label className={fieldLabelClass}>마감일</label>
             <UITextInput
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              style={{ padding: '8px 10px', fontSize: 13, background: inputBg, color: text }}
+              className={cn(
+                '!px-2.5 !py-2 !text-[13px]',
+                isDark ? '!bg-slate-700 !text-slate-200' : '!bg-neutral-100 !text-neutral-800',
+              )}
             />
           </div>
         </div>
@@ -159,7 +181,10 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
             type="button"
             variant="ghost"
             onClick={() => { if (confirm('태스크를 삭제하시겠습니까?')) onDelete(task.id); }}
-            style={{ color: '#ef4444', border: `1px solid ${border}` }}
+            className={cn(
+              '!text-red-500',
+              isDark ? '!border !border-slate-600' : '!border !border-slate-200',
+            )}
           >
             삭제
           </UIButton>
@@ -172,38 +197,52 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
             {saving ? '저장 중...' : '저장'}
           </UIButton>
         </ModalFooter>
-        <div style={{ borderTop: `1px solid ${border}`, paddingTop: 14 }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: text }}>
+        <div className={cn('border-t pt-3.5', isDark ? 'border-slate-600' : 'border-gray-200')}>
+          <h4 className={cn('mt-0 mb-2.5 text-[13px] font-semibold', isDark ? 'text-slate-200' : 'text-[#333]')}>
             댓글 ({comments.length})
           </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflow: 'auto', marginBottom: 10 }}>
+          <div className="flex flex-col gap-2 max-h-[200px] overflow-auto mb-2.5">
             {comments.map((c: TaskComment) => (
-              <div key={c.id} style={{ padding: '8px 10px', borderRadius: 8, background: cardBg }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: text }}>{c.userName}</span>
-                  <span style={{ fontSize: 11, color: sub }}>{new Date(c.createdAt).toLocaleString('ko-KR')}</span>
+              <div
+                key={c.id}
+                className={cn('px-2.5 py-2 rounded-lg', isDark ? 'bg-slate-700' : 'bg-slate-50')}
+              >
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className={cn('text-xs font-semibold', isDark ? 'text-slate-200' : 'text-[#333]')}>
+                    {c.userName}
+                  </span>
+                  <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-[#666]')}>
+                    {new Date(c.createdAt).toLocaleString('ko-KR')}
+                  </span>
                 </div>
-                <div style={{ fontSize: 13, color: text, whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                <div className={cn('text-[13px] whitespace-pre-wrap', isDark ? 'text-slate-200' : 'text-[#333]')}>
+                  {c.content}
+                </div>
               </div>
             ))}
             {comments.length === 0 && (
-              <p style={{ fontSize: 12, color: sub, margin: 0 }}>아직 댓글이 없습니다</p>
+              <p className={cn('text-xs m-0', isDark ? 'text-slate-400' : 'text-[#666]')}>
+                아직 댓글이 없습니다
+              </p>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex gap-2">
             <UITextInput
               value={commentInput}
               onChange={(e) => setCommentInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
               placeholder="댓글 입력..."
-              style={{ flex: 1, padding: '8px 12px', fontSize: 13, background: inputBg, color: text }}
+              className={cn(
+                'flex-1 !px-3 !py-2 !text-[13px]',
+                isDark ? '!bg-slate-700 !text-slate-200' : '!bg-neutral-100 !text-neutral-800',
+              )}
             />
             <UIButton
               type="button"
               variant="primary"
               onClick={handleAddComment}
               disabled={!commentInput.trim()}
-              style={{ flexShrink: 0, padding: '8px 14px', fontSize: 13 }}
+              className="shrink-0 !px-3.5 !py-2 !text-[13px]"
             >
               등록
             </UIButton>
