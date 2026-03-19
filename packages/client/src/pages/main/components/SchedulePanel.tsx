@@ -549,26 +549,30 @@ function SchedulePanel({
                 aria-label="이전 달"
                 onClick={() => setCalendarMonth((m) => addMonths(m, -1))}
                 className={cn(
-                  'h-8 w-8 rounded-lg border text-sm font-bold',
+                  'flex h-8 w-8 items-center justify-center rounded-lg border',
                   isDark
-                    ? 'border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600'
-                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                    ? 'border-violet-300/40 bg-violet-500/20 text-violet-100 hover:bg-violet-500/30'
+                    : 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100'
                 )}
               >
-                ‹
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
               </button>
               <button
                 type="button"
                 aria-label="다음 달"
                 onClick={() => setCalendarMonth((m) => addMonths(m, 1))}
                 className={cn(
-                  'h-8 w-8 rounded-lg border text-sm font-bold',
+                  'flex h-8 w-8 items-center justify-center rounded-lg border',
                   isDark
-                    ? 'border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600'
-                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                    ? 'border-violet-300/40 bg-violet-500/20 text-violet-100 hover:bg-violet-500/30'
+                    : 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100'
                 )}
               >
-                ›
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
               </button>
             </div>
           </div>
