@@ -1015,21 +1015,38 @@ function SchedulePanel({
 
           {!editingEventId && createTab === 'repeat' && (
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <select
-                value={repeatType}
-                onChange={(e) => setRepeatType(e.target.value as 'daily' | 'weekly' | 'monthly')}
-                className={cn(
-                  inputBase,
-                  'mb-0 w-32',
-                  isDark
-                    ? 'border-violet-300/30 bg-slate-900 text-slate-100'
-                    : 'border-violet-200 bg-white text-slate-700'
-                )}
-              >
-                <option value="daily">매일</option>
-                <option value="weekly">매주</option>
-                <option value="monthly">매월</option>
-              </select>
+              <div className="relative w-32">
+                <select
+                  value={repeatType}
+                  onChange={(e) => setRepeatType(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                  className={cn(
+                    inputBase,
+                    'mb-0 w-full appearance-none pr-8',
+                    isDark
+                      ? 'border-violet-300/30 bg-slate-900 text-slate-100'
+                      : 'border-violet-200 bg-white text-slate-700'
+                  )}
+                >
+                  <option value="daily">매일</option>
+                  <option value="weekly">매주</option>
+                  <option value="monthly">매월</option>
+                </select>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={cn(
+                    'pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2',
+                    isDark ? 'text-slate-300' : 'text-slate-500'
+                  )}
+                  aria-hidden
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
               <span
                 className={cn(
                   'text-xs font-semibold',
