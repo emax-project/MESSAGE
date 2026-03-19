@@ -637,7 +637,7 @@ function SchedulePanel({
                   <div className="min-h-[28px] space-y-0.5">
                     {visible.map((event, index) => {
                       if (!event) {
-                        return <div key={`empty-row-${cell.dateKey}-${index}`} className="h-[14px]" />;
+                        return <div key={`empty-row-${cell.dateKey}-${index}`} className="h-[17px]" />;
                       }
                       const startKey = toLocalDateKey(event.startAt);
                       const endKey = toLocalDateKey(event.endAt);
