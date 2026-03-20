@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
 import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, authApi, type Room, type OrgCompany, type OrgUser, type Event, type Folder } from '../api';
-import { getOllamaConfig, type OllamaMessage } from '../ollama';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar from '../components/TitleBar';
 import {
@@ -119,7 +118,7 @@ export default function Main() {
   const toggleDark = useThemeStore((s) => s.toggleDark);
 
   // --- Layout state ---
-  const [activePanel, setActivePanel] = useState<'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'ai' | 'settings'>('none');
+  const [activePanel, setActivePanel] = useState<'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings'>('none');
   const [sectionOpen, setSectionOpen] = useState<{ topic: boolean; chat: boolean }>({ topic: true, chat: true });
   const [searchQuery, setSearchQuery] = useState('');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -148,9 +147,6 @@ export default function Main() {
   const [showFolderManageModal, setShowFolderManageModal] = useState(false);
   const [avatarEditFile, setAvatarEditFile] = useState<File | null>(null);
   const [statusInput, setStatusInput] = useState('');
-  const [aiMessages, setAiMessages] = useState<OllamaMessage[]>([]);
-  const [aiInput, setAiInput] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
   const showToast = useToastStore((s) => s.show);
   const {
     mutedRoomIds,
@@ -470,8 +466,6 @@ export default function Main() {
     handleUpdateEvent,
     handleCreateEvent,
     handleDeleteEvent,
-    handleResetAi,
-    handleSubmitAi,
     handleOpenChatInNewWindow,
   } = useMainContentActions({
     queryClient,
@@ -480,12 +474,6 @@ export default function Main() {
     setEventForm,
     editingEventId,
     eventForm,
-    aiInput,
-    aiLoading,
-    aiMessages,
-    setAiInput,
-    setAiMessages,
-    setAiLoading,
     navigate,
     openChatWindow,
   });
@@ -594,15 +582,6 @@ export default function Main() {
                 onCancelEdit: handleCancelEventEdit,
                 onEditEvent: handleEditEvent,
                 onDeleteEvent: handleDeleteEvent,
-              }}
-              aiProps={{
-                modelName: getOllamaConfig().model,
-                aiMessages,
-                aiInput,
-                aiLoading,
-                setAiInput,
-                onSubmitAi: handleSubmitAi,
-                onResetAi: handleResetAi,
               }}
               settingsProps={{
                 notificationsSnoozedUntil,

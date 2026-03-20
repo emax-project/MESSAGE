@@ -4,7 +4,6 @@ import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-quer
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
 import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, type Room, type Message, type FileInfo } from '../api';
-import { ollamaSummarize } from '../ollama';
 import FileUploadButton from '../components/FileUploadButton';
 import InviteModal from '../components/InviteModal';
 import RoomSettingsModal from '../components/RoomSettingsModal';
@@ -16,10 +15,7 @@ import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
 import ContextAttachModal, { type MessageContext } from '../components/ContextAttachModal';
 import UICloseButton from '../components/ui/UICloseButton';
-import {
-  canEditOrDelete,
-  isSystemMessage,
-} from './chat-window/utils';
+import { canEditOrDelete } from './chat-window/utils';
 import { useChatSocket } from './chat-window/hooks/useChatSocket';
 import { useActiveChatPresence } from './chat-window/hooks/useActiveChatPresence';
 import { cn } from '../utils/cn';
@@ -77,11 +73,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     setRightPanel('none');
   }, [roomId]);
   const [boardCommentInputs, setBoardCommentInputs] = useState<Record<string, string>>({});
-  const [summaryLoading, setSummaryLoading] = useState(false);
-  const [summaryText, setSummaryText] = useState('');
   const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
   const isCompactHeader = viewportWidth < 980;
-  const summaryDismissedRef = useRef(false);
   const socketRef = useRef<Socket | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -292,17 +285,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     }
   }, [messages.length, room, firstUnreadMessageId, messages, myId]);
 
-  // 요약 표시 시 맨 아래로 스크롤
-  useEffect(() => {
-    if (!summaryText && !summaryLoading) return;
-    const el = messagesScrollRef.current;
-    if (!el) return;
-    const run = () => { el.scrollTop = el.scrollHeight; };
-    requestAnimationFrame(run);
-    const t = setTimeout(run, 200);
-    return () => clearTimeout(t);
-  }, [summaryText, summaryLoading]);
-
   // Close context menu on outside click
   useEffect(() => {
     if (!contextMenu) return;
@@ -375,37 +357,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       const res = await roomsApi.searchMessages(roomId, searchQuery.trim());
       setSearchResults(res.messages);
     } catch { setSearchResults([]); }
-  };
-
-  const handleSummarize = async () => {
-    const msgList = [...messages].reverse();
-    const chatText = msgList
-      .filter((m: Message) => !m.deletedAt && !isSystemMessage(m.content) && (m.content || m.fileUrl))
-      .map((m: Message) => {
-        const name = m.sender?.name ?? '알 수 없음';
-        const body = m.content || (m.fileUrl ? '(파일)' : '');
-        return `[${name}] ${body}`;
-      })
-      .join('\n');
-    if (!chatText.trim()) {
-      setSummaryText('요약할 채팅 내용이 없습니다.');
-      return;
-    }
-    setSummaryLoading(true);
-    setSummaryText('');
-    summaryDismissedRef.current = false;
-    try {
-      const summary = await ollamaSummarize(chatText);
-      if (!summaryDismissedRef.current) {
-        setSummaryText(summary || '요약할 내용이 없습니다.');
-      }
-    } catch (err) {
-      if (!summaryDismissedRef.current) {
-        setSummaryText(`오류: ${(err as Error).message}`);
-      }
-    } finally {
-      setSummaryLoading(false);
-    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -687,11 +638,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
               </svg>
             </button>
-            <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600', summaryLoading && 'opacity-60')} onClick={handleSummarize} title="채팅 요약" disabled={summaryLoading}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
-              </svg>
-            </button>
             <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => {
               if (window.electronAPI?.openKanbanWindow) {
                 window.electronAPI.openKanbanWindow(roomId!);
@@ -842,41 +788,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               setEmojiPickerMsg={setEmojiPickerMsg}
               handleReaction={handleReaction}
             />
-          )}
-
-          {/* AI 채팅 요약 (채팅 메시지 형태) */}
-          {(summaryLoading || summaryText) && (
-            <div className="flex flex-col items-start w-full">
-              <div className={cn('text-xs mb-1 ml-[42px] max-w-[calc(75%-8px)] truncate', isDark ? 'text-slate-300' : 'text-slate-600')}>
-                AI 요약
-              </div>
-              <div className="flex items-start gap-2 w-full">
-                <div className="w-[34px] h-[34px] shrink-0" aria-hidden>
-                  <span className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-[13px] font-bold bg-[#171717] text-white">
-                    AI
-                  </span>
-                </div>
-                <div className="relative inline-block shrink-0">
-                  <div
-                    className={cn(
-                      'min-w-[200px] max-w-[75%] py-2.5 px-3.5 rounded-2xl rounded-tl',
-                      isDark ? 'bg-slate-700 border border-slate-600' : 'bg-green-50 border border-green-200',
-                    )}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 6 }}>
-                      <UICloseButton
-                        size="sm"
-                        onClick={() => { summaryDismissedRef.current = true; setSummaryText(''); setSummaryLoading(false); }}
-                        title="닫기"
-                      />
-                    </div>
-                    <div style={{ fontSize: 14, lineHeight: 1.6, color: isDark ? '#e2e8f0' : '#333', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                      {summaryLoading ? '요약 중...' : summaryText}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           )}
 
           <div ref={messagesEndRef} />

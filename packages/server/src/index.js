@@ -40,7 +40,6 @@ import { bookmarksRouter } from './routes/bookmarks.js';
 import { mentionsRouter } from './routes/mentions.js';
 import { linkPreviewRouter } from './routes/linkPreview.js';
 import { foldersRouter } from './routes/folders.js';
-import { ollamaRouter } from './routes/ollama.js';
 import { prisma } from './db.js';
 import { authMiddleware, verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
@@ -164,7 +163,6 @@ app.use('/api/bookmarks', bookmarksRouter);
 app.use('/api/mentions', mentionsRouter);
 app.use('/api/link-preview', linkPreviewRouter());
 app.use('/api/folders', foldersRouter);
-app.use('/api/ollama', ollamaRouter);
 // 기존 경로도 유지 (하위 호환)
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
@@ -179,7 +177,6 @@ app.use('/bookmarks', bookmarksRouter);
 app.use('/mentions', mentionsRouter);
 app.use('/link-preview', linkPreviewRouter());
 app.use('/folders', foldersRouter);
-app.use('/ollama', ollamaRouter);
 // Disable public uploads to enforce auth/expiry checks via /files/download
 // app.use('/uploads', express.static(UPLOAD_DIR));
 
@@ -192,19 +189,6 @@ app.get('/health/db', async (_, res) => {
     return res.json({ ok: true, db: 'connected' });
   } catch (e) {
     return res.status(503).json({ ok: false, db: 'disconnected', error: e?.message });
-  }
-});
-
-// Ollama 연결 테스트 (인증 없음, curl로 확인용)
-app.get('/ollama-health', async (_, res) => {
-  const base = process.env.OLLAMA_BASE_URL;
-  if (!base) return res.status(503).json({ ok: false, error: 'OLLAMA_BASE_URL 미설정' });
-  try {
-    const r = await fetch(`${base}/api/tags`);
-    const data = await r.json().catch(() => ({}));
-    return res.json({ ok: r.ok, status: r.status, data });
-  } catch (e) {
-    return res.status(502).json({ ok: false, error: e.message });
   }
 });
 
@@ -231,7 +215,7 @@ app.get('/debug-client', (_, res) => {
 });
 
 // API 404: 매칭되지 않은 API 경로는 JSON으로 응답 (클라이언트가 에러 메시지 파싱 가능)
-const API_PREFIXES = ['/auth', '/users', '/rooms', '/org', '/files', '/announcement', '/events', '/polls', '/projects', '/bookmarks', '/mentions', '/link-preview', '/folders', '/ollama', '/api'];
+const API_PREFIXES = ['/auth', '/users', '/rooms', '/org', '/files', '/announcement', '/events', '/polls', '/projects', '/bookmarks', '/mentions', '/link-preview', '/folders', '/api'];
 app.use((req, res, next) => {
   if (API_PREFIXES.some((p) => req.path.startsWith(p))) {
     return res.status(404).json({ error: '요청한 API 경로를 찾을 수 없습니다. 서버를 최신 버전으로 업데이트해 주세요.' });

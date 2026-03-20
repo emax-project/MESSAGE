@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { eventsApi } from '../../../api';
 import type { Event } from '../../../api';
-import { ollamaChat, type OllamaMessage } from '../../../ollama';
 import { normalizeTimeRange, toLocalInputValue } from '../utils/date';
 
 type EventFormState = {
@@ -34,12 +33,6 @@ type Params = {
   setEventForm: Dispatch<SetStateAction<EventFormState>>;
   editingEventId: string | null;
   eventForm: EventFormState;
-  aiInput: string;
-  aiLoading: boolean;
-  aiMessages: OllamaMessage[];
-  setAiInput: Dispatch<SetStateAction<string>>;
-  setAiMessages: Dispatch<SetStateAction<OllamaMessage[]>>;
-  setAiLoading: Dispatch<SetStateAction<boolean>>;
   navigate: (to: string) => void;
   openChatWindow: (roomId: string) => void;
 };
@@ -51,12 +44,6 @@ export function useMainContentActions({
   setEventForm,
   editingEventId,
   eventForm,
-  aiInput,
-  aiLoading,
-  aiMessages,
-  setAiInput,
-  setAiMessages,
-  setAiLoading,
   navigate,
   openChatWindow,
 }: Params) {
@@ -163,27 +150,6 @@ export function useMainContentActions({
     }
   }, [queryClient]);
 
-  const handleResetAi = useCallback(() => {
-    setAiMessages([]);
-  }, [setAiMessages]);
-
-  const handleSubmitAi = useCallback(async () => {
-    const text = aiInput.trim();
-    if (!text || aiLoading) return;
-    setAiInput('');
-    const userMsg: OllamaMessage = { role: 'user', content: text };
-    setAiMessages((prev) => [...prev, userMsg]);
-    setAiLoading(true);
-    try {
-      const reply = await ollamaChat([...aiMessages, userMsg]);
-      setAiMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
-    } catch (err) {
-      setAiMessages((prev) => [...prev, { role: 'assistant', content: `오류: ${(err as Error).message}` }]);
-    } finally {
-      setAiLoading(false);
-    }
-  }, [aiInput, aiLoading, aiMessages, setAiInput, setAiLoading, setAiMessages]);
-
   const handleOpenChatInNewWindow = useCallback((roomId: string) => {
     openChatWindow(roomId);
     navigate('/');
@@ -195,8 +161,6 @@ export function useMainContentActions({
     handleUpdateEvent,
     handleCreateEvent,
     handleDeleteEvent,
-    handleResetAi,
-    handleSubmitAi,
     handleOpenChatInNewWindow,
   };
 }

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';
 
-type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'ai' | 'settings';
+type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings';
 
 type TopMenuBarProps = {
   isDark: boolean;
@@ -67,12 +67,6 @@ function TopMenuBar({
         <button type="button" className={cn(btnBase, activePanel === 'schedule' && btnActive)} onClick={() => togglePanel('schedule')} title="일정">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-        </button>
-
-        <button type="button" className={cn(btnBase, activePanel === 'ai' && btnActive)} onClick={() => togglePanel('ai')} title="AI 채팅">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
           </svg>
         </button>
 

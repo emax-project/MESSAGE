@@ -32,10 +32,6 @@ vi.mock('./SchedulePanel', () => ({
   default: ({ selectedDate }: { selectedDate: string }) => <div data-testid="schedule-panel">{selectedDate}</div>,
 }));
 
-vi.mock('./AiPanel', () => ({
-  default: () => <div data-testid="ai-panel">ai-panel</div>,
-}));
-
 vi.mock('./SettingsPanel', () => ({
   default: () => <div data-testid="settings-panel">settings-panel</div>,
 }));
@@ -52,7 +48,7 @@ const makeEvent = (): Event => ({
 const baseProps = () => ({
   isDark: false,
   isNarrowLayout: false,
-  activePanel: 'none' as 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'ai' | 'settings',
+  activePanel: 'none' as 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings',
   selectedRoomId: undefined as string | undefined,
   panelWrapStyle: () => ({ className: '', style: {} }),
   onOpenInNewWindow: vi.fn<(roomId: string) => void>(),
@@ -95,15 +91,6 @@ const baseProps = () => ({
     onCancelEdit: vi.fn(),
     onEditEvent: vi.fn(),
     onDeleteEvent: vi.fn(),
-  },
-  aiProps: {
-    modelName: 'llama',
-    aiMessages: [],
-    aiInput: '',
-    aiLoading: false,
-    setAiInput: vi.fn(),
-    onSubmitAi: vi.fn(),
-    onResetAi: vi.fn(),
   },
   settingsProps: {
     notificationsSnoozedUntil: 0,

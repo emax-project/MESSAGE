@@ -1,7 +1,6 @@
 import { memo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Event, OrgCompany, OrgUser } from '../../../api';
-import type { OllamaMessage } from '../../../ollama';
 import type { UpdateStatus } from '../hooks/useUpdateManager';
 import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
 import { cn } from '../../../utils/cn';
@@ -10,10 +9,9 @@ import MentionPanel, { type MentionItem } from './MentionPanel';
 import BookmarkPanel, { type BookmarkItem } from './BookmarkPanel';
 import FriendsPanel from './FriendsPanel';
 import SchedulePanel from './SchedulePanel';
-import AiPanel from './AiPanel';
 import SettingsPanel from './SettingsPanel';
 
-type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'ai' | 'settings';
+type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings';
 type EventFormState = { title: string; startAt: string; endAt: string; description: string };
 
 type RightContentRouterProps = {
@@ -63,15 +61,6 @@ type RightContentRouterProps = {
     onEditEvent: (ev: Event) => void;
     onDeleteEvent: (eventId: string) => void | Promise<void>;
   };
-  aiProps: {
-    modelName: string;
-    aiMessages: OllamaMessage[];
-    aiInput: string;
-    aiLoading: boolean;
-    setAiInput: (value: string) => void;
-    onSubmitAi: () => void | Promise<void>;
-    onResetAi: () => void;
-  };
   settingsProps: {
     notificationsSnoozedUntil: number;
     snoozeNotifications: (minutes: number) => void;
@@ -116,7 +105,6 @@ function RightContentRouter({
   onRemoveBookmark,
   friendsProps,
   scheduleProps,
-  aiProps,
   settingsProps,
 }: RightContentRouterProps) {
   if (selectedRoomId && activePanel === 'none') {
@@ -192,20 +180,6 @@ function RightContentRouter({
           onCancelEdit={scheduleProps.onCancelEdit}
           onEditEvent={scheduleProps.onEditEvent}
           onDeleteEvent={scheduleProps.onDeleteEvent}
-        />
-      )}
-
-      {activePanel === 'ai' && (
-        <AiPanel
-          isDark={isDark}
-          panelWrapStyle={panelWrapStyle}
-          modelName={aiProps.modelName}
-          aiMessages={aiProps.aiMessages}
-          aiInput={aiProps.aiInput}
-          aiLoading={aiProps.aiLoading}
-          setAiInput={aiProps.setAiInput}
-          onSubmitAi={aiProps.onSubmitAi}
-          onResetAi={aiProps.onResetAi}
         />
       )}
 
