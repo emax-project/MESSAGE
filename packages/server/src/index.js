@@ -43,7 +43,7 @@ import { foldersRouter } from './routes/folders.js';
 import { prisma } from './db.js';
 import { authMiddleware, verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
-import { UPLOAD_DIR, avatarUpload } from './upload.js';
+import { UPLOAD_DIR } from './upload.js';
 import { startCleanupJob } from './cleanup.js';
 
 const app = express();
@@ -56,64 +56,6 @@ httpServer.headersTimeout = 35000;  // requestTimeout보다 약간 크게
 
 app.use(cors({ origin: true }));
 app.use(express.json());
-
-// 아바타 업로드: /rooms/:id 경로보다 먼저 등록 (404 방지)
-// /api/rooms/:id/avatar 도 지원 (일부 배포에서 /api 프리픽스 사용 시)
-const avatarUploadHandler = async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: '이미지 파일을 선택해주세요' });
-    const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
-      include: { room: { select: { isGroup: true } } },
-    });
-    if (!member) return res.status(404).json({ error: '방을 찾을 수 없습니다' });
-    if (!member.room.isGroup) return res.status(400).json({ error: '아젠다/그룹 방만 프로필 사진을 설정할 수 있습니다' });
-    await prisma.room.update({
-      where: { id: req.params.id },
-      data: { avatarUrl: req.file.filename },
-    });
-    console.log('[avatar] Room', req.params.id, '아바타 저장됨:', req.file.filename);
-    const io = req.app.get('io');
-    if (io) {
-      const members = await prisma.roomMember.findMany({
-        where: { roomId: req.params.id, leftAt: null },
-        select: { userId: true },
-      });
-      const payload = { roomId: req.params.id };
-      for (const m of members) {
-        io.to(`user:${m.userId}`).emit('room_avatar_updated', payload);
-      }
-    }
-    return res.json({ avatarUrl: `/rooms/${req.params.id}/avatar` });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Failed to upload avatar' });
-  }
-};
-
-// 방 아바타 조회 (GET) - /api 프리픽스 배포 시에도 동작
-const roomAvatarGetHandler = async (req, res) => {
-  try {
-    const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
-      include: { room: { select: { avatarUrl: true } } },
-    });
-    if (!member || !member.room.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
-    const filePath = path.resolve(UPLOAD_DIR, member.room.avatarUrl);
-    return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
-      if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Failed to fetch avatar' });
-  }
-};
-
-app.get('/rooms/:id/avatar', authMiddleware, roomAvatarGetHandler);
-app.get('/api/rooms/:id/avatar', authMiddleware, roomAvatarGetHandler);
-
-app.post('/rooms/:id/avatar', authMiddleware, avatarUpload.single('avatar'), avatarUploadHandler);
-app.post('/api/rooms/:id/avatar', authMiddleware, avatarUpload.single('avatar'), avatarUploadHandler);
 
 // Public avatar endpoints (no auth required, used by <img> / <Image> tags)
 app.get('/users/:id/avatar', async (req, res) => {
@@ -132,23 +74,6 @@ app.get('/users/:id/avatar', async (req, res) => {
     return res.status(500).json({ error: 'Failed to fetch avatar' });
   }
 });
-app.get('/rooms/:id/avatar', async (req, res) => {
-  try {
-    const room = await prisma.room.findUnique({
-      where: { id: req.params.id },
-      select: { avatarUrl: true },
-    });
-    if (!room?.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
-    const filePath = path.resolve(UPLOAD_DIR, room.avatarUrl);
-    return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
-      if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Failed to fetch avatar' });
-  }
-});
-
 // /api 접두사 지원 (모바일·배포 시 baseUrl에 /api 포함 시)
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
@@ -182,7 +107,7 @@ app.use('/folders', foldersRouter);
 
 // Health check
 app.get('/health', (_, res) => res.json({ ok: true }));
-app.get('/health/avatar', (_, res) => res.json({ ok: true, avatarUpload: true }));
+app.get('/health/avatar', (_, res) => res.json({ ok: true }));
 app.get('/health/db', async (_, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;

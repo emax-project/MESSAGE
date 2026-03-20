@@ -8,9 +8,11 @@ type Props = {
   onClose: () => void;
   /** 내 메시지일 때 true → 채팅 하단에 표시. false → 채팅 상단(위)에 표시 */
   anchorBelow?: boolean;
+  /** true: 오른쪽 정렬(내 메시지), false: 왼쪽 정렬(상대 메시지). 짧은 버블에서 픽커가 넘치지 않도록 */
+  alignRight?: boolean;
 };
 
-export default function EmojiPicker({ onSelect, onClose, anchorBelow = false }: Props) {
+export default function EmojiPicker({ onSelect, onClose, anchorBelow = false, alignRight = true }: Props) {
   const isDark = useThemeStore((s) => s.isDark);
   const t = getThemeTokens(isDark);
   const bg = t.bgSurface;
@@ -23,8 +25,8 @@ export default function EmojiPicker({ onSelect, onClose, anchorBelow = false }: 
       style={{
         position: 'absolute',
         ...(anchorBelow
-          ? { top: '100%', right: 0, marginTop: 4 }
-          : { bottom: '100%', left: 0, marginBottom: 4 }),
+          ? { top: '100%', marginTop: 4, ...(alignRight ? { right: 0 } : { left: 0 }) }
+          : { bottom: '100%', marginBottom: 4, ...(alignRight ? { right: 0 } : { left: 0 }) }),
         background: bg,
         border: `1px solid ${borderColor}`,
         borderRadius: 10,

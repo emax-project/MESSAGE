@@ -2,7 +2,6 @@ import path from 'path';
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
-import { avatarUpload, UPLOAD_DIR } from '../upload.js';
 
 export const roomsRouter = Router();
 
@@ -108,7 +107,7 @@ roomsRouter.get('/', async (req, res) => {
       return {
         id: m.room.id,
         name: displayName,
-        avatarUrl: m.room.avatarUrl ? `/rooms/${m.room.id}/avatar?v=${new Date(m.room.updatedAt).getTime()}` : null,
+        avatarUrl: null,
         initials: m.room.initials || null,
         isGroup: m.room.isGroup,
         isTopic: m.room.isTopic ?? !!(m.room.description || m.room.initials),
@@ -243,7 +242,7 @@ roomsRouter.post('/topic', async (req, res) => {
     return res.status(201).json({
       id: newRoom.id,
       name: newRoom.name,
-      avatarUrl: newRoom.avatarUrl ? `/rooms/${newRoom.id}/avatar?v=${new Date(newRoom.updatedAt).getTime()}` : null,
+      avatarUrl: null,
       initials: newRoom.initials || null,
       description: newRoom.description,
       viewMode: newRoom.viewMode,
@@ -296,7 +295,7 @@ roomsRouter.post('/', async (req, res) => {
       const toRoomResponse = (r) => ({
         id: r.id,
         name: r.name || r.members.map((m) => m.user.name).filter(Boolean).join(', ') || '채팅방',
-        avatarUrl: r.avatarUrl ? `/rooms/${r.id}/avatar?v=${new Date(r.updatedAt).getTime()}` : null,
+        avatarUrl: null,
         initials: r.initials || null,
         isGroup: r.isGroup,
         isTopic: r.isTopic ?? false,
@@ -322,7 +321,7 @@ roomsRouter.post('/', async (req, res) => {
     const toRoomResponse = (r) => ({
       id: r.id,
       name: r.name || r.members.map((m) => m.user.name).filter(Boolean).join(', ') || '채팅방',
-      avatarUrl: r.avatarUrl ? `/rooms/${r.id}/avatar?v=${new Date(r.updatedAt).getTime()}` : null,
+      avatarUrl: null,
       initials: r.initials || null,
       isGroup: r.isGroup,
       isTopic: r.isTopic ?? false,
@@ -372,7 +371,7 @@ roomsRouter.get('/:id', async (req, res) => {
     return res.json({
       id: room.id,
       name: displayName,
-      avatarUrl: room.avatarUrl ? `/rooms/${room.id}/avatar?v=${new Date(room.updatedAt).getTime()}` : null,
+      avatarUrl: null,
       initials: room.initials || null,
       isGroup: room.isGroup,
       isTopic: room.isTopic ?? !!(room.description || room.initials),
@@ -386,73 +385,6 @@ roomsRouter.get('/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch room' });
-  }
-});
-
-// Get room avatar image
-roomsRouter.get('/:id/avatar', async (req, res) => {
-  try {
-    const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
-      include: { room: { select: { avatarUrl: true } } },
-    });
-    if (!member || !member.room.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
-    const filePath = path.resolve(UPLOAD_DIR, member.room.avatarUrl);
-    return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
-      if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Failed to fetch avatar' });
-  }
-});
-
-// Upload room avatar (topic/agenda only, creator only)
-roomsRouter.post('/:id/avatar', (req, res, next) => {
-  avatarUpload.single('avatar')(req, res, (err) => {
-    if (err) {
-      console.warn('[avatar] multer 에러:', err?.message);
-      const msg = err?.code === 'LIMIT_FILE_SIZE' ? '파일이 너무 큽니다 (최대 10MB)' : (err?.message || '파일 업로드 실패');
-      return res.status(400).json({ error: msg });
-    }
-    next();
-  });
-}, async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: '이미지 파일을 선택해주세요' });
-    const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
-      include: { room: { select: { isGroup: true, isTopic: true, avatarUrl: true, createdBy: true } } },
-    });
-    if (!member) {
-      if (process.env.NODE_ENV !== 'production') console.warn('[avatar] Room not found:', req.params.id);
-      return res.status(404).json({ error: '방을 찾을 수 없습니다. 방에 참가한 상태인지 확인해 주세요.' });
-    }
-    if (!member.room.isGroup) return res.status(400).json({ error: '아젠다/그룹 방만 프로필 사진을 설정할 수 있습니다' });
-    if (member.room.isTopic && member.room.createdBy && member.room.createdBy !== req.userId) {
-      return res.status(403).json({ error: '아젠다 방 설정은 생성자만 변경할 수 있습니다' });
-    }
-
-    await prisma.room.update({
-      where: { id: req.params.id },
-      data: { avatarUrl: req.file.filename },
-    });
-    console.log(`[avatar] Room ${req.params.id} 아바타 저장됨: ${req.file.filename}`);
-    const io = req.app.get('io');
-    if (io) {
-      const members = await prisma.roomMember.findMany({
-        where: { roomId: req.params.id, leftAt: null },
-        select: { userId: true },
-      });
-      const payload = { roomId: req.params.id };
-      for (const m of members) {
-        io.to(`user:${m.userId}`).emit('room_avatar_updated', payload);
-      }
-    }
-    return res.json({ avatarUrl: `/rooms/${req.params.id}/avatar` });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Failed to upload avatar' });
   }
 });
 

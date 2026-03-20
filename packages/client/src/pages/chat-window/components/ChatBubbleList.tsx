@@ -397,6 +397,7 @@ export default function ChatBubbleList({
                     onSelect={(emoji) => handleReaction(m.id, emoji)}
                     onClose={() => setEmojiPickerMsg(null)}
                     anchorBelow
+                    alignRight={isMine}
                   />
                 )}
               </div>
