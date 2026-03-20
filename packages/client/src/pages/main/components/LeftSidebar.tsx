@@ -51,7 +51,7 @@ function LeftSidebar({
           className="flex items-center gap-2 border-none bg-transparent p-0 m-0 cursor-pointer"
           title="대시보드로 이동"
         >
-          <EmaxLogo variant={isDark ? 'light' : 'accent'} size="sm" />
+          <EmaxLogo variant={isDark ? 'light' : 'accent'} size="lg" />
         </button>
       </div>
 

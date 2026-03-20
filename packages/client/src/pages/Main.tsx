@@ -288,6 +288,27 @@ export default function Main() {
     return map;
   }, [events]);
 
+  const todayEvents = useMemo(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    return eventsByDate.get(key) ?? [];
+  }, [eventsByDate]);
+
+  const weekEvents = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const result: { dateKey: string; label: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const count = eventsByDate.get(key)?.length ?? 0;
+      const label = i === 0 ? '오늘' : i === 1 ? '어제' : `${d.getMonth() + 1}/${d.getDate()}`;
+      result.push({ dateKey: key, label, count });
+    }
+    return result;
+  }, [eventsByDate]);
+
   // --- Effects ---
   useEffect(() => { if (!selectedDate) return; setEventForm((prev) => { const n = normalizeTimeRange(selectedDate, prev.startAt, prev.endAt); return { ...prev, startAt: n.startAt, endAt: n.endAt }; }); }, [selectedDate]);
   useEffect(() => { if (onlineData?.userIds) setOnlineUserIds(new Set(onlineData.userIds.map((id) => String(id)))); }, [onlineData?.userIds]);
@@ -567,6 +588,18 @@ export default function Main() {
                 onUserContextMenu: handleUserContextMenu,
                 hasStatusIcon,
                 renderStatusIcon: (status, size = 11) => <StatusIcon status={status} size={size} />,
+              }}
+              dashboardProps={{
+                userName: user?.name,
+                topicCount: topicRooms.length,
+                chatCount: chatRooms.length,
+                topicUnreadCount: topicUnreadCount,
+                chatUnreadCount: chatUnreadCount,
+                totalUnread: totalUnreadCount,
+                unreadMentionCount: unreadMentionCount?.count ?? 0,
+                todayEvents,
+                weekEvents,
+                setActivePanel,
               }}
               scheduleProps={{
                 calendarMonth,

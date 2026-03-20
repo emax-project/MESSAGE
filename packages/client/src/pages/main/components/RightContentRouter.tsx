@@ -3,13 +3,13 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Event, OrgCompany, OrgUser } from '../../../api';
 import type { UpdateStatus } from '../hooks/useUpdateManager';
 import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
-import { cn } from '../../../utils/cn';
 import ChatWindow from '../../ChatWindow';
 import MentionPanel, { type MentionItem } from './MentionPanel';
 import BookmarkPanel, { type BookmarkItem } from './BookmarkPanel';
 import FriendsPanel from './FriendsPanel';
 import SchedulePanel from './SchedulePanel';
 import SettingsPanel from './SettingsPanel';
+import DashboardHome from './DashboardHome';
 
 type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings';
 type EventFormState = { title: string; startAt: string; endAt: string; description: string };
@@ -61,6 +61,18 @@ type RightContentRouterProps = {
     onEditEvent: (ev: Event) => void;
     onDeleteEvent: (eventId: string) => void | Promise<void>;
   };
+  dashboardProps: {
+    userName?: string | null;
+    topicCount: number;
+    chatCount: number;
+    topicUnreadCount: number;
+    chatUnreadCount: number;
+    totalUnread: number;
+    unreadMentionCount: number;
+    todayEvents: Event[];
+    weekEvents: { dateKey: string; label: string; count: number }[];
+    setActivePanel: (panel: ActivePanel) => void;
+  };
   settingsProps: {
     notificationsSnoozedUntil: number;
     snoozeNotifications: (minutes: number) => void;
@@ -105,6 +117,7 @@ function RightContentRouter({
   onRemoveBookmark,
   friendsProps,
   scheduleProps,
+  dashboardProps,
   settingsProps,
 }: RightContentRouterProps) {
   if (selectedRoomId && activePanel === 'none') {
@@ -114,18 +127,19 @@ function RightContentRouter({
   return (
     <>
       {activePanel === 'none' && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <div className={cn(
-            'w-14 h-14 rounded-full flex items-center justify-center',
-            isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500',
-          )}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </div>
-          <p className={cn('text-base font-semibold m-0', isDark ? 'text-slate-200' : 'text-slate-900')}>채팅방을 선택하세요</p>
-          <p className={cn('text-[13px] m-0', isDark ? 'text-slate-400' : 'text-slate-500')}>왼쪽 아젠다 또는 채팅에서 대화를 시작하세요</p>
-        </div>
+        <DashboardHome
+          isDark={isDark}
+          userName={dashboardProps.userName}
+          topicCount={dashboardProps.topicCount}
+          chatCount={dashboardProps.chatCount}
+          topicUnreadCount={dashboardProps.topicUnreadCount}
+          chatUnreadCount={dashboardProps.chatUnreadCount}
+          totalUnread={dashboardProps.totalUnread}
+          unreadMentionCount={dashboardProps.unreadMentionCount}
+          todayEvents={dashboardProps.todayEvents}
+          weekEvents={dashboardProps.weekEvents}
+          setActivePanel={dashboardProps.setActivePanel}
+        />
       )}
 
       {activePanel === 'mention' && (

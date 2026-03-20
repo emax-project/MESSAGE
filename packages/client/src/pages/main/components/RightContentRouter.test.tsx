@@ -36,6 +36,10 @@ vi.mock('./SettingsPanel', () => ({
   default: () => <div data-testid="settings-panel">settings-panel</div>,
 }));
 
+vi.mock('./DashboardHome', () => ({
+  default: () => <div data-testid="dashboard-home">dashboard-home</div>,
+}));
+
 const makeEvent = (): Event => ({
   id: 'ev-1',
   userId: 'user-1',
@@ -76,6 +80,18 @@ const baseProps = () => ({
     onUserContextMenu: vi.fn<(e: React.MouseEvent<HTMLButtonElement>, user: OrgUser) => void>(),
     hasStatusIcon: vi.fn(() => false),
     renderStatusIcon: vi.fn(() => null),
+  },
+  dashboardProps: {
+    userName: 'Test User',
+    topicCount: 0,
+    chatCount: 0,
+    topicUnreadCount: 0,
+    chatUnreadCount: 0,
+    totalUnread: 0,
+    unreadMentionCount: 0,
+    todayEvents: [],
+    weekEvents: [],
+    setActivePanel: vi.fn(),
   },
   scheduleProps: {
     calendarMonth: new Date('2026-03-01T00:00:00'),
@@ -134,9 +150,9 @@ describe('RightContentRouter', () => {
     expect(props.onOpenInNewWindow).toHaveBeenCalledWith('room-1');
   });
 
-  it('renders empty state when no active panel and no selected room', () => {
+  it('renders dashboard when no active panel and no selected room', () => {
     render(<RightContentRouter {...baseProps()} />);
-    expect(screen.getByText('채팅방을 선택하세요')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-home')).toBeInTheDocument();
   });
 
   it('routes schedule panel when active panel is schedule', () => {
