@@ -11,19 +11,19 @@ interface EmaxLogoProps {
 }
 
 const SIZE_MAP: Record<EmaxLogoSize, number> = {
-  xs: 14,
-  sm: 18,
-  md: 24,
-  lg: 30,
-  xl: 38,
-  '2xl': 56,
+  xs: 16,
+  sm: 22,
+  md: 28,
+  lg: 36,
+  xl: 44,
+  '2xl': 64,
 };
 
-const LETTER_SPACING_EM = 0.38;
-const TAGLINE_TRACKING_EM = 0.42;
 const TAGLINE_SCALE = 0.21;
-const ACCENT_LINE_SCALE = 0.028;
-const BRAND_ACCENT = '#9a58a8';
+const TAGLINE_TRACKING_EM = 0.42;
+
+/** Frame 1.svg: abstract blue symbol */
+const LOGO_SRC = `${import.meta.env.BASE_URL}emax-logo.svg`;
 
 export function EmaxLogo({
   variant = 'dark',
@@ -31,61 +31,26 @@ export function EmaxLogo({
   showTagline = false,
   style,
 }: EmaxLogoProps) {
-  const fontSize = SIZE_MAP[size];
-  const textColor = variant === 'light' ? '#FFFFFF' : '#0F172A';
-  const eColor = variant === 'accent' ? BRAND_ACCENT : textColor;
+  const px = SIZE_MAP[size];
   const taglineColor = variant === 'light' ? 'rgba(255,255,255,0.72)' : '#94A3B8';
 
   return (
     <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', ...style }}>
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'baseline', lineHeight: 1 }}>
-        <span
-          style={{
-            fontFamily: "'Montserrat','Helvetica Neue',Arial,sans-serif",
-            fontSize,
-            fontWeight: 800,
-            letterSpacing: `${LETTER_SPACING_EM}em`,
-            textTransform: 'uppercase',
-            color: eColor,
-            lineHeight: 1,
-          }}
-        >
-          E
-        </span>
-        <span
-          style={{
-            fontFamily: "'Montserrat','Helvetica Neue',Arial,sans-serif",
-            fontSize,
-            fontWeight: 800,
-            letterSpacing: `${LETTER_SPACING_EM}em`,
-            textTransform: 'uppercase',
-            color: textColor,
-            lineHeight: 1,
-          }}
-        >
-          MAX
-        </span>
-        <span
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            left: 0,
-            bottom: `${-fontSize * 0.16}px`,
-            width: `${fontSize * 0.56}px`,
-            height: `${Math.max(1, fontSize * ACCENT_LINE_SCALE)}px`,
-            background: BRAND_ACCENT,
-            borderRadius: 999,
-          }}
-        />
-      </div>
-
+      <img
+        src={LOGO_SRC}
+        alt="EMAX"
+        width={px}
+        height={px}
+        style={{ objectFit: 'contain', display: 'block' }}
+        draggable={false}
+      />
       {showTagline && (
         <span
           style={{
-            marginTop: `${fontSize * 0.32}px`,
-            marginLeft: `${fontSize * 0.04}px`,
+            marginTop: `${px * 0.32}px`,
+            marginLeft: `${px * 0.04}px`,
             fontFamily: "'Montserrat','Helvetica Neue',Arial,sans-serif",
-            fontSize: `${fontSize * TAGLINE_SCALE}px`,
+            fontSize: `${px * TAGLINE_SCALE}px`,
             fontWeight: 500,
             letterSpacing: `${TAGLINE_TRACKING_EM}em`,
             textTransform: 'uppercase',
