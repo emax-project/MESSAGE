@@ -323,7 +323,7 @@ function SchedulePanel({
                 className={cn(
                   'h-8 rounded-md text-xs font-semibold transition-colors outline-none focus:outline-none',
                   isActive
-                    ? 'bg-blue-500 text-white'
+                    ? (isDark ? 'bg-[#7CA5FF] text-white' : 'bg-[#5B8DEF] text-white')
                     : isDark
                       ? 'text-slate-300 hover:bg-slate-800'
                       : 'text-slate-600 hover:bg-slate-100'
@@ -378,9 +378,9 @@ function SchedulePanel({
                 className={cn(
                   'h-8 rounded-md text-xs font-semibold transition-colors outline-none focus:outline-none',
                   isBoundary
-                    ? (isDark ? 'bg-blue-500 text-white' : 'bg-blue-500 text-white')
+                    ? (isDark ? 'bg-[#7CA5FF] text-white' : 'bg-[#5B8DEF] text-white')
                     : isInRange
-                      ? (isDark ? 'bg-blue-500/20 text-blue-100' : 'bg-blue-100 text-blue-700')
+                      ? (isDark ? 'bg-[#5B8DEF]/20 text-[#bfdbfe]' : 'bg-[#5B8DEF]/15 text-[#5B8DEF]')
                       : (isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100')
                 )}
               >
@@ -538,8 +538,8 @@ function SchedulePanel({
           className={cn(
             'mb-4 rounded-2xl border p-4',
             isDark
-              ? 'border-blue-400/30 bg-slate-800/80'
-              : 'border-blue-100 bg-white shadow-sm'
+              ? 'border-[#5B8DEF]/30 bg-slate-800/80'
+              : 'border-[#5B8DEF]/20 bg-white shadow-sm'
           )}
         >
           <div className="mb-3 flex items-center justify-between gap-3">
@@ -557,10 +557,10 @@ function SchedulePanel({
                 aria-label="이전 달"
                 onClick={() => setCalendarMonth((m) => addMonths(m, -1))}
                 className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-lg border',
+                  'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
                   isDark
-                    ? 'border-blue-300/40 bg-blue-500/20 text-blue-100 hover:bg-blue-500/30'
-                    : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
+                    : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
                 )}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
@@ -572,10 +572,10 @@ function SchedulePanel({
                 aria-label="다음 달"
                 onClick={() => setCalendarMonth((m) => addMonths(m, 1))}
                 className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-lg border',
+                  'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
                   isDark
-                    ? 'border-blue-300/40 bg-blue-500/20 text-blue-100 hover:bg-blue-500/30'
-                    : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
+                    : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
                 )}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
@@ -617,8 +617,8 @@ function SchedulePanel({
                     'relative overflow-visible rounded-xl p-1.5 text-left transition-colors',
                     cell.isSelected
                       ? isDark
-                        ? 'bg-blue-500/20'
-                        : 'bg-blue-50'
+                        ? 'bg-[#5B8DEF]/20'
+                        : 'bg-[#5B8DEF]/10'
                       : isDark
                         ? 'bg-slate-900 hover:bg-slate-800'
                         : 'bg-white hover:bg-slate-50'
@@ -629,8 +629,8 @@ function SchedulePanel({
                       'mx-auto mb-1 flex h-5 w-5 items-center justify-center text-xs font-semibold',
                       cell.isSelected
                         ? isDark
-                          ? 'text-blue-100'
-                          : 'text-blue-700'
+                          ? 'text-[#bfdbfe]'
+                          : 'text-[#5B8DEF]'
                         : cell.isToday
                           ? isDark
                             ? 'text-sky-200'
@@ -674,8 +674,8 @@ function SchedulePanel({
                                     : '-mx-1.5 rounded-none'
                               : 'rounded-md',
                             isDark
-                              ? 'bg-blue-300/20 text-blue-100'
-                              : 'bg-blue-100 text-blue-700'
+                              ? 'bg-[#5B8DEF]/20 text-[#bfdbfe]'
+                              : 'bg-[#5B8DEF]/15 text-[#5B8DEF]'
                           )}
                           title={event.title}
                         >
@@ -688,7 +688,7 @@ function SchedulePanel({
                     <div
                       className={cn(
                         'pointer-events-none absolute right-1.5 top-1.5 rounded px-1 text-[10px] font-semibold',
-                        isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-600'
+                        isDark ? 'bg-[#5B8DEF]/20 text-[#7CA5FF]' : 'bg-[#5B8DEF]/15 text-[#5B8DEF]'
                       )}
                     >
                       +{hiddenCount}
@@ -704,8 +704,8 @@ function SchedulePanel({
               className={cn(
                 'rounded-full px-3 py-1 text-xs font-medium',
                 isDark
-                  ? 'bg-blue-500/20 text-blue-200'
-                  : 'bg-blue-100 text-blue-700'
+                  ? 'bg-[#5B8DEF]/20 text-[#bfdbfe]'
+                  : 'bg-[#5B8DEF]/15 text-[#5B8DEF]'
               )}
             >
               선택: {selectedDate}
@@ -723,8 +723,8 @@ function SchedulePanel({
                 actionBtn,
                 'border',
                 isDark
-                  ? 'border-blue-300/50 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20'
-                  : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                  ? 'border-[#5B8DEF]/50 bg-[#5B8DEF]/10 text-[#bfdbfe] hover:bg-[#5B8DEF]/20'
+                  : 'border-[#5B8DEF]/30 bg-white text-[#5B8DEF] hover:bg-[#5B8DEF]/10'
               )}
             >
               오늘로 이동
@@ -735,7 +735,7 @@ function SchedulePanel({
         <article
           className={cn(
             'mb-4 rounded-2xl border p-4',
-            isDark ? 'border-blue-300/30 bg-slate-800/70' : 'border-blue-100 bg-blue-50/40'
+            isDark ? 'border-[#5B8DEF]/30 bg-slate-800/70' : 'border-[#5B8DEF]/20 bg-[#5B8DEF]/5'
           )}
         >
           {!editingEventId && (
@@ -750,14 +750,14 @@ function SchedulePanel({
                   type="button"
                   onClick={() => setCreateTab(tab.id)}
                   className={cn(
-                    'rounded-full border px-3 py-1.5 text-xs font-semibold',
+                    'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
                     createTab === tab.id
                       ? isDark
-                        ? 'border-blue-300/70 bg-blue-500/20 text-blue-100'
-                        : 'border-blue-300 bg-blue-100 text-blue-700'
+                        ? 'border-[#5B8DEF] bg-[#5B8DEF] text-white'
+                        : 'border-[#5B8DEF] bg-[#5B8DEF] text-white'
                       : isDark
-                        ? 'border-blue-300/25 bg-transparent text-blue-300 hover:bg-blue-500/10'
-                        : 'border-blue-200 bg-white text-blue-600 hover:bg-blue-50'
+                        ? 'border-[#5B8DEF]/40 bg-transparent text-[#7CA5FF] hover:bg-[#5B8DEF]/15'
+                        : 'border-[#5B8DEF]/40 bg-white text-[#5B8DEF] hover:bg-[#5B8DEF]/10'
                   )}
                 >
                   {tab.label}
@@ -769,7 +769,7 @@ function SchedulePanel({
           <h5
             className={cn(
               'mb-3 text-sm font-semibold',
-              isDark ? 'text-blue-200' : 'text-blue-700'
+              isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]'
             )}
           >
             {editingEventId ? '일정 수정' : '새 일정 추가'}
@@ -784,25 +784,25 @@ function SchedulePanel({
               inputBase,
               'mb-2',
               isDark
-                ? 'border-blue-300/30 bg-slate-900 text-slate-100 placeholder:text-slate-500'
-                : 'border-blue-200 bg-white text-slate-700 placeholder:text-slate-400'
+                ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100 placeholder:text-slate-500'
+                : 'border-[#5B8DEF]/25 bg-white text-slate-700 placeholder:text-slate-400'
             )}
           />
 
           {(editingEventId || createTab === 'normal') && (
             <div className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-              <div className={cn('rounded-xl border p-3', isDark ? 'border-blue-300/30 bg-slate-900/70' : 'border-blue-100 bg-white')}>
-                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-blue-700')}>시작</div>
+              <div className={cn('rounded-xl border p-3', isDark ? 'border-[#5B8DEF]/30 bg-slate-900/70' : 'border-[#5B8DEF]/20 bg-white')}>
+                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]')}>시작</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('start')}
                   className={cn(
                     'mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none focus:outline-none',
-                    isDark ? 'border-blue-300/30 bg-slate-800 text-slate-100' : 'border-blue-200 bg-blue-50 text-slate-700'
+                    isDark ? 'border-[#5B8DEF]/30 bg-slate-800 text-slate-100' : 'border-[#5B8DEF]/25 bg-[#5B8DEF]/5 text-slate-700'
                   )}
                 >
                   <span>{formatDateLabel(startDatePart)}</span>
-                  <CalendarIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <CalendarIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
                 <button
                   type="button"
@@ -811,27 +811,27 @@ function SchedulePanel({
                     inputBase,
                     'mb-0 flex cursor-pointer items-center justify-between text-left',
                     isDark
-                      ? 'border-blue-300/30 bg-slate-900 text-slate-100'
-                      : 'border-blue-200 bg-white text-slate-700'
+                      ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100'
+                      : 'border-[#5B8DEF]/25 bg-white text-slate-700'
                   )}
                 >
                   <span>{formatTimeLabel(startTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <ClockIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
               </div>
 
-              <div className={cn('rounded-xl border p-3', isDark ? 'border-blue-300/30 bg-slate-900/70' : 'border-blue-100 bg-white')}>
-                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-blue-700')}>종료</div>
+              <div className={cn('rounded-xl border p-3', isDark ? 'border-[#5B8DEF]/30 bg-slate-900/70' : 'border-[#5B8DEF]/20 bg-white')}>
+                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]')}>종료</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('end')}
                   className={cn(
                     'mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none focus:outline-none',
-                    isDark ? 'border-blue-300/30 bg-slate-800 text-slate-100' : 'border-blue-200 bg-blue-50 text-slate-700'
+                    isDark ? 'border-[#5B8DEF]/30 bg-slate-800 text-slate-100' : 'border-[#5B8DEF]/25 bg-[#5B8DEF]/5 text-slate-700'
                   )}
                 >
                   <span>{formatDateLabel(endDatePart)}</span>
-                  <CalendarIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <CalendarIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
                 <button
                   type="button"
@@ -840,12 +840,12 @@ function SchedulePanel({
                     inputBase,
                     'mb-0 flex cursor-pointer items-center justify-between text-left',
                     isDark
-                      ? 'border-blue-300/30 bg-slate-900 text-slate-100'
-                      : 'border-blue-200 bg-white text-slate-700'
+                      ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100'
+                      : 'border-[#5B8DEF]/25 bg-white text-slate-700'
                   )}
                 >
                   <span>{formatTimeLabel(endTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <ClockIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
               </div>
             </div>
@@ -853,18 +853,18 @@ function SchedulePanel({
 
           {!editingEventId && createTab === 'repeat' && (
             <div className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-              <div className={cn('rounded-xl border p-3', isDark ? 'border-blue-300/30 bg-slate-900/70' : 'border-blue-100 bg-white')}>
-                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-blue-700')}>반복 시작</div>
+              <div className={cn('rounded-xl border p-3', isDark ? 'border-[#5B8DEF]/30 bg-slate-900/70' : 'border-[#5B8DEF]/20 bg-white')}>
+                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]')}>반복 시작</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('start')}
                   className={cn(
                     'mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none focus:outline-none',
-                    isDark ? 'border-blue-300/30 bg-slate-800 text-slate-100' : 'border-blue-200 bg-blue-50 text-slate-700'
+                    isDark ? 'border-[#5B8DEF]/30 bg-slate-800 text-slate-100' : 'border-[#5B8DEF]/25 bg-[#5B8DEF]/5 text-slate-700'
                   )}
                 >
                   <span>{formatDateLabel(startDatePart)}</span>
-                  <CalendarIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <CalendarIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
                 <button
                   type="button"
@@ -873,27 +873,27 @@ function SchedulePanel({
                     inputBase,
                     'mb-0 flex cursor-pointer items-center justify-between text-left',
                     isDark
-                      ? 'border-blue-300/30 bg-slate-900 text-slate-100'
-                      : 'border-blue-200 bg-white text-slate-700'
+                      ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100'
+                      : 'border-[#5B8DEF]/25 bg-white text-slate-700'
                   )}
                 >
                   <span>{formatTimeLabel(startTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <ClockIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
               </div>
 
-              <div className={cn('rounded-xl border p-3', isDark ? 'border-blue-300/30 bg-slate-900/70' : 'border-blue-100 bg-white')}>
-                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-blue-700')}>반복 종료</div>
+              <div className={cn('rounded-xl border p-3', isDark ? 'border-[#5B8DEF]/30 bg-slate-900/70' : 'border-[#5B8DEF]/20 bg-white')}>
+                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]')}>반복 종료</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('end')}
                   className={cn(
                     'mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none focus:outline-none',
-                    isDark ? 'border-blue-300/30 bg-slate-800 text-slate-100' : 'border-blue-200 bg-blue-50 text-slate-700'
+                    isDark ? 'border-[#5B8DEF]/30 bg-slate-800 text-slate-100' : 'border-[#5B8DEF]/25 bg-[#5B8DEF]/5 text-slate-700'
                   )}
                 >
                   <span>{formatDateLabel(endDatePart)}</span>
-                  <CalendarIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <CalendarIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
                 <button
                   type="button"
@@ -902,12 +902,12 @@ function SchedulePanel({
                     inputBase,
                     'mb-0 flex cursor-pointer items-center justify-between text-left',
                     isDark
-                      ? 'border-blue-300/30 bg-slate-900 text-slate-100'
-                      : 'border-blue-200 bg-white text-slate-700'
+                      ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100'
+                      : 'border-[#5B8DEF]/25 bg-white text-slate-700'
                   )}
                 >
                   <span>{formatTimeLabel(endTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <ClockIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
               </div>
             </div>
@@ -915,9 +915,9 @@ function SchedulePanel({
 
           {!editingEventId && createTab === 'period' && (
             <>
-              <div className="mb-2 rounded-xl border border-blue-200/70 bg-white/70 p-2 dark:border-blue-300/20 dark:bg-slate-900/50">
+              <div className="mb-2 rounded-xl border border-[#5B8DEF]/25 bg-white/70 p-2 dark:border-[#5B8DEF]/20 dark:bg-slate-900/50">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className={cn('text-xs font-semibold', isDark ? 'text-blue-200' : 'text-blue-700')}>
+                  <div className={cn('text-xs font-semibold', isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]')}>
                     선택 기간: {periodRange.startDate} ~ {periodRange.endDate}
                   </div>
                   <button
@@ -926,8 +926,8 @@ function SchedulePanel({
                     className={cn(
                       'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold outline-none focus:outline-none',
                       isDark
-                        ? 'border-blue-300/35 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20'
-                        : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                        ? 'border-[#5B8DEF]/35 bg-[#5B8DEF]/10 text-[#bfdbfe] hover:bg-[#5B8DEF]/20'
+                        : 'border-[#5B8DEF]/30 bg-white text-[#5B8DEF] hover:bg-[#5B8DEF]/10'
                     )}
                     aria-label="기간 캘린더 열기"
                   >
@@ -949,14 +949,14 @@ function SchedulePanel({
                     inputBase,
                     'mb-0 flex flex-1 basis-28 cursor-pointer items-center justify-between text-left',
                     isDark
-                      ? 'border-blue-300/30 bg-slate-900 text-slate-100'
-                      : 'border-blue-200 bg-white text-slate-700'
+                      ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100'
+                      : 'border-[#5B8DEF]/25 bg-white text-slate-700'
                   )}
                 >
                   <span>{formatTimeLabel(startTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <ClockIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
-                <span className={cn('text-sm font-medium', isDark ? 'text-blue-300' : 'text-blue-500')}>~</span>
+                <span className={cn('text-sm font-medium', isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')}>~</span>
                 <button
                   type="button"
                   onClick={() => openTimeModal('end', 'period')}
@@ -964,12 +964,12 @@ function SchedulePanel({
                     inputBase,
                     'mb-0 flex flex-1 basis-28 cursor-pointer items-center justify-between text-left',
                     isDark
-                      ? 'border-blue-300/30 bg-slate-900 text-slate-100'
-                      : 'border-blue-200 bg-white text-slate-700'
+                      ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100'
+                      : 'border-[#5B8DEF]/25 bg-white text-slate-700'
                   )}
                 >
                   <span>{formatTimeLabel(endTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-blue-300' : 'text-blue-600')} />
+                  <ClockIcon className={cn(isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')} />
                 </button>
               </div>
               <div className="mb-2 flex flex-wrap gap-1.5">
@@ -1005,8 +1005,8 @@ function SchedulePanel({
                     inputBase,
                     'mb-0 w-full appearance-none pr-8',
                     isDark
-                      ? 'border-blue-300/30 bg-slate-900 text-slate-100'
-                      : 'border-blue-200 bg-white text-slate-700'
+                      ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100'
+                      : 'border-[#5B8DEF]/25 bg-white text-slate-700'
                   )}
                 >
                   <option value="daily">매일</option>
@@ -1032,7 +1032,7 @@ function SchedulePanel({
               <span
                 className={cn(
                   'text-xs font-semibold',
-                  isDark ? 'text-blue-300' : 'text-blue-600'
+                  isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]'
                 )}
               >
                 종료일
@@ -1045,8 +1045,8 @@ function SchedulePanel({
                   inputBase,
                   'mb-0 min-w-[180px] flex-1 focus:ring-0',
                   isDark
-                    ? 'border-blue-300/30 bg-slate-900 text-slate-100'
-                    : 'border-blue-200 bg-white text-slate-700'
+                    ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100'
+                    : 'border-[#5B8DEF]/25 bg-white text-slate-700'
                 )}
               />
             </div>
@@ -1060,8 +1060,8 @@ function SchedulePanel({
             className={cn(
               inputBase,
               isDark
-                ? 'border-blue-300/30 bg-slate-900 text-slate-100 placeholder:text-slate-500'
-                : 'border-blue-200 bg-white text-slate-700 placeholder:text-slate-400'
+                ? 'border-[#5B8DEF]/30 bg-slate-900 text-slate-100 placeholder:text-slate-500'
+                : 'border-[#5B8DEF]/25 bg-white text-slate-700 placeholder:text-slate-400'
             )}
           />
 
@@ -1074,8 +1074,8 @@ function SchedulePanel({
                   className={cn(
                     actionBtn,
                     isDark
-                      ? 'bg-blue-500 text-white hover:bg-blue-400'
-                      : 'bg-blue-500 text-white hover:bg-blue-400'
+                      ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
+                      : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
                   )}
                 >
                   수정
@@ -1087,8 +1087,8 @@ function SchedulePanel({
                     actionBtn,
                     'border',
                     isDark
-                      ? 'border-blue-300/40 bg-transparent text-blue-200 hover:bg-blue-500/10'
-                      : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                      ? 'border-[#5B8DEF]/40 bg-transparent text-[#bfdbfe] hover:bg-[#5B8DEF]/10'
+                      : 'border-[#5B8DEF]/30 bg-white text-[#5B8DEF] hover:bg-[#5B8DEF]/10'
                   )}
                 >
                   취소
@@ -1119,8 +1119,8 @@ function SchedulePanel({
                 className={cn(
                   actionBtn,
                   isDark
-                    ? 'bg-blue-500 text-white hover:bg-blue-400'
-                    : 'bg-blue-500 text-white hover:bg-blue-400'
+                    ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
+                    : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
                 )}
               >
                 추가
@@ -1133,7 +1133,7 @@ function SchedulePanel({
           <h5
             className={cn(
               'text-sm font-semibold',
-              isDark ? 'text-blue-200' : 'text-blue-700'
+              isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]'
             )}
           >
             선택한 날짜 일정
@@ -1141,7 +1141,7 @@ function SchedulePanel({
           <span
             className={cn(
               'text-xs font-medium',
-              isDark ? 'text-blue-300' : 'text-blue-600'
+              isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]'
             )}
           >
             {selectedEvents.length}건
@@ -1152,7 +1152,7 @@ function SchedulePanel({
           <p
             className={cn(
               'rounded-xl px-4 py-3 text-sm',
-              isDark ? 'bg-blue-500/15 text-blue-200' : 'bg-blue-50 text-blue-700'
+              isDark ? 'bg-[#5B8DEF]/15 text-[#bfdbfe]' : 'bg-[#5B8DEF]/10 text-[#5B8DEF]'
             )}
           >
             선택한 날짜에 일정이 없습니다.
@@ -1165,15 +1165,15 @@ function SchedulePanel({
                 className={cn(
                   'flex flex-wrap items-start justify-between gap-3 rounded-xl border p-3',
                   isDark
-                    ? 'border-blue-300/30 bg-slate-800/80'
-                    : 'border-blue-100 bg-white shadow-sm'
+                    ? 'border-[#5B8DEF]/30 bg-slate-800/80'
+                    : 'border-[#5B8DEF]/20 bg-white shadow-sm'
                 )}
               >
                 <div className="min-w-0 flex-1">
                   <strong
                     className={cn(
                       'mb-1 block truncate text-sm font-semibold',
-                      isDark ? 'text-blue-100' : 'text-blue-700'
+                      isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]'
                     )}
                   >
                     {ev.title}
@@ -1181,7 +1181,7 @@ function SchedulePanel({
                   <span
                     className={cn(
                       'mb-1 block text-xs leading-relaxed',
-                      isDark ? 'text-blue-300' : 'text-blue-600'
+                      isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]'
                     )}
                   >
                     {new Date(ev.startAt).toLocaleString('ko-KR')} ~ {new Date(ev.endAt).toLocaleString('ko-KR')}
@@ -1205,8 +1205,8 @@ function SchedulePanel({
                       actionBtn,
                       'px-3 py-1.5 text-xs',
                       isDark
-                        ? 'bg-blue-500 text-white hover:bg-blue-400'
-                        : 'bg-blue-500 text-white hover:bg-blue-400'
+                        ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
+                        : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
                     )}
                   >
                     수정
@@ -1239,12 +1239,12 @@ function SchedulePanel({
           <div
             className={cn(
               'w-full max-w-[760px] rounded-2xl border p-4',
-              isDark ? 'border-blue-300/30 bg-slate-900' : 'border-blue-100 bg-white shadow-soft'
+              isDark ? 'border-[#5B8DEF]/30 bg-slate-900' : 'border-[#5B8DEF]/20 bg-white shadow-soft'
             )}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
-              <div className={cn('text-sm font-semibold', isDark ? 'text-blue-200' : 'text-blue-700')}>
+              <div className={cn('text-sm font-semibold', isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]')}>
                 {singleDateModal.target === 'end' ? '종료일 선택' : '시작일 선택'}
               </div>
               <button
@@ -1260,7 +1260,7 @@ function SchedulePanel({
             <div className="mb-3 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className={cn('h-8 w-8 rounded-md border text-sm font-bold', isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}
+                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors', isDark ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]' : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]')}
                 onClick={() => setSingleDateModal((prev) => ({ ...prev, baseMonth: addMonths(prev.baseMonth, -1) }))}
                 aria-label="날짜 이전 달"
               >
@@ -1268,7 +1268,7 @@ function SchedulePanel({
               </button>
               <button
                 type="button"
-                className={cn('h-8 w-8 rounded-md border text-sm font-bold', isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}
+                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors', isDark ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]' : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]')}
                 onClick={() => setSingleDateModal((prev) => ({ ...prev, baseMonth: addMonths(prev.baseMonth, 1) }))}
                 aria-label="날짜 다음 달"
               >
@@ -1292,13 +1292,13 @@ function SchedulePanel({
           <div
             className={cn(
               'w-full max-w-[540px] rounded-2xl border p-4',
-              isDark ? 'border-blue-300/30 bg-slate-900' : 'border-blue-100 bg-white shadow-soft'
+              isDark ? 'border-[#5B8DEF]/30 bg-slate-900' : 'border-[#5B8DEF]/20 bg-white shadow-soft'
             )}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
-                <div className={cn('text-sm font-semibold', isDark ? 'text-blue-200' : 'text-blue-700')}>
+                <div className={cn('text-sm font-semibold', isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]')}>
                   시간 선택
                 </div>
                 <div className={cn('text-xs', isDark ? 'text-slate-400' : 'text-slate-500')}>
@@ -1318,7 +1318,7 @@ function SchedulePanel({
               </button>
             </div>
 
-            <div className={cn('mb-3 rounded-xl p-3 text-center text-sm font-semibold', isDark ? 'bg-blue-500/15 text-blue-100' : 'bg-blue-50 text-blue-700')}>
+            <div className={cn('mb-3 rounded-xl p-3 text-center text-sm font-semibold', isDark ? 'bg-[#5B8DEF]/15 text-[#bfdbfe]' : 'bg-[#5B8DEF]/10 text-[#5B8DEF]')}>
               {formatTimeLabel(`${String(timeModal.draftHour).padStart(2, '0')}:${String(timeModal.draftMinute).padStart(2, '0')}`)}
             </div>
 
@@ -1417,7 +1417,7 @@ function SchedulePanel({
                 }}
                 className={cn(
                   'rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors',
-                  isDark ? 'bg-blue-500/15 text-blue-200 hover:bg-blue-500/25' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  isDark ? 'bg-[#5B8DEF]/15 text-[#bfdbfe] hover:bg-[#5B8DEF]/25' : 'bg-[#5B8DEF]/10 text-[#5B8DEF] hover:bg-[#5B8DEF]/20'
                 )}
               >
                 지금
@@ -1432,8 +1432,8 @@ function SchedulePanel({
                   actionBtn,
                   'border',
                   isDark
-                    ? 'border-blue-300/40 bg-transparent text-blue-200 hover:bg-blue-500/10'
-                    : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                    ? 'border-[#5B8DEF]/40 bg-transparent text-[#bfdbfe] hover:bg-[#5B8DEF]/10'
+                    : 'border-[#5B8DEF]/30 bg-white text-[#5B8DEF] hover:bg-[#5B8DEF]/10'
                 )}
               >
                 취소
@@ -1444,8 +1444,8 @@ function SchedulePanel({
                 className={cn(
                   actionBtn,
                   isDark
-                    ? 'bg-blue-500 text-white hover:bg-blue-400'
-                    : 'bg-blue-500 text-white hover:bg-blue-400'
+                    ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
+                    : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
                 )}
               >
                 적용
@@ -1463,16 +1463,16 @@ function SchedulePanel({
           <div
             className={cn(
               'w-full max-w-[760px] rounded-2xl border p-4',
-              isDark ? 'border-blue-300/30 bg-slate-900' : 'border-blue-100 bg-white shadow-soft'
+              isDark ? 'border-[#5B8DEF]/30 bg-slate-900' : 'border-[#5B8DEF]/20 bg-white shadow-soft'
             )}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
-                <div className={cn('text-sm font-semibold', isDark ? 'text-blue-200' : 'text-blue-700')}>
+                <div className={cn('text-sm font-semibold', isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]')}>
                   출발일/도착일을 선택해 주세요
                 </div>
-                <div className={cn('text-xs', isDark ? 'text-blue-300' : 'text-blue-600')}>
+                <div className={cn('text-xs', isDark ? 'text-[#7CA5FF]' : 'text-[#5B8DEF]')}>
                   {draftRangeAnchorDate ? '종료일을 선택해 주세요' : '시작일을 먼저 선택해 주세요'}
                 </div>
               </div>
@@ -1489,7 +1489,7 @@ function SchedulePanel({
             <div className="mb-3 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className={cn('h-8 w-8 rounded-md border text-sm font-bold', isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}
+                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors', isDark ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]' : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]')}
                 onClick={() => setDraftRangeBaseMonth((m) => addMonths(m, -1))}
                 aria-label="기간 이전 달"
               >
@@ -1497,7 +1497,7 @@ function SchedulePanel({
               </button>
               <button
                 type="button"
-                className={cn('h-8 w-8 rounded-md border text-sm font-bold', isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}
+                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors', isDark ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]' : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]')}
                 onClick={() => setDraftRangeBaseMonth((m) => addMonths(m, 1))}
                 aria-label="기간 다음 달"
               >
@@ -1511,7 +1511,7 @@ function SchedulePanel({
             </div>
 
             <div className="mb-3 flex items-center justify-between gap-2">
-              <span className={cn('text-xs font-medium', isDark ? 'text-blue-200' : 'text-blue-700')}>
+              <span className={cn('text-xs font-medium', isDark ? 'text-[#bfdbfe]' : 'text-[#5B8DEF]')}>
                 선택 기간: {draftPeriodRange.startDate} ~ {draftPeriodRange.endDate}
               </span>
             </div>
@@ -1524,8 +1524,8 @@ function SchedulePanel({
                   actionBtn,
                   'border',
                   isDark
-                    ? 'border-blue-300/40 bg-transparent text-blue-200 hover:bg-blue-500/10'
-                    : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                    ? 'border-[#5B8DEF]/40 bg-transparent text-[#bfdbfe] hover:bg-[#5B8DEF]/10'
+                    : 'border-[#5B8DEF]/30 bg-white text-[#5B8DEF] hover:bg-[#5B8DEF]/10'
                 )}
               >
                 취소
@@ -1536,8 +1536,8 @@ function SchedulePanel({
                 className={cn(
                   actionBtn,
                   isDark
-                    ? 'bg-blue-500 text-white hover:bg-blue-400'
-                    : 'bg-blue-500 text-white hover:bg-blue-400'
+                    ? 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
+                    : 'bg-[#5B8DEF] text-white hover:bg-[#7CA5FF]'
                 )}
               >
                 다음
