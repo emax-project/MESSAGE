@@ -1,32 +1,23 @@
 import { memo } from 'react';
 import type { KeyboardEvent, MouseEvent } from 'react';
 import type { Room } from '../../../api';
-import GroupAvatar from '../../../components/GroupAvatar';
-import RoomAvatar from '../../../components/RoomAvatar';
-import UserAvatar from '../../../components/UserAvatar';
 import { useThemeStore } from '../../../store';
 import { cn } from '../../../utils/cn';
 
 type RoomListItemProps = {
   room: Room;
-  myId?: string;
   mutedRoomIds: Set<string>;
   onOpenRoom: (room: Room) => void;
   onContextMenu: (e: MouseEvent<HTMLLIElement>, room: Room) => void;
 };
 
-const avatarImgStyle = { width: '100%', height: '100%', objectFit: 'cover' as const, borderRadius: 10 };
-
 function RoomListItem({
   room,
-  myId,
   mutedRoomIds,
   onOpenRoom,
   onContextMenu,
 }: RoomListItemProps) {
   const isDark = useThemeStore((s) => s.isDark);
-
-  const initialStyle = { fontSize: 12, fontWeight: 700 as const, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' };
 
   const onKeyDown = (e: KeyboardEvent<HTMLLIElement>) => {
     if (e.key === 'Enter') onOpenRoom(room);
@@ -55,62 +46,6 @@ function RoomListItem({
           </svg>
         </span>
       )}
-      <div
-        className={cn(
-          'w-8 h-8 rounded-[10px] shrink-0 flex items-center justify-center overflow-hidden',
-          isDark ? 'bg-[#475569]' : 'bg-[#e2e8f0]',
-        )}
-        aria-hidden
-      >
-        {room.isGroup && !room.isTopic && Array.isArray(room.members) && room.members.length > 0 ? (
-          <GroupAvatar
-            members={room.members.map((m) => ({
-              id: m.id ?? (m as { user?: { id: string } }).user?.id ?? '',
-              name: m.name ?? (m as { user?: { name: string } }).user?.name,
-              avatarUrl: (m as { avatarUrl?: string }).avatarUrl,
-            }))}
-            myId={myId}
-            size={32}
-          />
-        ) : !room.isGroup && Array.isArray(room.members) && room.members.length > 0 ? (
-          (() => {
-            const members = room.members as { id?: string; userId?: string; user?: { id: string; name: string; email: string }; name?: string; avatarUrl?: string }[];
-            const other = members.find((m) => (m.id ?? m.user?.id) !== myId) ?? members[0];
-            const otherId = other?.id ?? (other as { user?: { id: string } })?.user?.id;
-            const otherName = other?.name ?? (other as { user?: { name: string } })?.user?.name;
-            const hasUserAvatar = !!((other as { avatarUrl?: string })?.avatarUrl);
-            return hasUserAvatar ? (
-              <UserAvatar
-                userId={otherId || ''}
-                name={otherName || room.name || ''}
-                avatarUrlPath={(other as { avatarUrl?: string }).avatarUrl}
-                imgStyle={avatarImgStyle}
-                initialStyle={initialStyle}
-              />
-            ) : (
-              <RoomAvatar
-                roomId={room.id}
-                name={room.name || otherName || ''}
-                initials={null}
-                hasAvatar={false}
-                avatarUrlPath={null}
-                imgStyle={avatarImgStyle}
-                initialStyle={initialStyle}
-              />
-            );
-          })()
-        ) : (
-          <RoomAvatar
-            roomId={room.id}
-            name={room.name || ''}
-            initials={room.initials}
-            hasAvatar={!!room.avatarUrl}
-            avatarUrlPath={room.avatarUrl}
-            imgStyle={avatarImgStyle}
-            initialStyle={initialStyle}
-          />
-        )}
-      </div>
       <div className="flex-1 min-w-0">
         <div className={cn('font-semibold text-xs mb-px flex items-center gap-1.5', isDark ? 'text-slate-200' : 'text-slate-900')}>
           <span className="overflow-hidden text-ellipsis whitespace-nowrap flex-1 min-w-0">{room.name}</span>

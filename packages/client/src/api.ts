@@ -425,29 +425,6 @@ export const roomsApi = {
     api.get('/rooms/public') as Promise<PublicRoom[]>,
   join: (roomId: string) =>
     api.post(`/rooms/${roomId}/join`, {}) as Promise<Room>,
-  uploadAvatar: (roomId: string, file: File) => {
-    const formData = new FormData();
-    formData.append('avatar', file);
-    return api.upload(`/rooms/${roomId}/avatar`, formData) as Promise<{ avatarUrl: string }>;
-  },
-  fetchRoomAvatarBlob(roomId: string, cacheBuster?: string): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      const base = getBaseUrl();
-      const qs = cacheBuster ? `?v=${cacheBuster}` : '';
-      const url = base ? `${base.replace(/\/$/, '')}/rooms/${roomId}/avatar${qs}` : `/rooms/${roomId}/avatar${qs}`;
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', url);
-      const t = getToken();
-      if (t) xhr.setRequestHeader('Authorization', `Bearer ${t}`);
-      xhr.responseType = 'blob';
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response as Blob);
-        else reject(new Error('Avatar not found'));
-      };
-      xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send();
-    });
-  },
 };
 
 export const filesApi = {

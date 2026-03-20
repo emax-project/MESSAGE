@@ -241,13 +241,6 @@ export function useChatSocket({
     s.on('task_moved', handleProjectEvent);
     s.on('task_deleted', handleProjectEvent);
 
-    s.on('room_avatar_updated', (payload: { roomId: string }) => {
-      if (payload.roomId === roomId) {
-        queryClient.invalidateQueries({ queryKey: ['rooms', roomId] });
-        queryClient.invalidateQueries({ queryKey: ['rooms', myIdRef.current] });
-      }
-    });
-
     s.on('room_read', (payload: { roomId: string; userId: string }) => {
       if (payload.roomId !== roomId || payload.userId === myIdRef.current) return;
       queryClient.setQueryData<InfiniteData<MessagesPage>>(

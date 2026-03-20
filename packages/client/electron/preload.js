@@ -34,6 +34,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update-downloaded', listener);
     return () => ipcRenderer.removeListener('update-downloaded', listener);
   },
-  fetchRoomAvatar: (roomId, baseUrl, token, cacheBuster) => ipcRenderer.invoke('fetch-room-avatar', { roomId, baseUrl, token, cacheBuster }),
   fetchUserAvatar: (userId, baseUrl, token) => ipcRenderer.invoke('fetch-user-avatar', { userId, baseUrl, token }),
 });

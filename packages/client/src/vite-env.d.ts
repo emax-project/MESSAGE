@@ -31,7 +31,6 @@ interface Window {
     checkForUpdates: () => Promise<{ success: boolean; hasUpdate?: boolean; version?: string | null; currentVersion?: string; error?: string }>;
     quitAndInstall: () => Promise<void>;
     onUpdateDownloaded: (handler: () => void) => () => void;
-    fetchRoomAvatar: (roomId: string, baseUrl: string, token: string, cacheBuster?: string) => Promise<string | null>;
     fetchUserAvatar: (userId: string, baseUrl: string, token: string) => Promise<string | null>;
   };
 }

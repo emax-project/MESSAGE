@@ -162,10 +162,6 @@ export function useMainSocket({
       });
       if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
     });
-    s.on('room_avatar_updated', () => {
-      const uid = myIdRef.current;
-      if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
-    });
     s.on('members_added', () => {
       const uid = myIdRef.current;
       if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });

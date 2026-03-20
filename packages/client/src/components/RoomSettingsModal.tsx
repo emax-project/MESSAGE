@@ -1,8 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useThemeStore, useToastStore } from '../store';
 import { roomsApi, type Room } from '../api';
-import AvatarEditModal from './AvatarEditModal';
-import RoomAvatar from './RoomAvatar';
 import UIButton from './ui/UIButton';
 import UIModal from './ui/UIModal';
 import ModalFooter from './ui/ModalFooter';
@@ -20,25 +18,6 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
   const [activeTab, setActiveTab] = useState<'profile' | 'view'>('profile');
   const [viewMode, setViewMode] = useState<'chat' | 'board'>(room.viewMode === 'board' ? 'board' : 'chat');
   const [saving, setSaving] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f && f.type.startsWith('image/')) setAvatarFile(f);
-    e.target.value = '';
-  };
-
-  const handleAvatarConfirm = async (croppedFile: File) => {
-    try {
-      await roomsApi.uploadAvatar(room.id, croppedFile);
-      setAvatarFile(null);
-      onUpdated();
-      showToast('프로필 사진이 변경되었습니다.', 'success');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : '프로필 사진 업로드 실패', 'error');
-    }
-  };
 
   const handleViewModeSave = async () => {
     if (viewMode === (room.viewMode === 'board' ? 'board' : 'chat')) return;
@@ -133,45 +112,6 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
                   </div>
                 </div>
 
-                <div className="mb-2">
-                  <label className={cn('text-sm font-semibold block mb-2', isDark ? 'text-slate-100' : 'text-slate-800')}>
-                    프로필 사진
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        'w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden',
-                        isDark ? 'bg-slate-700' : 'bg-slate-200',
-                      )}
-                    >
-                      <RoomAvatar
-                        roomId={room.id}
-                        name={room.name || '채팅방'}
-                        initials={room.initials}
-                        hasAvatar={!!room.avatarUrl}
-                        avatarUrlPath={room.avatarUrl}
-                        imgStyle={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        initialStyle={{ fontSize: 24, fontWeight: 700, color: isDark ? '#94a3b8' : '#64748b' }}
-                      />
-                    </div>
-                    <div>
-                      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className={cn(
-                          'px-3.5 py-2 rounded-lg border text-[13px] cursor-pointer',
-                          isDark ? 'border-slate-700 bg-slate-700 text-slate-100' : 'border-slate-200 bg-slate-100 text-slate-800',
-                        )}
-                      >
-                        사진 변경
-                      </button>
-                      <p className={cn('mt-1.5 mb-0 text-xs', isDark ? 'text-slate-400' : 'text-slate-500')}>
-                        사진 변경은 즉시 적용되며 아래 보기 모드 설정과는 별도로 저장됩니다.
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -206,13 +146,6 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
               </UIButton>
             </ModalFooter>
       </UIModal>
-      {avatarFile && (
-        <AvatarEditModal
-          file={avatarFile}
-          onClose={() => setAvatarFile(null)}
-          onConfirm={handleAvatarConfirm}
-        />
-      )}
     </>
   );
 }

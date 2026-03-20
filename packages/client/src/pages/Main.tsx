@@ -504,12 +504,11 @@ export default function Main() {
     <RoomListItem
       key={r.id}
       room={r}
-      myId={myId}
       mutedRoomIds={mutedRoomIds}
       onOpenRoom={handleOpenRoom}
       onContextMenu={handleRoomContextMenu}
     />
-  ), [myId, mutedRoomIds, handleOpenRoom, handleRoomContextMenu]);
+  ), [mutedRoomIds, handleOpenRoom, handleRoomContextMenu]);
 
   return (
     <div className={cn('flex flex-col h-screen w-full min-w-0 overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
