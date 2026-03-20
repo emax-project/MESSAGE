@@ -28,9 +28,9 @@ export default function PollCreateModal({ onClose, onCreate }: Props) {
 
   const canSubmit = question.trim() && options.filter((o) => o.trim()).length >= 2;
 
-  const textColor = isDark ? '#e2e8f0' : '#333';
+  const textColor = isDark ? '#e2e8f0' : '#0f172a';
   const inputBg = isDark ? '#334155' : '#f5f5f5';
-  const borderColor = isDark ? '#475569' : '#e5e7eb';
+  const borderColor = isDark ? '#475569' : '#e2e8f0';
 
   return (
     <UIModal onClose={onClose} title="투표 만들기" width={420} overlayPosition="absolute" zIndex={200}>
@@ -60,7 +60,7 @@ export default function PollCreateModal({ onClose, onCreate }: Props) {
         ))}
       </div>
       {options.length < 10 && (
-        <button type="button" onClick={addOption} style={{ border: `1px dashed ${borderColor}`, background: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: isDark ? '#94a3b8' : '#666', cursor: 'pointer', width: '100%', marginBottom: 12 }}>
+        <button type="button" onClick={addOption} style={{ border: `1px dashed ${borderColor}`, background: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', cursor: 'pointer', width: '100%', marginBottom: 12 }}>
           + 선택지 추가
         </button>
       )}

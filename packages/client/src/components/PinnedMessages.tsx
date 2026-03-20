@@ -27,7 +27,7 @@ export default function PinnedMessages({ roomId }: Props) {
 
   const t = getThemeTokens(isDark);
   const accent = t.primary;
-  const bgColor = isDark ? 'rgba(154,88,168,0.14)' : 'rgba(154,88,168,0.08)';
+  const bgColor = isDark ? 'rgba(91,141,239,0.14)' : 'rgba(91,141,239,0.08)';
   const panelBg = t.bgSurface;
   const cardBg = isDark ? t.bgMuted : t.bgMuted;
   const textColor = t.text;
@@ -48,7 +48,7 @@ export default function PinnedMessages({ roomId }: Props) {
       style={{
         borderBottom: `1px solid ${borderColor}`,
         background: bgColor,
-        boxShadow: isDark ? 'inset 0 -1px 0 rgba(154,88,168,0.3)' : 'inset 0 -1px 0 rgba(154,88,168,0.16)',
+        boxShadow: isDark ? 'inset 0 -1px 0 rgba(91,141,239,0.2)' : 'inset 0 -1px 0 rgba(91,141,239,0.12)',
       }}
     >
       <UIButton

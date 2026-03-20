@@ -634,7 +634,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               </button>
             )}
             <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => setSearchOpen(!searchOpen)} title="검색">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
               </svg>
             </button>
@@ -645,7 +645,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 window.open(`${window.location.origin}/kanban/${roomId}`, '_blank', 'width=1100,height=750');
               }
             }} title="프로젝트 보드">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="7" height="18" rx="1" /><rect x="14" y="3" width="7" height="10" rx="1" />
               </svg>
             </button>
@@ -677,7 +677,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               className={cn('flex-1 px-3 py-2 border rounded-lg text-[13px] outline-none', isDark ? 'border-slate-600 bg-slate-950 text-slate-200' : 'border-slate-200 bg-slate-100 text-slate-800')}
               autoFocus
             />
-            <button type="button" onClick={handleSearch} className="h-8 min-h-8 px-3.5 border-none rounded-lg bg-[#9a58a8] text-white text-[13px] cursor-pointer inline-flex items-center justify-center">
+            <button type="button" onClick={handleSearch} className="h-8 min-h-8 px-3.5 border-none rounded-lg bg-[#74A0FF] text-white text-[13px] cursor-pointer inline-flex items-center justify-center">
               검색
             </button>
             <UICloseButton
@@ -692,9 +692,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           <div className={cn('max-h-[200px] overflow-auto border-b', isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white')}>
             {searchResults.map((sr) => (
               <div key={sr.id} className={cn('flex items-center gap-1 py-2 px-4 border-b', isDark ? 'border-slate-700' : 'border-slate-100')}>
-                <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#888', marginRight: 8 }}>{sr.sender.name}</span>
-                <span style={{ fontSize: 13, color: isDark ? '#e2e8f0' : '#333' }}>{sr.content}</span>
-                <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#aaa', marginLeft: 'auto', flexShrink: 0 }}>
+                <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', marginRight: 8 }}>{sr.sender.name}</span>
+                <span style={{ fontSize: 13, color: isDark ? '#e2e8f0' : '#0f172a' }}>{sr.content}</span>
+                <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8', marginLeft: 'auto', flexShrink: 0 }}>
                   {new Date(sr.createdAt).toLocaleString('ko-KR')}
                 </span>
               </div>
@@ -859,9 +859,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             return (
               <div style={{ position: 'fixed', inset: 0, zIndex: 10010, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setTaskFromMessage(null)}>
                 <div style={{ background: isDark ? '#1e293b' : '#fff', borderRadius: 12, padding: 24, maxWidth: 360, textAlign: 'center' as const }} onClick={(e) => e.stopPropagation()}>
-                  <p style={{ fontSize: 14, color: isDark ? '#e2e8f0' : '#333', margin: '0 0 16px' }}>프로젝트가 없습니다. 먼저 칸반 보드에서 프로젝트를 생성해주세요.</p>
+                  <p style={{ fontSize: 14, color: isDark ? '#e2e8f0' : '#0f172a', margin: '0 0 16px' }}>프로젝트가 없습니다. 먼저 칸반 보드에서 프로젝트를 생성해주세요.</p>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                    <button type="button" onClick={() => setTaskFromMessage(null)} style={{ padding: '8px 16px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 8, background: 'none', color: isDark ? '#94a3b8' : '#666', fontSize: 13, cursor: 'pointer' }}>닫기</button>
+                    <button type="button" onClick={() => setTaskFromMessage(null)} style={{ padding: '8px 16px', border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: 'none', color: isDark ? '#94a3b8' : '#64748b', fontSize: 13, cursor: 'pointer' }}>닫기</button>
                     <button type="button" onClick={() => {
                       setTaskFromMessage(null);
                       if (window.electronAPI?.openKanbanWindow) {
@@ -897,15 +897,15 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         {shareEventOpen && (
           <div className="absolute inset-0 z-[200] bg-black/40 flex items-center justify-center" onClick={() => setShareEventOpen(false)}>
             <div className={cn('rounded-xl shadow-lg min-w-[320px] max-w-[90%] max-h-[70vh] overflow-auto p-5', isDark ? 'bg-slate-800' : 'bg-white')} onClick={(e) => e.stopPropagation()}>
-              <h4 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>일정 공유</h4>
+              <h4 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>일정 공유</h4>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {myEvents.length === 0 ? (
-                  <li style={{ padding: 16, color: isDark ? '#94a3b8' : '#888', fontSize: 14 }}>등록된 일정이 없습니다.</li>
+                  <li style={{ padding: 16, color: isDark ? '#94a3b8' : '#64748b', fontSize: 14 }}>등록된 일정이 없습니다.</li>
                 ) : (
                   myEvents.map((ev) => (
                     <li
                       key={ev.id}
-                      style={{ padding: 12, borderBottom: `1px solid ${isDark ? '#475569' : '#f0f0f0'}`, cursor: 'pointer' }}
+                      style={{ padding: 12, borderBottom: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, cursor: 'pointer' }}
                       role="button"
                       tabIndex={0}
                       onClick={() => {
@@ -916,15 +916,15 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                       }}
                       onKeyDown={(e) => e.key === 'Enter' && (document.activeElement as HTMLElement)?.click()}
                     >
-                      <strong style={{ display: 'block', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333', marginBottom: 4 }}>{ev.title}</strong>
-                      <span style={{ display: 'block', fontSize: 12, color: isDark ? '#94a3b8' : '#888' }}>
+                      <strong style={{ display: 'block', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a', marginBottom: 4 }}>{ev.title}</strong>
+                      <span style={{ display: 'block', fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
                         {new Date(ev.startAt).toLocaleString('ko-KR')} ~ {new Date(ev.endAt).toLocaleString('ko-KR')}
                       </span>
                     </li>
                   ))
                 )}
               </ul>
-              <button type="button" style={{ marginTop: 12, padding: '10px 20px', border: 'none', borderRadius: 8, background: isDark ? '#334155' : '#f0f0f0', color: isDark ? '#e2e8f0' : '#333', fontSize: 14, cursor: 'pointer', width: '100%' }} onClick={() => setShareEventOpen(false)}>
+              <button type="button" style={{ marginTop: 12, padding: '10px 20px', border: 'none', borderRadius: 8, background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 14, cursor: 'pointer', width: '100%' }} onClick={() => setShareEventOpen(false)}>
                 닫기
               </button>
             </div>
@@ -935,10 +935,10 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         {(replyTo || editingMsg) && (
           <div className={cn('flex items-start gap-2 py-2 px-4 border-t', isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-slate-50')}>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#60a5fa' : '#2563eb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#7CA5FF' : '#5B8DEF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {editingMsg ? '메시지 수정' : `${replyTo!.sender.name}에게 답장`}
               </span>
-              <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.35, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+              <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.35, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                 {editingMsg ? editingMsg.content : replyTo!.content}
               </span>
             </div>
@@ -964,19 +964,19 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                   {isImage ? (
                     <img src={URL.createObjectURL(f)} alt="" style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />
                   ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#555'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                       <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
                     </svg>
                   )}
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
-                    <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>{sizeStr}</div>
+                    <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8' }}>{sizeStr}</div>
                   </div>
                   <UICloseButton
                     size="sm"
                     aria-label="첨부 파일 제거"
                     title="첨부 파일 제거"
-                    style={{ color: isDark ? '#94a3b8' : '#888' }}
+                    style={{ color: isDark ? '#94a3b8' : '#64748b' }}
                     onClick={() => setPendingFiles((prev) => prev.filter((_, i) => i !== idx))}
                   />
                 </div>
@@ -989,9 +989,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         {fileUploading && (
           <div style={{ padding: '0 16px 4px', background: isDark ? '#1e293b' : '#f8fafc' }}>
             <div style={{ height: 4, borderRadius: 2, background: isDark ? '#334155' : '#e2e8f0', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${fileUploadProgress}%`, background: '#3b82f6', borderRadius: 2, transition: 'width 0.2s' }} />
+              <div style={{ height: '100%', width: `${fileUploadProgress}%`, background: '#74A0FF', borderRadius: 2, transition: 'width 0.2s' }} />
             </div>
-            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999', marginTop: 2 }}>업로드 중 {Math.round(fileUploadProgress)}%</div>
+            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8', marginTop: 2 }}>업로드 중 {Math.round(fileUploadProgress)}%</div>
           </div>
         )}
 
@@ -1002,8 +1002,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 fontSize: 11,
                 padding: '4px 10px',
                 borderRadius: 8,
-                background: isDark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.12)',
-                color: isDark ? '#a5b4fc' : '#4f46e5',
+                background: isDark ? 'rgba(91,141,239,0.2)' : 'rgba(91,141,239,0.12)',
+                color: isDark ? '#93c5fd' : '#5B8DEF',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
@@ -1099,7 +1099,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 'py-2.5 px-5 rounded-full font-bold text-sm cursor-pointer whitespace-nowrap transition-colors',
                 !input.trim() || !socket || fileUploading
                   ? (isDark ? 'bg-slate-700 text-slate-400 opacity-90' : 'bg-slate-300 text-white opacity-90')
-                  : 'bg-slate-600 text-white',
+                  : 'bg-[#5B8DEF] text-white',
               )}
               disabled={!input.trim() || !socket || fileUploading}
             >

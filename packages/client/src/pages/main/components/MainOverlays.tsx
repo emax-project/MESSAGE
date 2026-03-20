@@ -73,11 +73,11 @@ export default function MainOverlays({
   );
   const ctxMenuCls = cn(
     'fixed z-[10000] min-w-[120px] max-w-[200px] p-1 rounded-lg shadow-lg border whitespace-nowrap',
-    isDark ? 'bg-slate-700 border-[#3a3f46]' : 'bg-white border-[#dde1e6]',
+    isDark ? 'bg-slate-700 border-slate-600' : 'bg-white border-slate-200',
   );
   const ctxMenuItemCls = cn(
     'block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer',
-    isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]',
+    isDark ? 'text-slate-200' : 'text-slate-900',
   );
 
   return (
@@ -85,11 +85,11 @@ export default function MainOverlays({
       {showAnnouncementModal && announcementContent?.trim() && (
         <div className={overlayCls} onClick={() => setShowAnnouncementModal(false)}>
           <div className={modalCls} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>공지</h3>
-            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 14, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#555', marginBottom: 16 }}>{announcementContent}</div>
+            <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>공지</h3>
+            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 14, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 16 }}>{announcementContent}</div>
             <button
               type="button"
-              className="w-full py-2 px-4 border-none rounded-lg bg-gradient-to-br from-[#ac67ba] to-[#8b4a99] text-white text-[13px] font-bold cursor-pointer"
+              className="w-full py-2 px-4 border-none rounded-lg bg-gradient-to-br from-[#7CA5FF] to-[#5B8DEF] text-white text-[13px] font-bold cursor-pointer"
               onClick={() => setShowAnnouncementModal(false)}
             >
               확인
@@ -148,13 +148,13 @@ export default function MainOverlays({
         <div className={overlayCls} onClick={() => setProfileModalUser(null)}>
           <div className={modalCls} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>사용자 프로필</h3>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>사용자 프로필</h3>
               <UICloseButton onClick={() => setProfileModalUser(null)} />
             </div>
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>이름</strong> {profileModalUser.name}</p>
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>이메일</strong> {profileModalUser.email}</p>
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>상태</strong> {onlineUserIds.has(String(profileModalUser.id)) ? <span style={{ color: '#4caf50', fontWeight: 600 }}>● 온라인</span> : <span style={{ color: isDark ? '#64748b' : '#999' }}>○ 오프라인</span>}</p>
-            {profileModalUser.statusMessage && <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#555' }}><strong>상태 메시지</strong> {profileModalUser.statusMessage}</p>}
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}><strong>이름</strong> {profileModalUser.name}</p>
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}><strong>이메일</strong> {profileModalUser.email}</p>
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}><strong>상태</strong> {onlineUserIds.has(String(profileModalUser.id)) ? <span style={{ color: '#4caf50', fontWeight: 600 }}>● 온라인</span> : <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>○ 오프라인</span>}</p>
+            {profileModalUser.statusMessage && <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}><strong>상태 메시지</strong> {profileModalUser.statusMessage}</p>}
           </div>
         </div>
       )}

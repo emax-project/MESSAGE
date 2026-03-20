@@ -18,12 +18,12 @@ export default function TitleBar({
 
   const barClass = cn(
     'shrink-0 h-[38px] min-h-[38px] flex items-center px-3 gap-2 border-b',
-    isDark ? 'bg-[#222529] border-[#3a3f46]' : 'bg-white border-[#dde1e6]',
+    isDark ? 'bg-slate-800 border-slate-600' : 'bg-white border-slate-200',
   );
 
   const titleClass = cn(
     'flex-1 text-[13px] font-semibold pointer-events-none truncate',
-    isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]',
+    isDark ? 'text-slate-200' : 'text-slate-900',
   );
 
   if (isMac) {
@@ -36,7 +36,7 @@ export default function TitleBar({
 
   const winBtnClass = cn(
     'w-9 h-7 border-none cursor-pointer p-0 flex items-center justify-center shadow-none outline-none appearance-none transition-[background,color] duration-150',
-    isDark ? 'bg-[#3d4451] text-[#d1d2d3] hover:bg-slate-600' : 'bg-[#f0f0f0] text-[#1d1c1d] hover:bg-[#d0d0d0]',
+    isDark ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-900 hover:bg-slate-200',
   );
 
   const closeBtnClass = cn(winBtnClass, 'hover:!bg-[#e81123] hover:!text-white');

@@ -33,10 +33,10 @@ export default function TaskCreateModal({ boards, members, defaultBoardId, defau
   const [startDate, setStartDate] = useState('');
   const [dueDate, setDueDate] = useState('');
 
-  const text = isDark ? '#e2e8f0' : '#333';
-  const sub = isDark ? '#94a3b8' : '#666';
+  const text = isDark ? '#e2e8f0' : '#0f172a';
+  const sub = isDark ? '#94a3b8' : '#64748b';
   const inputBg = isDark ? '#334155' : '#f5f5f5';
-  const border = isDark ? '#475569' : '#e5e7eb';
+  const border = isDark ? '#475569' : '#e2e8f0';
 
   const handleSubmit = () => {
     if (!title.trim() || !boardId) return;

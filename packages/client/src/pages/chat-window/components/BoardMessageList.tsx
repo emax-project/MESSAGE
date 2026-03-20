@@ -72,7 +72,7 @@ export default function BoardMessageList({
                     {m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}
                   </span>
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className={cn('text-sm font-semibold', isDark ? 'text-slate-200' : 'text-gray-900')}>
+                    <span className={cn('text-sm font-semibold', isDark ? 'text-slate-200' : 'text-slate-900')}>
                       {m.sender?.name ?? '알 수 없음'}
                     </span>
                     <span className={cn('text-xs shrink-0', isDark ? 'text-slate-400' : 'text-slate-500')}>
@@ -105,7 +105,7 @@ export default function BoardMessageList({
                   {m.sender?.name?.trim()?.[0]?.toUpperCase() || '?'}
                 </span>
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className={cn('text-sm font-semibold', isDark ? 'text-slate-200' : 'text-gray-900')}>
+                  <span className={cn('text-sm font-semibold', isDark ? 'text-slate-200' : 'text-slate-900')}>
                     {m.sender?.name ?? '알 수 없음'}
                   </span>
                   <span className={cn('text-xs shrink-0', isDark ? 'text-slate-400' : 'text-slate-500')}>
@@ -136,7 +136,7 @@ export default function BoardMessageList({
                     navigator.clipboard.writeText(str).then(() => showToast('복사되었습니다.', 'success'));
                   }
                 }}
-                className={cn('text-[11px] py-1 px-2.5 mb-1.5 rounded-md cursor-pointer inline-block', isDark ? 'bg-indigo-500/15 text-indigo-200' : 'bg-indigo-500/10 text-indigo-600')}
+                className={cn('text-[11px] py-1 px-2.5 mb-1.5 rounded-md cursor-pointer inline-block', isDark ? 'bg-blue-500/15 text-blue-200' : 'bg-blue-500/10 text-blue-600')}
                 title="클릭하여 복사"
               >
                 📍 {[m.contextFilePath, m.contextLine ? `:${m.contextLine}` : null, m.contextBranch ? ` (${m.contextBranch})` : null].filter(Boolean).join('')}
@@ -166,7 +166,7 @@ export default function BoardMessageList({
                 const unreadCount = Math.max(0, totalReaders - readCount);
                 if (unreadCount === 0) return null;
                 return (
-                  <span className={cn('text-xs font-bold', isDark ? 'text-[#9a58a8]' : 'text-[#9a58a8]')}>{unreadCount}</span>
+                  <span className={cn('text-xs font-bold', isDark ? 'text-[#74A0FF]' : 'text-[#74A0FF]')}>{unreadCount}</span>
                 );
               })()}
               {m.reactions && m.reactions.length > 0 ? (
@@ -280,7 +280,7 @@ export default function BoardMessageList({
               />
               <button
                 type="button"
-                className={cn('py-1.5 px-3.5 border-none rounded-2xl text-white text-xs font-semibold cursor-pointer shrink-0', isDark ? 'bg-slate-600' : 'bg-blue-500')}
+                className={cn('py-1.5 px-3.5 border-none rounded-2xl text-white text-xs font-semibold cursor-pointer shrink-0', 'bg-[#5B8DEF]')}
                 onClick={() => {
                   const text = (boardCommentInputs[m.id] || '').trim();
                   if (text && socketRef.current && roomId) {

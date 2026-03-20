@@ -96,8 +96,8 @@ export default function ChatBubbleList({
         }
         if (m.id === firstUnreadMessageId) {
           elements.push(
-            <div key={`unread-${m.id}`} ref={firstUnreadRef} className="flex items-center justify-center py-2.5 px-4 mx-4 my-2 border-l-4 border-[#171717] rounded-lg animate-[unread-divider-pulse_2s_ease-in-out_3] bg-indigo-500/10">
-              <span className={cn('text-xs font-semibold', isDark ? 'text-indigo-100' : 'text-[#171717]')}>
+            <div key={`unread-${m.id}`} ref={firstUnreadRef} className="flex items-center justify-center py-2.5 px-4 mx-4 my-2 border-l-4 border-slate-900 rounded-lg animate-[unread-divider-pulse_2s_ease-in-out_3] bg-blue-500/10">
+              <span className={cn('text-xs font-semibold', isDark ? 'text-blue-100' : 'text-slate-900')}>
                 새 메시지
               </span>
             </div>
@@ -131,7 +131,7 @@ export default function ChatBubbleList({
                 <div className={cn('w-fit max-w-[75%] min-w-0', isMine && 'ml-auto')}>
                   <div className={cn(
                     'min-w-[80px] py-2.5 px-3.5 rounded-2xl rounded-tl',
-                    isMine ? 'bg-slate-600 text-white rounded-tl-2xl rounded-tr' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
+                    isMine ? 'bg-[#5B8DEF]/80 text-white rounded-tl-2xl rounded-tr' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
                     'opacity-50 italic',
                   )}>
                     <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">[삭제된 메시지]</span>
@@ -181,8 +181,8 @@ export default function ChatBubbleList({
                   fontSize: 11,
                   padding: '4px 10px',
                   borderRadius: 8,
-                  background: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
-                  color: isDark ? '#c7d2fe' : '#4f46e5',
+                  background: isDark ? 'rgba(91,141,239,0.15)' : 'rgba(91,141,239,0.1)',
+                  color: isDark ? '#bfdbfe' : '#5B8DEF',
                   marginBottom: 4,
                   cursor: 'pointer',
                   display: 'inline-flex',
@@ -200,13 +200,16 @@ export default function ChatBubbleList({
             )}
             {m.replyTo && (
               <div
-                role="button"
-                tabIndex={0}
-                className={cn(
-                  'mb-1.5 py-2 px-3 rounded-[10px] flex flex-col gap-0.5 max-w-[85%] overflow-hidden cursor-pointer',
-                  isMine ? 'ml-0' : 'ml-[42px]',
-                  isDark ? 'bg-slate-700/70' : 'bg-slate-100/90',
-                )}
+                className={cn('w-full flex', isMine ? 'justify-end' : 'justify-start')}
+              >
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className={cn(
+                    'mb-1.5 py-2 px-3 rounded-[10px] flex flex-col gap-0.5 max-w-[85%] overflow-hidden cursor-pointer',
+                    isMine ? 'mr-0' : 'ml-[42px]',
+                    isDark ? 'bg-slate-700/70' : 'bg-slate-100/90',
+                  )}
                 onClick={() => {
                   const targetId = m.replyTo!.id;
                   const el = document.getElementById(`msg-${targetId}`);
@@ -234,13 +237,14 @@ export default function ChatBubbleList({
                     }
                   }
                 }}
-              >
-                <span className={cn('text-[11px] font-semibold truncate', isDark ? 'text-slate-200' : 'text-slate-500')}>
-                  {m.replyTo.sender?.name}
-                </span>
-                <span className={cn('text-[13px] leading-snug line-clamp-2 truncate break-words', isDark ? 'text-slate-100' : 'text-slate-600')}>
-                  {m.replyTo.content}
-                </span>
+                >
+                  <span className={cn('text-[11px] font-semibold truncate', isDark ? 'text-slate-200' : 'text-slate-500')}>
+                    {m.replyTo.sender?.name}
+                  </span>
+                  <span className={cn('text-[13px] leading-snug line-clamp-2 truncate break-words', isDark ? 'text-slate-100' : 'text-slate-600')}>
+                    {m.replyTo.content}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -261,7 +265,7 @@ export default function ChatBubbleList({
                   className={cn(
                     isHighlighted && 'message-bubble-highlight',
                     'min-w-[80px] py-2.5 px-3.5 rounded-2xl rounded-tl shadow-sm',
-                    isMine ? 'bg-slate-600 text-white rounded-tl-2xl rounded-tr' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
+                    isMine ? 'bg-[#5B8DEF] text-white rounded-tl-2xl rounded-tr shadow-sm' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
                   )}
                 >
                   {m.poll ? (

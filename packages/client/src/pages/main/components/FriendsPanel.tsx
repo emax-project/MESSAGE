@@ -56,7 +56,7 @@ function FriendsPanel({
   return (
     <div className={wrap.className} style={wrap.style}>
       <div className={cn('shrink-0 flex items-center justify-between px-5 py-3.5 border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
-        <h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-[#161616]')}>멤버</h3>
+        <h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-slate-900')}>멤버</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', width: isNarrowLayout ? '100%' : 'auto' }}>
           <input
             type="text"
@@ -64,9 +64,9 @@ function FriendsPanel({
             aria-label="멤버 이름 검색"
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
-            style={{ padding: '5px 10px', border: `1px solid ${isDark ? '#475569' : '#e5e7eb'}`, borderRadius: 6, fontSize: 12, background: isDark ? '#334155' : '#f5f5f5', color: isDark ? '#e2e8f0' : '#333', outline: 'none', width: isNarrowLayout ? '100%' : 140, minWidth: 0, boxSizing: 'border-box' }}
+            style={{ padding: '5px 10px', border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, borderRadius: 6, fontSize: 12, background: isDark ? '#334155' : '#f5f5f5', color: isDark ? '#e2e8f0' : '#0f172a', outline: 'none', width: isNarrowLayout ? '100%' : 140, minWidth: 0, boxSizing: 'border-box' }}
           />
-          <button type="button" role="switch" aria-checked={showOnlineOnly} onClick={onToggleOnlineOnly} className={cn('flex items-center gap-1.5 px-2 py-1 border rounded-2xl bg-transparent text-[12px]', showOnlineOnly && 'border-[#9a58a8] bg-[#9a58a8] text-white')}>
+          <button type="button" role="switch" aria-checked={showOnlineOnly} onClick={onToggleOnlineOnly} className={cn('flex items-center gap-1.5 px-2 py-1 border rounded-2xl bg-transparent text-[12px]', showOnlineOnly && 'border-[#74A0FF] bg-[#74A0FF] text-white')}>
             <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />
             온라인만
           </button>
@@ -74,7 +74,7 @@ function FriendsPanel({
       </div>
       <div className="flex-1 min-h-0 overflow-auto">
         {orgLoading ? (
-          <p style={{ color: isDark ? '#94a3b8' : '#888', fontSize: 13, padding: 16 }}>로딩 중...</p>
+          <p style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13, padding: 16 }}>로딩 중...</p>
         ) : orgError ? (
           <div style={{ padding: 20, textAlign: 'center' }}>
             <p style={{ color: '#c62828', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>조직 데이터를 불러올 수 없습니다</p>
@@ -83,7 +83,7 @@ function FriendsPanel({
             </button>
           </div>
         ) : orgTree.length === 0 ? (
-          <p style={{ color: isDark ? '#94a3b8' : '#888', fontSize: 13, padding: 16 }}>표시할 조직이 없습니다.</p>
+          <p style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13, padding: 16 }}>표시할 조직이 없습니다.</p>
         ) : (
           <div style={{ padding: '8px 12px' }}>
             {orgTree.map((company) => {

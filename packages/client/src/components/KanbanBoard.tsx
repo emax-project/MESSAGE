@@ -176,13 +176,13 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
   const hasElectron = !!window.electronAPI;
 
   return (
-    <div className={cn('w-full h-screen flex flex-col overflow-hidden', isDark ? 'bg-gray-900' : 'bg-white')}>
+    <div className={cn('w-full h-screen flex flex-col overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
       {/* Electron title bar */}
       {hasElectron && (
         <TitleBar title="프로젝트 보드" isDark={isDark} />
       )}
       {/* Header */}
-      <div className={cn('shrink-0 flex items-center justify-between px-4 h-[50px]', isDark ? 'bg-slate-800' : 'bg-slate-600')}>
+      <div className={cn('shrink-0 flex items-center justify-between px-4 h-[50px]', isDark ? 'bg-slate-800' : 'bg-[#5B8DEF]')}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -202,7 +202,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
               className="py-1 px-2 rounded-md border-none bg-white/15 text-white text-[13px] outline-none"
             >
               {projects.map((p) => (
-                <option key={p.id} value={p.id} className="text-gray-700">{p.name}</option>
+                <option key={p.id} value={p.id} className="text-slate-700">{p.name}</option>
               ))}
             </select>
           )}
@@ -247,7 +247,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
             className={cn('rounded-xl p-6 w-[360px] max-w-[90%] shadow-[0_8px_32px_rgba(0,0,0,0.3)]', isDark ? 'bg-slate-800' : 'bg-white')}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className={cn('mb-4 text-base font-semibold', isDark ? 'text-gray-100' : 'text-gray-900')}>새 프로젝트</h3>
+            <h3 className={cn('mb-4 text-base font-semibold', isDark ? 'text-slate-100' : 'text-slate-900')}>새 프로젝트</h3>
             <input
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
@@ -256,7 +256,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
               autoFocus
               className={cn(
                 'w-full py-2.5 px-3 border rounded-lg text-sm outline-none mb-3 box-border',
-                isDark ? 'border-gray-700 bg-gray-700 text-gray-100' : 'border-gray-300 bg-gray-100 text-gray-900'
+                isDark ? 'border-slate-700 bg-slate-700 text-slate-100' : 'border-slate-300 bg-slate-100 text-slate-900'
               )}
             />
             <div className="flex gap-2 justify-end">
@@ -265,12 +265,12 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                 onClick={() => setShowCreateProject(false)}
                 className={cn(
                   'py-2 px-4 border rounded-lg bg-transparent text-[13px] cursor-pointer',
-                  isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+                  isDark ? 'border-slate-700 text-slate-400' : 'border-slate-300 text-slate-500'
                 )}
               >
                 취소
               </button>
-              <button type="button" onClick={handleCreateProject} className="py-2 px-4 border-none rounded-lg bg-slate-600 text-white text-[13px] font-semibold cursor-pointer">만들기</button>
+              <button type="button" onClick={handleCreateProject} className="py-2 px-4 border-none rounded-lg bg-[#5B8DEF] text-white text-[13px] font-semibold cursor-pointer">만들기</button>
             </div>
           </div>
         </div>
@@ -279,11 +279,11 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
       {/* Board content */}
       {!project ? (
         <div className="flex-1 flex items-center justify-center flex-col gap-4">
-          <p className={cn('text-base', isDark ? 'text-gray-400' : 'text-gray-500')}>프로젝트가 없습니다</p>
+          <p className={cn('text-base', isDark ? 'text-slate-400' : 'text-slate-500')}>프로젝트가 없습니다</p>
           <button
             type="button"
             onClick={() => setShowCreateProject(true)}
-            className="py-3 px-6 border-none rounded-lg bg-slate-600 text-white text-sm font-semibold cursor-pointer"
+            className="py-3 px-6 border-none rounded-lg bg-[#5B8DEF] text-white text-sm font-semibold cursor-pointer"
           >
             프로젝트 만들기
           </button>
@@ -298,7 +298,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                 key={board.id}
                 className={cn(
                   'flex-1 min-w-[200px] flex flex-col rounded-xl overflow-hidden border-2',
-                  isDragOver ? 'border-dashed border-neutral-900' : 'border-transparent',
+                  isDragOver ? 'border-dashed border-slate-900' : 'border-transparent',
                   isDark ? 'bg-slate-800/50' : 'bg-slate-200'
                 )}
                 onDragOver={(e) => { e.preventDefault(); setDragOverBoardId(board.id); }}
@@ -316,12 +316,12 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                       autoFocus
                       className={cn(
                         'flex-1 py-1 px-2 border rounded text-[13px] font-semibold outline-none',
-                        isDark ? 'border-gray-700 bg-gray-700 text-gray-100' : 'border-gray-300 bg-gray-100 text-gray-900'
+                        isDark ? 'border-slate-700 bg-slate-700 text-slate-100' : 'border-slate-300 bg-slate-100 text-slate-900'
                       )}
                     />
                   ) : (
                     <span
-                      className={cn('text-[13px] font-bold cursor-pointer', isDark ? 'text-gray-100' : 'text-gray-900')}
+                      className={cn('text-[13px] font-bold cursor-pointer', isDark ? 'text-slate-100' : 'text-slate-900')}
                       onDoubleClick={() => { setEditingBoardId(board.id); setEditingBoardName(board.name); }}
                     >
                       {board.name} ({boardTasks.length})
@@ -331,7 +331,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                     <button
                       type="button"
                       onClick={() => setShowCreateTask(board.id)}
-                      className={cn('border-none bg-transparent text-lg cursor-pointer px-1 leading-none', isDark ? 'text-gray-400' : 'text-gray-500')}
+                      className={cn('border-none bg-transparent text-lg cursor-pointer px-1 leading-none', isDark ? 'text-slate-400' : 'text-slate-500')}
                       title="태스크 추가"
                     >
                       +
@@ -340,7 +340,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                       <button
                         type="button"
                         onClick={() => handleDeleteBoard(board.id)}
-                        className={cn('border-none bg-transparent text-sm cursor-pointer px-1 leading-none', isDark ? 'text-gray-400' : 'text-gray-500')}
+                        className={cn('border-none bg-transparent text-sm cursor-pointer px-1 leading-none', isDark ? 'text-slate-400' : 'text-slate-500')}
                         title="보드 삭제"
                       >
                         ×
@@ -361,10 +361,10 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                       className={cn(
                         'py-2.5 px-3 rounded-lg cursor-grab border shadow-sm',
                         dragTaskId === task.id ? 'opacity-50' : 'opacity-100',
-                        isDark ? 'bg-slate-800 border-gray-700' : 'bg-white border-gray-300'
+                        isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-300'
                       )}
                     >
-                      <div className={cn('text-[13px] font-semibold mb-1.5', isDark ? 'text-gray-100' : 'text-gray-900')}>
+                      <div className={cn('text-[13px] font-semibold mb-1.5', isDark ? 'text-slate-100' : 'text-slate-900')}>
                         {task.title}
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -378,20 +378,20 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                           {PRIORITY_LABELS[task.priority]}
                         </span>
                         {task.assigneeName && (
-                          <span className={cn('text-[11px]', isDark ? 'text-gray-400' : 'text-gray-500')}>@{task.assigneeName}</span>
+                          <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>@{task.assigneeName}</span>
                         )}
                         {task.dueDate && (
                           <span className={cn(
                             'text-[11px]',
                             new Date(task.dueDate) < new Date()
                               ? 'text-red-500'
-                              : isDark ? 'text-gray-400' : 'text-gray-500'
+                              : isDark ? 'text-slate-400' : 'text-slate-500'
                           )}>
                             {new Date(task.dueDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                           </span>
                         )}
                         {(task._count?.comments ?? 0) > 0 && (
-                          <span className={cn('text-[11px]', isDark ? 'text-gray-400' : 'text-gray-500')}>
+                          <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>
                             {'\uD83D\uDCAC'}{task._count!.comments}
                           </span>
                         )}
@@ -406,7 +406,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                   onClick={() => setShowCreateTask(board.id)}
                   className={cn(
                     'mx-2 mb-2 p-2 border border-dashed rounded-lg bg-transparent text-xs cursor-pointer text-center',
-                    isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+                    isDark ? 'border-slate-700 text-slate-400' : 'border-slate-300 text-slate-500'
                   )}
                 >
                   + 태스크 추가
@@ -427,17 +427,17 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                   autoFocus
                   className={cn(
                     'w-full py-2 px-2.5 border rounded-md text-[13px] outline-none mb-2 box-border',
-                    isDark ? 'border-gray-700 bg-gray-700 text-gray-100' : 'border-gray-300 bg-gray-100 text-gray-900'
+                    isDark ? 'border-slate-700 bg-slate-700 text-slate-100' : 'border-slate-300 bg-slate-100 text-slate-900'
                   )}
                 />
                 <div className="flex gap-1.5">
-                  <button type="button" onClick={handleAddBoard} className="py-1.5 px-3 border-none rounded-md bg-slate-600 text-white text-xs font-semibold cursor-pointer">추가</button>
+                  <button type="button" onClick={handleAddBoard} className="py-1.5 px-3 border-none rounded-md bg-[#5B8DEF] text-white text-xs font-semibold cursor-pointer">추가</button>
                   <button
                     type="button"
                     onClick={() => setAddingBoard(false)}
                     className={cn(
                       'py-1.5 px-3 border rounded-md bg-transparent text-xs cursor-pointer',
-                      isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+                      isDark ? 'border-slate-700 text-slate-400' : 'border-slate-300 text-slate-500'
                     )}
                   >
                     취소
@@ -450,7 +450,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                 onClick={() => setAddingBoard(true)}
                 className={cn(
                   'w-full p-4 border-2 border-dashed rounded-xl bg-transparent text-[13px] cursor-pointer text-center',
-                  isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+                  isDark ? 'border-slate-700 text-slate-400' : 'border-slate-300 text-slate-500'
                 )}
               >
                 + 보드 추가

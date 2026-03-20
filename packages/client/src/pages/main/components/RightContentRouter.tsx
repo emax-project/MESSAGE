@@ -117,14 +117,14 @@ function RightContentRouter({
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <div className={cn(
             'w-14 h-14 rounded-full flex items-center justify-center',
-            isDark ? 'bg-slate-700 text-[#a7adb4]' : 'bg-slate-100 text-[#5e6470]',
+            isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500',
           )}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           </div>
-          <p className={cn('text-base font-semibold m-0', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>채팅방을 선택하세요</p>
-          <p className={cn('text-[13px] m-0', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>왼쪽 아젠다 또는 채팅에서 대화를 시작하세요</p>
+          <p className={cn('text-base font-semibold m-0', isDark ? 'text-slate-200' : 'text-slate-900')}>채팅방을 선택하세요</p>
+          <p className={cn('text-[13px] m-0', isDark ? 'text-slate-400' : 'text-slate-500')}>왼쪽 아젠다 또는 채팅에서 대화를 시작하세요</p>
         </div>
       )}
 

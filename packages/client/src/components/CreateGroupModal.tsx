@@ -198,14 +198,14 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
         className={cn(
           'rounded-xl border flex flex-col w-[460px] max-w-[95vw] max-h-[85vh]',
           isDark
-            ? 'bg-[#222529] border-[#3a3f46] shadow-[0_8px_32px_rgba(0,0,0,0.4)]'
-            : 'bg-white border-[#dde1e6] shadow-[0_8px_32px_rgba(0,0,0,0.15)]'
+            ? 'bg-[#1e293b] border-[#475569] shadow-[0_8px_32px_rgba(0,0,0,0.4)]'
+            : 'bg-white border-[#e2e8f0] shadow-[0_8px_32px_rgba(0,0,0,0.15)]'
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={cn('flex items-center justify-between px-5 py-4 border-b shrink-0', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
-          <h3 className={cn('m-0 text-lg font-semibold', isDark ? 'text-white' : 'text-[#161616]')}>{title}</h3>
+        <div className={cn('flex items-center justify-between px-5 py-4 border-b shrink-0', isDark ? 'border-[#475569]' : 'border-[#e2e8f0]')}>
+          <h3 className={cn('m-0 text-lg font-semibold', isDark ? 'text-white' : 'text-[#020617]')}>{title}</h3>
           <UICloseButton onClick={onClose} />
         </div>
 
@@ -215,8 +215,8 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
             {/* Name */}
             <div className="mb-4">
               <div className="flex items-center justify-between mb-1.5">
-                <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>이름 <span className="text-red-500 ml-0.5">*</span></label>
-                <span className={cn('text-[11px]', topicName.length > 60 ? 'text-red-500' : (isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]'))}>{topicName.length}/60</span>
+                <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>이름 <span className="text-red-500 ml-0.5">*</span></label>
+                <span className={cn('text-[11px]', topicName.length > 60 ? 'text-red-500' : (isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'))}>{topicName.length}/60</span>
               </div>
               <input
                 type="text"
@@ -226,7 +226,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                 maxLength={60}
                 className={cn(
                   'w-full px-3 py-2.5 border rounded-lg text-sm outline-none box-border',
-                  isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                  isDark ? 'border-[#475569] bg-[#334155] text-[#e2e8f0]' : 'border-[#e2e8f0] bg-[#f1f5f9] text-[#0f172a]'
                 )}
                 autoFocus
               />
@@ -234,7 +234,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
 
             {/* Room Profile Photo */}
             <div className="mb-4">
-              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>방 프로필 사진</label>
+              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>방 프로필 사진</label>
               <div className="flex items-center gap-3 mt-1.5">
                 <div
                   className={cn(
@@ -260,14 +260,14 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                       maxLength={2}
                       className={cn(
                         'w-[100px] px-2.5 py-1.5 border rounded-lg text-[13px] outline-none box-border',
-                        isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                        isDark ? 'border-[#475569] bg-[#334155] text-[#e2e8f0]' : 'border-[#e2e8f0] bg-[#f1f5f9] text-[#0f172a]'
                       )}
                     />
                   )}
                   <label
                     className={cn(
                       'px-3 py-1.5 border rounded-lg text-xs cursor-pointer',
-                      isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                      isDark ? 'border-[#475569] bg-[#334155] text-[#e2e8f0]' : 'border-[#e2e8f0] bg-[#f1f5f9] text-[#0f172a]'
                     )}
                   >
                     <input
@@ -316,7 +316,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                   }}
                 />
               )}
-              <p className={cn('mt-1.5 text-[11px] italic', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
+              <p className={cn('mt-1.5 text-[11px] italic', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>
                 {roomAvatarFile ? 'jpg, png, gif, webp (최대 10MB)' : '이니셜은 사진 없을 때 표시됩니다'}
               </p>
             </div>
@@ -324,8 +324,8 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
             {/* Description */}
             <div className="mb-4">
               <div className="flex items-center justify-between mb-1.5">
-                <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>아젠다 설명</label>
-                <span className={cn('text-[11px]', topicDesc.length > 300 ? 'text-red-500' : (isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]'))}>{topicDesc.length}/300</span>
+                <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>아젠다 설명</label>
+                <span className={cn('text-[11px]', topicDesc.length > 300 ? 'text-red-500' : (isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'))}>{topicDesc.length}/300</span>
               </div>
               <textarea
                 placeholder="아젠다에 대한 설명을 입력하세요 (선택)"
@@ -334,7 +334,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                 maxLength={300}
                 className={cn(
                   'w-full px-3 py-2.5 border rounded-lg text-sm outline-none box-border resize-y leading-normal',
-                  isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                  isDark ? 'border-[#475569] bg-[#334155] text-[#e2e8f0]' : 'border-[#e2e8f0] bg-[#f1f5f9] text-[#0f172a]'
                 )}
                 rows={3}
               />
@@ -342,91 +342,91 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
 
             {/* Public/Private */}
             <div className="mb-4">
-              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>공개 여부</label>
+              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>공개 여부</label>
               <div className="flex gap-2.5 mt-1">
                 <label
                   className={cn(
                     'flex items-start gap-2 cursor-pointer flex-1 px-3 py-2.5 rounded-lg border',
-                    isPublic ? 'border-neutral-900' : (isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]'),
+                    isPublic ? 'border-slate-900' : (isDark ? 'border-[#475569]' : 'border-[#e2e8f0]'),
                     isPublic
-                      ? (isDark ? 'bg-[rgba(99,102,241,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
-                      : (isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]')
+                      ? (isDark ? 'bg-[rgba(91,141,239,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
+                      : (isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]')
                   )}
                 >
                   <input type="radio" name="visibility" checked={isPublic} onChange={() => setIsPublic(true)} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-                  <div className="text-base text-neutral-900 shrink-0 mt-px">{isPublic ? '\u25C9' : '\u25CB'}</div>
+                  <div className="text-base text-slate-900 shrink-0 mt-px">{isPublic ? '\u25C9' : '\u25CB'}</div>
                   <div>
-                    <div className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>공개</div>
-                    <div className={cn('text-[11px] mt-0.5', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>누구나 검색하여 참가 가능</div>
+                    <div className={cn('text-[13px] font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>공개</div>
+                    <div className={cn('text-[11px] mt-0.5', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>누구나 검색하여 참가 가능</div>
                   </div>
                 </label>
                 <label
                   className={cn(
                     'flex items-start gap-2 cursor-pointer flex-1 px-3 py-2.5 rounded-lg border',
-                    !isPublic ? 'border-neutral-900' : (isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]'),
+                    !isPublic ? 'border-slate-900' : (isDark ? 'border-[#475569]' : 'border-[#e2e8f0]'),
                     !isPublic
-                      ? (isDark ? 'bg-[rgba(99,102,241,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
-                      : (isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]')
+                      ? (isDark ? 'bg-[rgba(91,141,239,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
+                      : (isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]')
                   )}
                 >
                   <input type="radio" name="visibility" checked={!isPublic} onChange={() => setIsPublic(false)} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-                  <div className="text-base text-neutral-900 shrink-0 mt-px">{!isPublic ? '\u25C9' : '\u25CB'}</div>
+                  <div className="text-base text-slate-900 shrink-0 mt-px">{!isPublic ? '\u25C9' : '\u25CB'}</div>
                   <div>
-                    <div className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>비공개</div>
-                    <div className={cn('text-[11px] mt-0.5', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>초대된 멤버만 참가 가능</div>
+                    <div className={cn('text-[13px] font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>비공개</div>
+                    <div className={cn('text-[11px] mt-0.5', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>초대된 멤버만 참가 가능</div>
                   </div>
                 </label>
               </div>
-              <p className={cn('mt-1.5 text-[11px] italic', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>아젠다 생성 이후 변경 불가</p>
+              <p className={cn('mt-1.5 text-[11px] italic', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>아젠다 생성 이후 변경 불가</p>
             </div>
 
             {/* View Mode: 챗뷰(메시지 기반) vs 보드뷰(게시글 기반) - JANDI 참고 */}
             <div className="mb-4">
               <div className="flex items-center justify-between mb-1.5">
-                <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>보기 방식 <span className="text-red-500 ml-0.5">*</span></label>
+                <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>보기 방식 <span className="text-red-500 ml-0.5">*</span></label>
                 <span className="text-[11px] text-red-500 font-medium">아젠다 생성 이후 변경 불가</span>
               </div>
               <div className="flex gap-2.5 mt-1">
                 <label
                   className={cn(
                     'flex flex-col items-center gap-1.5 cursor-pointer flex-1 pt-3.5 px-3 pb-2.5 rounded-lg border-2 text-center',
-                    viewMode === 'chat' ? 'border-neutral-900' : (isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]'),
+                    viewMode === 'chat' ? 'border-slate-900' : (isDark ? 'border-[#475569]' : 'border-[#e2e8f0]'),
                     viewMode === 'chat'
-                      ? (isDark ? 'bg-[rgba(99,102,241,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
-                      : (isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]')
+                      ? (isDark ? 'bg-[rgba(91,141,239,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
+                      : (isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]')
                   )}
                 >
                   <input type="radio" name="viewMode" checked={viewMode === 'chat'} onChange={() => setViewMode('chat')} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-                  <div className={cn('flex items-center justify-center', isDark ? 'text-slate-400' : 'text-gray-500')}>
+                  <div className={cn('flex items-center justify-center', isDark ? 'text-slate-400' : 'text-slate-500')}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
                   </div>
-                  <div className="text-base text-neutral-900">{viewMode === 'chat' ? '\u25C9' : '\u25CB'}</div>
+                  <div className="text-base text-slate-900">{viewMode === 'chat' ? '\u25C9' : '\u25CB'}</div>
                   <div>
-                    <span className={cn('text-xs font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>챗뷰</span>
-                    <div className={cn('text-[10px] mt-0.5 leading-tight', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>메시지 기반 · 빠른 대화·실시간 논의</div>
+                    <span className={cn('text-xs font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>챗뷰</span>
+                    <div className={cn('text-[10px] mt-0.5 leading-tight', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>메시지 기반 · 빠른 대화·실시간 논의</div>
                   </div>
                 </label>
                 <label
                   className={cn(
                     'flex flex-col items-center gap-1.5 cursor-pointer flex-1 pt-3.5 px-3 pb-2.5 rounded-lg border-2 text-center',
-                    viewMode === 'board' ? 'border-neutral-900' : (isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]'),
+                    viewMode === 'board' ? 'border-slate-900' : (isDark ? 'border-[#475569]' : 'border-[#e2e8f0]'),
                     viewMode === 'board'
-                      ? (isDark ? 'bg-[rgba(99,102,241,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
-                      : (isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]')
+                      ? (isDark ? 'bg-[rgba(91,141,239,0.08)]' : 'bg-[rgba(34,197,94,0.04)]')
+                      : (isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]')
                   )}
                 >
                   <input type="radio" name="viewMode" checked={viewMode === 'board'} onChange={() => setViewMode('board')} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-                  <div className={cn('flex items-center justify-center', isDark ? 'text-slate-400' : 'text-gray-500')}>
+                  <div className={cn('flex items-center justify-center', isDark ? 'text-slate-400' : 'text-slate-500')}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
                     </svg>
                   </div>
-                  <div className="text-base text-neutral-900">{viewMode === 'board' ? '\u25C9' : '\u25CB'}</div>
+                  <div className="text-base text-slate-900">{viewMode === 'board' ? '\u25C9' : '\u25CB'}</div>
                   <div>
-                    <span className={cn('text-xs font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>보드뷰</span>
-                    <div className={cn('text-[10px] mt-0.5 leading-tight', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>게시글 기반 · 공지·회의록·장문 기록</div>
+                    <span className={cn('text-xs font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>보드뷰</span>
+                    <div className={cn('text-[10px] mt-0.5 leading-tight', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>게시글 기반 · 공지·회의록·장문 기록</div>
                   </div>
                 </label>
               </div>
@@ -434,14 +434,14 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
 
             {/* Folder Selection */}
             <div className="mb-4">
-              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>폴더 선택 (옵션)</label>
+              <label className={cn('text-[13px] font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>폴더 선택 (옵션)</label>
               <div className="flex gap-2 items-center mt-1">
                 <select
                   value={folderId}
                   onChange={(e) => setFolderId(e.target.value)}
                   className={cn(
                     'flex-1 px-3 py-[9px] border rounded-lg text-[13px] outline-none cursor-pointer',
-                    isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                    isDark ? 'border-[#475569] bg-[#334155] text-[#e2e8f0]' : 'border-[#e2e8f0] bg-[#f1f5f9] text-[#0f172a]'
                   )}
                 >
                   <option value="">아젠다를 생성할 폴더를 선택해 주세요.</option>
@@ -453,7 +453,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                   type="button"
                   className={cn(
                     'w-[34px] h-[34px] rounded-lg border flex items-center justify-center text-lg cursor-pointer shrink-0',
-                    isDark ? 'border-[#3a3f46] bg-slate-600 text-slate-200' : 'border-[#dde1e6] bg-gray-200 text-[#333]'
+                    isDark ? 'border-[#475569] bg-slate-700 text-slate-200' : 'border-[#e2e8f0] bg-slate-200 text-slate-900'
                   )}
                   onClick={() => setShowNewFolder(!showNewFolder)}
                   title="새 폴더 만들기"
@@ -469,17 +469,17 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                     onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
                     className={cn(
                       'flex-1 w-full px-3 py-2.5 border rounded-lg text-sm outline-none box-border',
-                      isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                      isDark ? 'border-[#475569] bg-[#334155] text-[#e2e8f0]' : 'border-[#e2e8f0] bg-[#f1f5f9] text-[#0f172a]'
                     )}
                   />
                   <button
                     type="button"
-                    className="px-3.5 py-2 border-none rounded-lg bg-slate-600 text-white text-xs font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    className="px-3.5 py-2 border-none rounded-lg bg-[#5B8DEF] text-white text-xs font-semibold cursor-pointer shrink-0 whitespace-nowrap"
                     onClick={handleCreateFolder}
                   >만들기</button>
                 </div>
               )}
-              <p className={cn('mt-1.5 text-[11px] italic', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>선택한 폴더는 개인에게만 적용됩니다.</p>
+              <p className={cn('mt-1.5 text-[11px] italic', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>선택한 폴더는 개인에게만 적용됩니다.</p>
             </div>
           </div>
         )}
@@ -488,21 +488,21 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
         {(step === 'members' || !isTopic) && (
           <>
             {isTopic && (
-              <div className={cn('px-5 py-2.5 border-b shrink-0', isDark ? 'border-[#3a3f46] bg-[#0f172a]' : 'border-[#dde1e6] bg-[#f8fafc]')}>
-                <span className={cn('block text-[13px] font-semibold', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>멤버 초대 (선택)</span>
-                <span className={cn('block text-[11px] mt-0.5', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>나중에 초대할 수도 있습니다</span>
+              <div className={cn('px-5 py-2.5 border-b shrink-0', isDark ? 'border-[#475569] bg-[#0f172a]' : 'border-[#e2e8f0] bg-[#f8fafc]')}>
+                <span className={cn('block text-[13px] font-semibold', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>멤버 초대 (선택)</span>
+                <span className={cn('block text-[11px] mt-0.5', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>나중에 초대할 수도 있습니다</span>
               </div>
             )}
             {!isTopic && (
-              <p className={cn('m-0 px-5 py-2.5 text-[13px] border-b shrink-0', isDark ? 'text-[#a7adb4] bg-[#0f172a] border-[#3a3f46]' : 'text-[#5e6470] bg-[#f8fafc] border-[#dde1e6]')}>대화할 사람을 선택하세요</p>
+              <p className={cn('m-0 px-5 py-2.5 text-[13px] border-b shrink-0', isDark ? 'text-[#94a3b8] bg-[#0f172a] border-[#475569]' : 'text-[#64748b] bg-[#f8fafc] border-[#e2e8f0]')}>대화할 사람을 선택하세요</p>
             )}
-            <div className={cn('px-5 py-2 border-b shrink-0', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
+            <div className={cn('px-5 py-2 border-b shrink-0', isDark ? 'border-[#475569]' : 'border-[#e2e8f0]')}>
               <input
                 type="text"
                 placeholder="이름으로 검색"
                 className={cn(
                   'w-full px-2.5 py-[7px] border rounded-md text-[13px] outline-none box-border',
-                  isDark ? 'border-[#3a3f46] bg-[#2a2d31] text-[#d1d2d3]' : 'border-[#dde1e6] bg-[#f1f3f5] text-[#1d1c1d]'
+                  isDark ? 'border-[#475569] bg-[#334155] text-[#e2e8f0]' : 'border-[#e2e8f0] bg-[#f1f5f9] text-[#0f172a]'
                 )}
                 id="member-search"
                 onChange={(e) => {
@@ -516,9 +516,9 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
             </div>
             <div className="flex-1 overflow-auto px-5 py-2 min-h-0 max-h-[280px]">
               {usersLoading ? (
-                <p className={cn('text-sm m-0', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>사용자 목록 로딩 중...</p>
+                <p className={cn('text-sm m-0', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>사용자 목록 로딩 중...</p>
               ) : !Array.isArray(users) || users.length === 0 ? (
-                <p className={cn('text-sm m-0', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>초대할 수 있는 사용자가 없습니다.</p>
+                <p className={cn('text-sm m-0', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>초대할 수 있는 사용자가 없습니다.</p>
               ) : (
                 <ul className="list-none m-0 p-0">
                   {(Array.isArray(users) ? users : []).map((u: User) => {
@@ -570,8 +570,8 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className={cn('text-[13px] font-medium mr-1.5', isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]')}>{u.name}</span>
-                            <span className={cn('text-[11px] overflow-hidden text-ellipsis whitespace-nowrap', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>{u.email}</span>
+                            <span className={cn('text-[13px] font-medium mr-1.5', isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]')}>{u.name}</span>
+                            <span className={cn('text-[11px] overflow-hidden text-ellipsis whitespace-nowrap', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>{u.email}</span>
                           </div>
                         </label>
                       </li>
@@ -587,8 +587,8 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
         {error && <p className="text-red-500 text-[13px] px-5 pb-2 m-0">{error}</p>}
 
         {/* Footer */}
-        <div className={cn('flex items-center justify-between px-5 py-3 border-t shrink-0', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
-          <span className={cn('text-xs', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
+        <div className={cn('flex items-center justify-between px-5 py-3 border-t shrink-0', isDark ? 'border-[#475569]' : 'border-[#e2e8f0]')}>
+          <span className={cn('text-xs', isDark ? 'text-[#94a3b8]' : 'text-[#64748b]')}>
             {selected.size > 0 ? `${selected.size}명 선택됨` : (isTopic && step === 'form' ? '' : '대화할 사람을 선택하세요')}
           </span>
           <div className="flex gap-2">
@@ -597,7 +597,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                 type="button"
                 className={cn(
                   'px-4 py-2 border rounded-lg text-[13px] cursor-pointer',
-                  isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-white text-[#555]'
+                  isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-white text-slate-500'
                 )}
                 onClick={() => setStep('form')}
               >이전</button>
@@ -606,7 +606,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
               type="button"
               className={cn(
                 'px-4 py-2 border rounded-lg text-[13px] cursor-pointer',
-                isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-white text-[#555]'
+                isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-white text-slate-500'
               )}
               onClick={onClose}
             >취소</button>
@@ -617,7 +617,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                   'px-5 py-2 border-none rounded-lg text-[13px] font-semibold',
                   !topicName.trim()
                     ? cn('cursor-not-allowed', isDark ? 'bg-slate-700 text-slate-500' : 'bg-slate-300 text-white')
-                    : 'cursor-pointer bg-slate-600 text-white'
+                    : 'cursor-pointer bg-[#5B8DEF] text-white'
                 )}
                 disabled={!topicName.trim()}
                 onClick={() => { setFormSnapshot({ folderId, viewMode }); setStep('members'); }}
@@ -629,7 +629,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
                   'px-5 py-2 border-none rounded-lg text-[13px] font-semibold',
                   !canCreate || loading
                     ? cn('cursor-not-allowed', isDark ? 'bg-slate-700 text-slate-500' : 'bg-slate-300 text-white')
-                    : 'cursor-pointer bg-slate-600 text-white'
+                    : 'cursor-pointer bg-[#5B8DEF] text-white'
                 )}
                 disabled={!canCreate || loading}
                 onClick={handleCreate}

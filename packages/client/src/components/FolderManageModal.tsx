@@ -131,17 +131,17 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
     onClose();
   };
 
-  const borderColor = isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]';
-  const textColor = isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]';
-  const mutedColor = isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]';
-  const inputBg = isDark ? 'bg-[#2a2d31]' : 'bg-[#f1f3f5]';
+  const borderColor = isDark ? 'border-slate-600' : 'border-slate-200';
+  const textColor = isDark ? 'text-slate-200' : 'text-slate-900';
+  const mutedColor = isDark ? 'text-slate-400' : 'text-slate-500';
+  const inputBg = isDark ? 'bg-slate-700' : 'bg-slate-100';
 
   return (
     <div className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-6" onClick={handleOverlayClick}>
       <div
         className={cn(
           'rounded-xl max-w-[440px] w-full max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)]',
-          isDark ? 'bg-[#222529]' : 'bg-white',
+          isDark ? 'bg-slate-800' : 'bg-white',
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -169,7 +169,7 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
             />
             <button
               type="button"
-              className="px-4 py-2 border-none rounded-lg bg-slate-600 text-white text-[13px] font-semibold cursor-pointer"
+              className="px-4 py-2 border-none rounded-lg bg-[#5B8DEF] text-white text-[13px] font-semibold cursor-pointer"
               onClick={handleCreateFolder}
               disabled={loading || !newFolderName.trim()}
             >
@@ -273,7 +273,7 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
         <div className={cn('p-4 border-t', borderColor)}>
           <button
             type="button"
-            className="w-full px-4 py-2.5 border-none rounded-lg bg-slate-600 text-white text-sm font-semibold cursor-pointer"
+            className="w-full px-4 py-2.5 border-none rounded-lg bg-[#5B8DEF] text-white text-sm font-semibold cursor-pointer"
             onClick={handleDone}
             disabled={loading}
           >

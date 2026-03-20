@@ -78,7 +78,7 @@ export default function FileMessage({ message }: Props) {
 
   if (!fileUrl) {
     return (
-      <span className={cn('text-[13px] italic', isDark ? 'text-slate-500' : 'text-[#999]')}>
+      <span className={cn('text-[13px] italic', isDark ? 'text-slate-500' : 'text-slate-500')}>
         파일이 만료되었습니다
       </span>
     );
@@ -139,7 +139,7 @@ export default function FileMessage({ message }: Props) {
               {fileName || 'file'}
             </span>
             {fileSize != null && (
-              <span className={cn('text-[11px] shrink-0', isDark ? 'text-slate-500' : 'text-[#888]')}>
+              <span className={cn('text-[11px] shrink-0', isDark ? 'text-slate-500' : 'text-slate-500')}>
                 {formatFileSize(fileSize)}
               </span>
             )}

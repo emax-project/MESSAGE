@@ -7,8 +7,13 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        brand: {
+          DEFAULT: '#74A0FF',
+          light: '#7CA5FF',
+          dark: '#5B8DEF',
+        },
         pastel: {
-          purple: '#e9d5ff',
+          purple: '#dbeafe',
           mint: '#d1fae5',
           peach: '#ffe4d6',
           sky: '#dbeafe',

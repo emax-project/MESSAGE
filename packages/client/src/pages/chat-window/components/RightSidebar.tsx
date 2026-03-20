@@ -58,7 +58,7 @@ export default function RightSidebar({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: rightPanel === 'file' ? (isDark ? '#60a5fa' : '#2563eb') : (isDark ? '#94a3b8' : '#64748b'),
+            color: rightPanel === 'file' ? (isDark ? '#7CA5FF' : '#5B8DEF') : (isDark ? '#94a3b8' : '#64748b'),
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -79,7 +79,7 @@ export default function RightSidebar({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: rightPanel === 'members' ? (isDark ? '#60a5fa' : '#2563eb') : (isDark ? '#94a3b8' : '#64748b'),
+            color: rightPanel === 'members' ? (isDark ? '#7CA5FF' : '#5B8DEF') : (isDark ? '#94a3b8' : '#64748b'),
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -100,7 +100,7 @@ export default function RightSidebar({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: rightPanel === 'pins' ? (isDark ? '#60a5fa' : '#2563eb') : (isDark ? '#94a3b8' : '#64748b'),
+            color: rightPanel === 'pins' ? (isDark ? '#7CA5FF' : '#5B8DEF') : (isDark ? '#94a3b8' : '#64748b'),
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -126,22 +126,22 @@ export default function RightSidebar({
             {rightPanel === 'file' && (
               <>
                 {fileDrawerData.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14, marginTop: 24 }}>공유된 파일이 없습니다</p>
+                  <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#94a3b8', fontSize: 14, marginTop: 24 }}>공유된 파일이 없습니다</p>
                 ) : (
                   fileDrawerData.map((f) => (
                     <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, marginBottom: 4, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                         <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
                       </svg>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 500, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.fileName || 'file'}</div>
-                        <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>
+                        <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8' }}>
                           {f.sender.name} · {new Date(f.createdAt).toLocaleDateString('ko-KR')}
                           {f.fileSize != null && ` · ${f.fileSize < 1024 * 1024 ? `${(f.fileSize / 1024).toFixed(0)}KB` : `${(f.fileSize / (1024 * 1024)).toFixed(1)}MB`}`}
                         </div>
                       </div>
                       <button type="button" onClick={() => filesApi.download(f.id, f.fileName)} style={{ border: 'none', background: isDark ? '#334155' : '#f1f5f9', borderRadius: 6, padding: '6px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="다운로드">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#666'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                         </svg>
                       </button>

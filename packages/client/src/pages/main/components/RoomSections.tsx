@@ -76,18 +76,18 @@ function RoomSections({
           type="button"
           className={cn(
             'flex items-center justify-between w-full py-[7px] px-3 border-none cursor-pointer text-left',
-            isDark ? 'bg-white/[0.04]' : 'bg-black/[0.04]',
+            isDark ? 'bg-white/[0.04]' : 'bg-slate-500/[0.06]',
           )}
           onClick={() => toggleSection('topic')}
         >
           <span className="flex items-center gap-1.5">
-            <span className={cn('w-3 h-3 inline-flex items-center justify-center', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
+            <span className={cn('w-3 h-3 inline-flex items-center justify-center', isDark ? 'text-slate-400' : 'text-slate-500')}>
               <UIChevron open={sectionOpen.topic} size={11} color={isDark ? '#94a3b8' : '#64748b'} />
             </span>
-            <span className={cn('text-[13px] font-bold', isDark ? 'text-white' : 'text-[#161616]')}>아젠다</span>
-            <span className={cn('text-[11px]', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>{topicRooms.length}개</span>
+            <span className={cn('text-[13px] font-bold', isDark ? 'text-white' : 'text-slate-900')}>아젠다</span>
+            <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>{topicRooms.length}개</span>
             {topicUnreadCount > 0 && (
-              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-[#9a58a8] text-white text-[10px] font-bold inline-flex items-center justify-center">
+              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-[#74A0FF] text-white text-[10px] font-bold inline-flex items-center justify-center">
                 {topicUnreadCount > 99 ? '99+' : topicUnreadCount}
               </span>
             )}
@@ -97,14 +97,14 @@ function RoomSections({
               type="button"
               className={cn(
                 'h-[22px] px-2 rounded-[6px] border-none inline-flex items-center justify-center text-[11px] font-bold leading-none cursor-pointer shrink-0',
-                isDark ? 'bg-[#334155] text-[#d1d2d3]' : 'bg-[#e5e7eb] text-[#1d1c1d]',
+                isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-200 text-slate-900',
               )}
               onClick={(e) => { e.stopPropagation(); setShowFolderManageModal(true); }}
               title="폴더 관리"
             >폴더</button>
             <button
               type="button"
-              className="w-[22px] h-[22px] rounded-[6px] border-none bg-[#9a58a8] text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
+              className="w-[22px] h-[22px] rounded-[6px] border-none bg-[#74A0FF] text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
               onClick={(e) => { e.stopPropagation(); openCreateModal('topic'); }}
               title="아젠다 만들기"
               aria-label="아젠다 만들기"
@@ -116,7 +116,7 @@ function RoomSections({
             {roomsError ? (
               <div className="px-4 py-2 text-xs text-[#c62828]">목록을 불러올 수 없습니다</div>
             ) : topicRooms.length === 0 && (folders?.length ?? 0) === 0 ? (
-              <div className={cn('px-4 py-2 text-xs', isDark ? 'text-[#64748b]' : 'text-[#9ca3af]')}>아젠다가 없습니다</div>
+              <div className={cn('px-4 py-2 text-xs', isDark ? 'text-[#64748b]' : 'text-slate-500')}>아젠다가 없습니다</div>
             ) : (
               <div className="pl-1">
                 {(folders ?? []).map((f) => {
@@ -139,7 +139,7 @@ function RoomSections({
                         <span>{f.name}</span>
                         <span className="text-[11px] opacity-80">({rooms.length})</span>
                         {folderUnread > 0 && (
-                          <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-[#9a58a8] text-white text-[10px] font-bold inline-flex items-center justify-center">
+                          <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-[#74A0FF] text-white text-[10px] font-bold inline-flex items-center justify-center">
                             {folderUnread > 99 ? '99+' : folderUnread}
                           </span>
                         )}
@@ -150,7 +150,7 @@ function RoomSections({
                 })}
                 {(roomsByFolder.get(null) ?? []).length > 0 && (
                   <div>
-                    <div className={cn('py-1.5 px-3 text-[11px]', isDark ? 'text-[#64748b]' : 'text-[#9ca3af]')}>미분류</div>
+                    <div className={cn('py-1.5 px-3 text-[11px]', isDark ? 'text-[#64748b]' : 'text-slate-500')}>미분류</div>
                     <ul className="list-none m-0 p-0">{(roomsByFolder.get(null) ?? []).map(renderRoomItem)}</ul>
                   </div>
                 )}
@@ -158,15 +158,15 @@ function RoomSections({
             )}
             {joinablePublicRooms.length > 0 && (
               <div className="px-4 pt-1 pb-2">
-                <div className={cn('text-[11px] mb-1', isDark ? 'text-[#64748b]' : 'text-[#9ca3af]')}>공개 채널</div>
+                <div className={cn('text-[11px] mb-1', isDark ? 'text-[#64748b]' : 'text-slate-500')}>공개 채널</div>
                 {joinablePublicRooms.map((pr) => (
                   <div key={pr.id} className="flex items-center justify-between py-1 text-xs">
-                    <span className={cn(isDark ? 'text-[#94a3b8]' : 'text-[#6b7280]')}>{pr.name}</span>
+                    <span className={cn(isDark ? 'text-[#94a3b8]' : 'text-slate-500')}>{pr.name}</span>
                     <button
                       type="button"
                       className={cn(
                         'border-none text-[11px] px-2 py-0.5 rounded cursor-pointer',
-                        isDark ? 'bg-[#475569] text-[#e2e8f0]' : 'bg-[#e5e7eb] text-[#333]',
+                        isDark ? 'bg-[#475569] text-[#e2e8f0]' : 'bg-slate-200 text-slate-900',
                       )}
                       onClick={() => void onJoinPublicRoom(pr.id)}
                     >참가</button>
@@ -184,25 +184,25 @@ function RoomSections({
           type="button"
           className={cn(
             'flex items-center justify-between w-full py-[7px] px-3 border-none cursor-pointer text-left',
-            isDark ? 'bg-white/[0.04]' : 'bg-black/[0.04]',
+            isDark ? 'bg-white/[0.04]' : 'bg-slate-500/[0.06]',
           )}
           onClick={() => toggleSection('chat')}
         >
           <span className="flex items-center gap-1.5">
-            <span className={cn('w-3 h-3 inline-flex items-center justify-center', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
+            <span className={cn('w-3 h-3 inline-flex items-center justify-center', isDark ? 'text-slate-400' : 'text-slate-500')}>
               <UIChevron open={sectionOpen.chat} size={11} color={isDark ? '#94a3b8' : '#64748b'} />
             </span>
-            <span className={cn('text-[13px] font-bold', isDark ? 'text-white' : 'text-[#161616]')}>채팅</span>
-            <span className={cn('text-[11px]', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>{chatRooms.length}개</span>
+            <span className={cn('text-[13px] font-bold', isDark ? 'text-white' : 'text-slate-900')}>채팅</span>
+            <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>{chatRooms.length}개</span>
             {chatUnreadCount > 0 && (
-              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-[#9a58a8] text-white text-[10px] font-bold inline-flex items-center justify-center">
+              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-[#74A0FF] text-white text-[10px] font-bold inline-flex items-center justify-center">
                 {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
               </span>
             )}
           </span>
           <button
             type="button"
-            className="w-[22px] h-[22px] rounded-[6px] border-none bg-[#9a58a8] text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
+            className="w-[22px] h-[22px] rounded-[6px] border-none bg-[#74A0FF] text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
             onClick={(e) => { e.stopPropagation(); openCreateModal('chat'); }}
             title="1:1 채팅 만들기"
             aria-label="1:1 채팅 만들기"
@@ -210,7 +210,7 @@ function RoomSections({
         </button>
         {sectionOpen.chat && (
           chatRooms.length === 0 ? (
-            <div className={cn('px-4 py-2 text-xs', isDark ? 'text-[#64748b]' : 'text-[#9ca3af]')}>채팅이 없습니다</div>
+            <div className={cn('px-4 py-2 text-xs', isDark ? 'text-[#64748b]' : 'text-slate-500')}>채팅이 없습니다</div>
           ) : (
             <ul className="list-none m-0 p-0">{chatRooms.map(renderRoomItem)}</ul>
           )

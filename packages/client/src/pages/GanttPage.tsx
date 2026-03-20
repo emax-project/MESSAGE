@@ -23,7 +23,7 @@ export default function GanttPage() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: isDark ? '#0f172a' : '#f1f5f9', color: isDark ? '#94a3b8' : '#666' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: isDark ? '#0f172a' : '#f1f5f9', color: isDark ? '#94a3b8' : '#64748b' }}>
         로딩 중...
       </div>
     );

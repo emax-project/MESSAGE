@@ -67,7 +67,7 @@ export default function Login() {
           subtext={
             <>
               계정이 없으신가요?{' '}
-              <Link to="/register" className="text-[#3b82f6] font-semibold no-underline hover:underline">
+              <Link to="/register" className="text-[#74A0FF] font-semibold no-underline hover:underline">
                 회원가입
               </Link>
             </>

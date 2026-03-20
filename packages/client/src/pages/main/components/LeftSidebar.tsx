@@ -39,11 +39,11 @@ function LeftSidebar({
   return (
     <div className={cn(
       'w-[260px] shrink-0 flex flex-col border-r',
-      isDark ? 'bg-[#222529] border-r-[#3a3f46]' : 'bg-white border-r-[#dde1e6]',
+      isDark ? 'bg-slate-800 border-r-slate-600' : 'bg-white border-r-slate-200',
     )}>
       <div className={cn(
         'shrink-0 h-[46px] flex items-center justify-between px-4 border-b',
-        isDark ? 'bg-[#222529] border-b-[#3a3f46]' : 'bg-white border-b-[#dde1e6]',
+        isDark ? 'bg-slate-800 border-b-slate-600' : 'bg-white border-b-slate-200',
       )}>
         <button
           type="button"
@@ -57,7 +57,7 @@ function LeftSidebar({
 
       <div className={cn(
         'shrink-0 flex items-center gap-2.5 px-4 py-2.5 border-b',
-        isDark ? 'border-b-[#3a3f46]' : 'border-b-[#dde1e6]',
+        isDark ? 'border-b-slate-600' : 'border-b-slate-200',
       )}>
         <div className="relative shrink-0">
           <div className={cn(
@@ -93,14 +93,14 @@ function LeftSidebar({
         <div className="flex-1 min-w-0">
           <div className={cn(
             'text-[13px] font-semibold overflow-hidden text-ellipsis whitespace-nowrap',
-            isDark ? 'text-[#d1d2d3]' : 'text-[#1d1c1d]',
+            isDark ? 'text-slate-200' : 'text-slate-900',
           )}>
             {user?.name || '사용자'}
           </div>
           {statusInput && (
             <div className={cn(
               'text-[11px] overflow-hidden text-ellipsis whitespace-nowrap',
-              isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]',
+              isDark ? 'text-slate-400' : 'text-slate-500',
             )}>
               {statusLabel}
             </div>
@@ -110,7 +110,7 @@ function LeftSidebar({
 
       <div className={cn(
         'shrink-0 flex items-center px-3 py-2 border-b',
-        isDark ? 'border-b-[#3a3f46]' : 'border-b-[#dde1e6]',
+        isDark ? 'border-b-slate-600' : 'border-b-slate-200',
       )}>
         <input
           type="text"
@@ -120,7 +120,7 @@ function LeftSidebar({
           onChange={(e) => setSearchQuery(e.target.value)}
           className={cn(
             'flex-1 px-2 py-1.5 border-none rounded-[6px] text-[13px] outline-none min-w-0',
-            isDark ? 'bg-[#2a2d31] text-[#d1d2d3]' : 'bg-[#f1f3f5] text-[#1d1c1d]',
+            isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-900',
           )}
         />
         {searchQuery.trim().length > 0 && (

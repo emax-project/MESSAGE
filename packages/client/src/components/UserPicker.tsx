@@ -39,7 +39,7 @@ export default function UserPicker({ onSelect, compact }: Props) {
         className={cn(
           compact
             ? 'w-[30px] h-[30px] p-0 border-none rounded-full bg-white/20 text-white cursor-pointer text-base font-semibold leading-none flex items-center justify-center'
-            : 'w-full px-3.5 py-2.5 border-none rounded-[10px] bg-slate-600 cursor-pointer text-sm font-semibold text-white',
+            : 'w-full px-3.5 py-2.5 border-none rounded-[10px] bg-[#5B8DEF] cursor-pointer text-sm font-semibold text-white',
         )}
         aria-label="새 채팅"
         aria-expanded={open}
@@ -57,7 +57,7 @@ export default function UserPicker({ onSelect, compact }: Props) {
           role="listbox"
         >
           {users.length === 0 ? (
-            <p className={cn('p-4 m-0 text-sm', isDark ? 'text-slate-400' : 'text-[#888]')}>
+            <p className={cn('p-4 m-0 text-sm', isDark ? 'text-slate-400' : 'text-slate-500')}>
               다른 사용자가 없습니다. 회원가입한 사용자와 새 채팅을 만들 수 있습니다.
             </p>
           ) : (
@@ -86,7 +86,7 @@ export default function UserPicker({ onSelect, compact }: Props) {
                   <span className={cn('block font-semibold text-sm', isDark ? 'text-slate-200' : 'text-slate-800')}>
                     {u.name}
                   </span>
-                  <span className={cn('block text-xs mt-0.5', isDark ? 'text-slate-500' : 'text-[#888]')}>
+                  <span className={cn('block text-xs mt-0.5', isDark ? 'text-slate-500' : 'text-slate-500')}>
                     {u.email}
                   </span>
                 </div>

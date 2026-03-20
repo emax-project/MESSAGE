@@ -9,7 +9,7 @@ export default function ToastProvider() {
 
   if (toasts.length === 0) return null;
 
-  const bgInfo = isDark ? '#2a2d31' : '#1f2227';
+  const bgInfo = isDark ? '#334155' : '#1e293b';
 
   return (
     <div

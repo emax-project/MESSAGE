@@ -25,14 +25,14 @@ function TopMenuBar({
 
   const btnBase = cn(
     'w-[34px] h-[34px] p-0 rounded-lg bg-transparent border-none cursor-pointer flex items-center justify-center',
-    isDark ? 'text-slate-400' : 'text-[#666]',
+    isDark ? 'text-slate-400' : 'text-slate-500',
   );
-  const btnActive = isDark ? 'bg-white/10 text-white' : 'bg-slate-200 text-[#333]';
+  const btnActive = isDark ? 'bg-white/10 text-white' : 'bg-slate-200 text-slate-900';
 
   return (
     <div className={cn(
       'shrink-0 min-h-[46px] flex items-center justify-between px-4 border-b gap-2',
-      isDark ? 'bg-[#222529] border-[#3a3f46]' : 'bg-white border-[#dde1e6]',
+      isDark ? 'bg-slate-800 border-slate-600' : 'bg-white border-slate-200',
     )}>
       <div className="flex-1 min-w-0" />
       <div className="flex items-center gap-1 justify-end">
@@ -46,7 +46,7 @@ function TopMenuBar({
             <circle cx="12" cy="12" r="4" /><path d="M16 8v5a3 3 0 006 0v-1a10 10 0 10-3.92 7.94" />
           </svg>
           {unreadMentionCount > 0 && (
-            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-[#9a58a8] text-white text-[10px] font-bold flex items-center justify-center">
+            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-[#74A0FF] text-white text-[10px] font-bold flex items-center justify-center">
               {unreadMentionCount > 9 ? '9+' : unreadMentionCount}
             </span>
           )}

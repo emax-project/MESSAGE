@@ -165,7 +165,7 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
             ))}
           </div>
         ) : allUsers.length === 0 ? (
-          <p className={cn('text-sm m-0 py-4', isDark ? 'text-slate-400' : 'text-[#888]')}>초대할 수 있는 사용자가 없습니다.</p>
+          <p className={cn('text-sm m-0 py-4', isDark ? 'text-slate-400' : 'text-slate-500')}>초대할 수 있는 사용자가 없습니다.</p>
         ) : (
           <div className="grid grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-3.5 min-h-[360px]">
             <div className={cn('min-w-0 border rounded-[10px] px-3 py-2.5', isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white')}>
@@ -177,13 +177,13 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                   className={checkboxCls}
                 />
                 <span className={cn('font-semibold text-[15px]', isDark ? 'text-slate-200' : 'text-slate-800')}>전체 선택</span>
-                <span className={cn('text-xs ml-auto', isDark ? 'text-slate-500' : 'text-[#888]')}>
+                <span className={cn('text-xs ml-auto', isDark ? 'text-slate-500' : 'text-slate-500')}>
                   {searchLower ? `${filteredIdList.length}명 (검색)` : `${allUsers.length}명`}
                 </span>
               </label>
 
               {searchLower && filteredIdList.length === 0 ? (
-                <p className={cn('text-sm m-0 py-4', isDark ? 'text-slate-400' : 'text-[#888]')}>검색 결과가 없습니다.</p>
+                <p className={cn('text-sm m-0 py-4', isDark ? 'text-slate-400' : 'text-slate-500')}>검색 결과가 없습니다.</p>
               ) : (
                 <div>
                   {safeOrgTree.map((company) => {
@@ -233,10 +233,10 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                                   onClick={() => toggleDepartmentOpen(deptKey)}
                                 >
                                   <span className={chevronCls}><UIChevron open={deptOpen} /></span>
-                                  <span className={cn('font-semibold text-sm', isDark ? 'text-slate-300' : 'text-[#555]')}>{dept.name}</span>
+                                  <span className={cn('font-semibold text-sm', isDark ? 'text-slate-300' : 'text-slate-600')}>{dept.name}</span>
                                 </button>
                                 <span className="flex items-center gap-1.5 ml-auto">
-                                  <span className={cn('text-xs', isDark ? 'text-slate-500' : 'text-[#888]')}>{invitable.length}명</span>
+                                  <span className={cn('text-xs', isDark ? 'text-slate-500' : 'text-slate-500')}>{invitable.length}명</span>
                                 </span>
                               </div>
                               {deptOpen && <ul className="list-none m-0 p-0 ml-2">
@@ -252,8 +252,8 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
                                         <label className="flex items-center gap-2 px-1 py-1.5 rounded-md opacity-[0.55] cursor-default">
                                           <input type="checkbox" checked disabled className={checkboxCls} />
                                           <span className={avatarCls}>{user.name.trim()[0]?.toUpperCase() || '?'}</span>
-                                          <span className={cn('text-sm', isDark ? 'text-slate-500' : 'text-[#999]')}>{user.name}</span>
-                                          <span className={cn('text-[11px] px-1.5 py-0.5 rounded ml-auto', isDark ? 'text-slate-500 bg-slate-700' : 'text-[#888] bg-[#f0f0f0]')}>참여중</span>
+                                          <span className={cn('text-sm', isDark ? 'text-slate-500' : 'text-slate-500')}>{user.name}</span>
+                                          <span className={cn('text-[11px] px-1.5 py-0.5 rounded ml-auto', isDark ? 'text-slate-500 bg-slate-700' : 'text-slate-500 bg-slate-100')}>참여중</span>
                                         </label>
                                       </li>
                                     );

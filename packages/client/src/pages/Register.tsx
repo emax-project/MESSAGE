@@ -58,7 +58,7 @@ export default function Register() {
           subtext={
             <>
               이미 계정이 있으신가요?{' '}
-              <Link to="/login" className="text-[#3b82f6] font-semibold no-underline hover:underline">
+              <Link to="/login" className="text-[#74A0FF] font-semibold no-underline hover:underline">
                 로그인
               </Link>
             </>
@@ -106,8 +106,8 @@ export default function Register() {
               <label className="inline-flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" required className="rounded border-[#e2e8f0]" />
                 <span>
-                  <a href="#" className="text-[#3b82f6] hover:underline">이용약관</a> 및{' '}
-                  <a href="#" className="text-[#3b82f6] hover:underline">개인정보처리방침</a>에 동의합니다
+                  <a href="#" className="text-[#74A0FF] hover:underline">이용약관</a> 및{' '}
+                  <a href="#" className="text-[#74A0FF] hover:underline">개인정보처리방침</a>에 동의합니다
                 </span>
               </label>
             </p>

@@ -48,7 +48,7 @@ function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
   if (status === '회의 중') {
     return (
       <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
-        <circle cx="8" cy="8" r="7" fill="#3b82f6" />
+        <circle cx="8" cy="8" r="7" fill="#74A0FF" />
         <rect x="4.5" y="5.5" width="7" height="4.5" rx="1.2" fill="white" opacity="0.95" />
         <polygon points="6,10 5,12 7.5,10" fill="white" opacity="0.95" />
       </svg>

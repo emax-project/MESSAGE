@@ -31,8 +31,8 @@ export default function UIButton({
           'text-white shadow-md',
           disabled
             ? isDark ? 'bg-slate-700' : 'bg-slate-300'
-            : 'bg-gradient-to-br from-[#ac67ba] to-[#8b4a99]',
-          !disabled && (isDark ? 'shadow-[0_4px_14px_rgba(154,88,168,0.32)]' : 'shadow-[0_4px_12px_rgba(154,88,168,0.24)]'),
+            : 'bg-gradient-to-br from-[#7CA5FF] to-[#5B8DEF]',
+          !disabled && (isDark ? 'shadow-[0_4px_14px_rgba(124,165,255,0.32)]' : 'shadow-[0_4px_12px_rgba(124,165,255,0.24)]'),
         );
       case 'secondary':
         return cn(

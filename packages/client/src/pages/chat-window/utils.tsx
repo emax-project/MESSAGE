@@ -63,7 +63,7 @@ export function RightPanelMembers({
         </button>
       )}
       {safeMembers.length === 0 ? (
-        <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14 }}>멤버가 없습니다</p>
+        <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#94a3b8', fontSize: 14 }}>멤버가 없습니다</p>
       ) : (
         safeMembers.map((m) => (
           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, marginBottom: 4, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
@@ -72,7 +72,7 @@ export function RightPanelMembers({
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b' }}>{m.name}</div>
-              {m.email && <div style={{ fontSize: 12, color: isDark ? '#64748b' : '#999' }}>{m.email}</div>}
+              {m.email && <div style={{ fontSize: 12, color: isDark ? '#64748b' : '#94a3b8' }}>{m.email}</div>}
             </div>
           </div>
         ))
@@ -100,7 +100,7 @@ export function RightPanelPins({ roomId, isDark }: { roomId: string; isDark: boo
   };
 
   if (pins.length === 0) {
-    return <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 14, marginTop: 24 }}>고정된 메시지가 없습니다</p>;
+    return <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#94a3b8', fontSize: 14, marginTop: 24 }}>고정된 메시지가 없습니다</p>;
   }
 
   return (
@@ -116,7 +116,7 @@ export function RightPanelPins({ roomId, isDark }: { roomId: string; isDark: boo
           <div style={{ fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 48 }}>
             {p.message.content}
           </div>
-          <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>{new Date(p.message.createdAt).toLocaleString('ko-KR')}</div>
+          <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8' }}>{new Date(p.message.createdAt).toLocaleString('ko-KR')}</div>
         </div>
       ))}
     </>
@@ -150,7 +150,7 @@ function renderLink(key: number, href: string, label: string, linkColor: string)
 
 export function renderContentWithMentions(content: string, isDark: boolean): ReactNode {
   const parts = content.split(LINK_SPLIT_REGEX);
-  const linkColor = isDark ? '#60a5fa' : '#2563eb';
+  const linkColor = isDark ? '#7CA5FF' : '#5B8DEF';
   return parts.map((part, i) => {
     if (/^https?:\/\//i.test(part)) {
       const href = part.replace(/[.,;:!?)]+$/, '');

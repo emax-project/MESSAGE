@@ -85,12 +85,12 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
 
   const selectClass = cn(
     'w-full px-2.5 py-2 border rounded-lg text-[13px] outline-none',
-    isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-gray-200 bg-neutral-100 text-[#333]',
+    isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-slate-100 text-slate-900',
   );
 
   const fieldLabelClass = cn(
     'text-xs font-semibold block mb-1',
-    isDark ? 'text-slate-400' : 'text-[#666]',
+    isDark ? 'text-slate-400' : 'text-slate-500',
   );
 
   return (
@@ -101,7 +101,7 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
             className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: PRIORITY_LABELS[priority]?.color || '#f59e0b' }}
           />
-          <span className={cn('text-xs font-semibold', isDark ? 'text-slate-400' : 'text-[#666]')}>
+          <span className={cn('text-xs font-semibold', isDark ? 'text-slate-400' : 'text-slate-500')}>
             {PRIORITY_LABELS[priority]?.label || '보통'}
           </span>
         </div>
@@ -110,7 +110,7 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
           onChange={(e) => setTitle(e.target.value)}
           className={cn(
             '!px-3 !py-2.5 !text-base !font-semibold',
-            isDark ? '!bg-slate-700 !text-slate-200' : '!bg-neutral-100 !text-neutral-800',
+            isDark ? '!bg-slate-700 !text-slate-200' : '!bg-slate-100 !text-slate-800',
           )}
         />
         <textarea
@@ -120,7 +120,7 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
           rows={3}
           className={cn(
             'w-full px-3 py-2.5 border rounded-lg text-sm outline-none resize-y box-border',
-            isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-gray-200 bg-neutral-100 text-[#333]',
+            isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-slate-100 text-slate-900',
           )}
         />
         <div className="flex gap-3 flex-wrap">
@@ -157,7 +157,7 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
               onChange={(e) => setStartDate(e.target.value)}
               className={cn(
                 '!px-2.5 !py-2 !text-[13px]',
-                isDark ? '!bg-slate-700 !text-slate-200' : '!bg-neutral-100 !text-neutral-800',
+                isDark ? '!bg-slate-700 !text-slate-200' : '!bg-slate-100 !text-slate-800',
               )}
             />
           </div>
@@ -171,7 +171,7 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
               onChange={(e) => setDueDate(e.target.value)}
               className={cn(
                 '!px-2.5 !py-2 !text-[13px]',
-                isDark ? '!bg-slate-700 !text-slate-200' : '!bg-neutral-100 !text-neutral-800',
+                isDark ? '!bg-slate-700 !text-slate-200' : '!bg-slate-100 !text-slate-800',
               )}
             />
           </div>
@@ -197,8 +197,8 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
             {saving ? '저장 중...' : '저장'}
           </UIButton>
         </ModalFooter>
-        <div className={cn('border-t pt-3.5', isDark ? 'border-slate-600' : 'border-gray-200')}>
-          <h4 className={cn('mt-0 mb-2.5 text-[13px] font-semibold', isDark ? 'text-slate-200' : 'text-[#333]')}>
+        <div className={cn('border-t pt-3.5', isDark ? 'border-slate-600' : 'border-slate-200')}>
+          <h4 className={cn('mt-0 mb-2.5 text-[13px] font-semibold', isDark ? 'text-slate-200' : 'text-slate-900')}>
             댓글 ({comments.length})
           </h4>
           <div className="flex flex-col gap-2 max-h-[200px] overflow-auto mb-2.5">
@@ -208,20 +208,20 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
                 className={cn('px-2.5 py-2 rounded-lg', isDark ? 'bg-slate-700' : 'bg-slate-50')}
               >
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className={cn('text-xs font-semibold', isDark ? 'text-slate-200' : 'text-[#333]')}>
+                  <span className={cn('text-xs font-semibold', isDark ? 'text-slate-200' : 'text-slate-900')}>
                     {c.userName}
                   </span>
-                  <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-[#666]')}>
+                  <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>
                     {new Date(c.createdAt).toLocaleString('ko-KR')}
                   </span>
                 </div>
-                <div className={cn('text-[13px] whitespace-pre-wrap', isDark ? 'text-slate-200' : 'text-[#333]')}>
+                <div className={cn('text-[13px] whitespace-pre-wrap', isDark ? 'text-slate-200' : 'text-slate-900')}>
                   {c.content}
                 </div>
               </div>
             ))}
             {comments.length === 0 && (
-              <p className={cn('text-xs m-0', isDark ? 'text-slate-400' : 'text-[#666]')}>
+              <p className={cn('text-xs m-0', isDark ? 'text-slate-400' : 'text-slate-500')}>
                 아직 댓글이 없습니다
               </p>
             )}
@@ -234,7 +234,7 @@ export default function TaskDetailModal({ task, projectId, members, onUpdate, on
               placeholder="댓글 입력..."
               className={cn(
                 'flex-1 !px-3 !py-2 !text-[13px]',
-                isDark ? '!bg-slate-700 !text-slate-200' : '!bg-neutral-100 !text-neutral-800',
+                isDark ? '!bg-slate-700 !text-slate-200' : '!bg-slate-100 !text-slate-800',
               )}
             />
             <UIButton

@@ -66,8 +66,8 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
           'flex-1 border-none rounded-full px-2.5 py-1.5 text-[13px] font-semibold cursor-pointer',
           active
             ? cn(
-                isDark ? 'bg-gray-900 text-slate-100' : 'bg-white text-slate-800',
-                isDark ? 'shadow-[0_0_0_1px_#4b5563]' : 'shadow-[0_0_0_1px_#e5e7eb]',
+                isDark ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-800',
+                isDark ? 'shadow-[0_0_0_1px_#4b5563]' : 'shadow-[0_0_0_1px_#e2e8f0]',
               )
             : cn('bg-transparent', isDark ? 'text-slate-400' : 'text-slate-500'),
         )}
@@ -111,7 +111,7 @@ export default function RoomSettingsModal({ room, onClose, onUpdated }: Props) {
     <>
       <UIModal title="방 설정" onClose={onClose} width={440}>
             {/* 탭 */}
-            <div className={cn('flex gap-1.5 p-1 rounded-full mb-4', isDark ? 'bg-slate-900' : 'bg-gray-50')}>
+            <div className={cn('flex gap-1.5 p-1 rounded-full mb-4', isDark ? 'bg-slate-900' : 'bg-slate-50')}>
               {tabBtn('profile', '프로필')}
               {tabBtn('view', '보기 설정')}
             </div>

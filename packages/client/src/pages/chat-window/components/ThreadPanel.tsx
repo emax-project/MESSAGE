@@ -26,7 +26,7 @@ export default function ThreadPanel({ threadOpen, setThreadOpen, isDark }: Threa
             <div style={{ fontSize: 14, color: isDark ? '#e2e8f0' : '#1e293b', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
               {threadOpen.parent.content}
             </div>
-            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#999', marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8', marginTop: 6 }}>
               {new Date(threadOpen.parent.createdAt).toLocaleString('ko-KR')}
             </div>
           </div>
@@ -41,14 +41,14 @@ export default function ThreadPanel({ threadOpen, setThreadOpen, isDark }: Threa
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b' }}>{r.sender?.name}</span>
-                  <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#999' }}>{new Date(r.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8' }}>{new Date(r.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
-                <div style={{ fontSize: 14, color: isDark ? '#cbd5e1' : '#333', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.content}</div>
+                <div style={{ fontSize: 14, color: isDark ? '#cbd5e1' : '#0f172a', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.content}</div>
               </div>
             </div>
           ))}
           {(threadOpen.replies ?? []).length === 0 && (
-            <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#999', fontSize: 13, marginTop: 20 }}>아직 답글이 없습니다</p>
+            <p style={{ textAlign: 'center', color: isDark ? '#64748b' : '#94a3b8', fontSize: 13, marginTop: 20 }}>아직 답글이 없습니다</p>
           )}
         </div>
       </div>

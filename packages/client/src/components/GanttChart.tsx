@@ -60,7 +60,7 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
   const text = t.text;
   const sub = t.textMuted;
   const border = t.border;
-  const gridLine = isDark ? '#1e293b' : '#f0f0f0';
+  const gridLine = isDark ? '#1e293b' : '#e2e8f0';
   const todayColor = '#ef4444';
 
   const dayWidth = zoom === 'day' ? DAY_WIDTH_DAY : DAY_WIDTH_WEEK;
@@ -198,7 +198,7 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
               style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: 13, outline: 'none' }}
             >
               {projects.map((p) => (
-                <option key={p.id} value={p.id} style={{ color: '#333' }}>{p.name}</option>
+                <option key={p.id} value={p.id} style={{ color: '#0f172a' }}>{p.name}</option>
               ))}
             </select>
           )}

@@ -16,10 +16,10 @@ export default function ForwardModal({ onClose, onSelect }: Props) {
     queryFn: roomsApi.list,
   });
 
-  const textColor = isDark ? '#e2e8f0' : '#333';
-  const subColor = isDark ? '#94a3b8' : '#888';
+  const textColor = isDark ? '#e2e8f0' : '#0f172a';
+  const subColor = isDark ? '#94a3b8' : '#64748b';
   const hoverBg = isDark ? '#334155' : '#f5f5f5';
-  const borderColor = isDark ? '#475569' : '#f0f0f0';
+  const borderColor = isDark ? '#475569' : '#e2e8f0';
 
   return (
     <UIModal onClose={onClose} title="전달할 채팅방 선택" width={420} overlayPosition="absolute" zIndex={200}>
