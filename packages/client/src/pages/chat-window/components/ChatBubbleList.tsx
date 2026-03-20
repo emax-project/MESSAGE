@@ -30,6 +30,58 @@ type ChatBubbleListProps = {
 const isStandaloneSystemMessage = (message: Message) =>
   isSystemMessage(message.content) && !message.fileUrl && message.eventTitle == null && !message.poll;
 
+function MessageActionButton({
+  isDark,
+  isActive,
+  onClick,
+  title,
+  icon,
+}: {
+  isDark: boolean;
+  isActive: boolean;
+  onClick: () => void;
+  title: string;
+  icon: React.ReactNode;
+}) {
+  const idleColor = isDark ? '#94a3b8' : '#64748b';
+  const accentColor = isDark ? '#7CA5FF' : '#5B8DEF';
+  const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+  const activeBg = isDark ? 'rgba(124,165,255,0.12)' : 'rgba(91,141,239,0.1)';
+  const color = isActive ? accentColor : idleColor;
+  const bg = isActive ? activeBg : 'transparent';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      style={{
+        width: 30,
+        height: 30,
+        padding: 0,
+        border: 'none',
+        borderRadius: 6,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: bg,
+        color,
+        transition: 'background 0.12s, color 0.12s',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = isActive ? activeBg : hoverBg;
+        e.currentTarget.style.color = accentColor;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = isActive ? activeBg : 'transparent';
+        e.currentTarget.style.color = isActive ? accentColor : idleColor;
+      }}
+    >
+      {icon}
+    </button>
+  );
+}
+
 export default function ChatBubbleList({
   displayMessages,
   firstUnreadMessageId,
@@ -311,24 +363,47 @@ export default function ChatBubbleList({
                     gap: 2,
                     alignItems: 'center',
                   }}>
-                    <button type="button" onClick={() => setReplyTo(m)} className={cn('w-8 h-8 rounded-full border-none cursor-pointer flex items-center justify-center text-sm p-0', isDark ? 'bg-slate-500 text-slate-100 shadow-sm' : 'bg-slate-100 text-slate-600')} title="답장">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10l7-7v4c8 0 11 4 11 11-2-5-5-7-11-7v4l-7-5z"/></svg>
-                    </button>
+                    <MessageActionButton
+                      isDark={isDark}
+                      isActive={false}
+                      onClick={() => setReplyTo(m)}
+                      title="답장"
+                      icon={
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 10l7-7v4c8 0 11 4 11 11-2-5-5-7-11-7v4l-7-5z" />
+                        </svg>
+                      }
+                    />
                     <div style={{ position: 'relative' }}>
-                      <button type="button" onClick={() => setEmojiPickerMsg(emojiPickerMsg === m.id ? null : m.id)} className={cn('w-8 h-8 rounded-full border-none cursor-pointer flex items-center justify-center text-sm p-0', isDark ? 'bg-slate-500 text-slate-100 shadow-sm' : 'bg-slate-100 text-slate-600')} title="반응">
-                        {'\uD83D\uDE0A'}
-                      </button>
-                      {emojiPickerMsg === m.id && (
-                        <EmojiPicker onSelect={(emoji) => handleReaction(m.id, emoji)} onClose={() => setEmojiPickerMsg(null)} />
-                      )}
+                      <MessageActionButton
+                        isDark={isDark}
+                        isActive={emojiPickerMsg === m.id}
+                        onClick={() => setEmojiPickerMsg(emojiPickerMsg === m.id ? null : m.id)}
+                        title="반응"
+                        icon={
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                            <line x1="9" y1="9" x2="9.01" y2="9" />
+                            <line x1="15" y1="9" x2="15.01" y2="9" />
+                          </svg>
+                        }
+                      />
                     </div>
                   </div>
+                )}
+                {emojiPickerMsg === m.id && (
+                  <EmojiPicker
+                    onSelect={(emoji) => handleReaction(m.id, emoji)}
+                    onClose={() => setEmojiPickerMsg(null)}
+                    anchorBelow
+                  />
                 )}
               </div>
             </div>
 
             {m.reactions && m.reactions.length > 0 && (
-              <div className={cn('flex gap-1 flex-wrap mt-1', isMine ? 'ml-0' : 'ml-[42px]')}>
+              <div className={cn('flex gap-1 flex-wrap mt-1', isMine ? 'ml-auto' : 'ml-[42px]')}>
                 {m.reactions.map((r: ReactionGroup) => (
                   <button
                     key={r.emoji}

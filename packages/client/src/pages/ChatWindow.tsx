@@ -273,7 +273,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       return () => clearTimeout(t);
     }
 
-    // 새 메시지 추가 시: 맨 아래에 있거나, 내가 보낸 메시지면 맨 끝으로 스크롤
+    // 새 메시지 추가 시에만 스크롤 (반응/수정 등 기존 메시지 업데이트는 제외)
+    if (curCount <= prevCount) return;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_BOTTOM_THRESHOLD;
     const newestIsMine = messages[0]?.senderId === myId;
     const shouldScroll = (atBottom || newestIsMine) && prevCount > 0;
