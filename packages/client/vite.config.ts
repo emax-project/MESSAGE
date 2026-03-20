@@ -9,6 +9,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-socket': ['socket.io-client'],
+          'vendor-recharts': ['recharts'],
+        },
+      },
+    },
   },
   server: {
     port: 5173,

@@ -19,6 +19,7 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "lighthouse": "npx lighthouse http://localhost:5173 --output=html --output-path=./lighthouse-report.html --view",
+    "lighthouse:preview": "npm run build && concurrently -k -s first \"npm run preview\" \"wait-on http://localhost:4173 && npx lighthouse http://localhost:4173/login --output=html --output-path=./lighthouse-report.html --view\"",
     "lighthouse:ci": "concurrently -k -s first \"npm run dev\" \"wait-on http://localhost:5173 && npx lighthouse http://localhost:5173 --output=html --output-path=./lighthouse-report.html --chrome-flags='--headless --no-sandbox'\""
   },
   "dependencies": {

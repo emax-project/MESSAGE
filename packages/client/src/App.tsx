@@ -1,14 +1,15 @@
-import { useEffect, useState, Component, type ReactNode } from 'react';
+import { useEffect, useState, Component, lazy, Suspense, type ReactNode } from 'react';
 import { useThemeStore } from './store';
 import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { authApi } from './api';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Main from './pages/Main';
-import ChatWindow from './pages/ChatWindow';
-import KanbanPage from './pages/KanbanPage';
-import GanttPage from './pages/GanttPage';
+
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Main = lazy(() => import('./pages/Main'));
+const ChatWindow = lazy(() => import('./pages/ChatWindow'));
+const KanbanPage = lazy(() => import('./pages/KanbanPage'));
+const GanttPage = lazy(() => import('./pages/GanttPage'));
 
 // Electron: MemoryRouter 사용 (URL을 전혀 건드리지 않음 → file://C:/login ERR_FILE_NOT_FOUND 근본 차단)
 // HashRouter/BrowserRouter는 file:// 에서 History API 제한으로 전체 페이지 이동 발생
@@ -112,10 +113,17 @@ export default function App() {
   const routerProps = isElectron ? { initialEntries: [initialPath], initialIndex: 0 } : {};
   const RouterWrapper = isElectron ? MemoryRouter : BrowserRouter;
 
+  const fallback = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#94a3b8', fontSize: 15 }}>
+      로딩 중...
+    </div>
+  );
+
   return (
     <ErrorBoundary>
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', width: '100%' }}>
         <RouterWrapper {...routerProps}>
+          <Suspense fallback={fallback}>
           <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -161,6 +169,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+          </Suspense>
         {forcedLogoutMsg && (
         <div style={toastStyle(isDark, true)}>
           <span style={toastIconStyle(isDark)}>⚠</span>
