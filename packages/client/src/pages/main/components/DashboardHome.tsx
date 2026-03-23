@@ -1,7 +1,8 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import type { Event } from '../../../api';
 import { cn } from '../../../utils/cn';
+import { formatEventTime } from '../utils/date';
 
 type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings';
 
@@ -136,22 +137,6 @@ function WeekBarChart({ isDark, data }: { isDark: boolean; data: WeekEventItem[]
   );
 }
 
-const formatEventTime = (startAt: string, endAt: string) => {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const s = new Date(startAt);
-  const e = new Date(endAt);
-  const sh = s.getHours();
-  const sm = s.getMinutes();
-  const eh = e.getHours();
-  const em = e.getMinutes();
-  const fmt = (h: number, m: number) => {
-    const am = h < 12;
-    const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${am ? '오전' : '오후'} ${h12}:${pad(m)}`;
-  };
-  return `${fmt(sh, sm)} – ${fmt(eh, em)}`;
-};
-
 function DashboardHome({
   isDark,
   userName,
@@ -165,8 +150,9 @@ function DashboardHome({
   weekEvents,
   setActivePanel,
 }: DashboardHomeProps) {
-  const sortedTodayEvents = [...todayEvents].sort(
-    (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+  const sortedTodayEvents = useMemo(
+    () => [...todayEvents].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()),
+    [todayEvents]
   );
 
   const cardCls = cn(
