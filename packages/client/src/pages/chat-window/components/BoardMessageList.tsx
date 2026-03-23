@@ -166,7 +166,7 @@ export default function BoardMessageList({
                 const unreadCount = Math.max(0, totalReaders - readCount);
                 if (unreadCount === 0) return null;
                 return (
-                  <span className={cn('text-xs font-bold', isDark ? 'text-[#74A0FF]' : 'text-[#74A0FF]')}>{unreadCount}</span>
+                  <span className={cn('text-xs font-bold', isDark ? 'text-brand' : 'text-brand')}>{unreadCount}</span>
                 );
               })()}
               {m.reactions && m.reactions.length > 0 ? (
@@ -280,7 +280,7 @@ export default function BoardMessageList({
               />
               <button
                 type="button"
-                className={cn('py-1.5 px-3.5 border-none rounded-2xl text-white text-xs font-semibold cursor-pointer shrink-0', 'bg-[#5B8DEF]')}
+                className={cn('py-1.5 px-3.5 border-none rounded-2xl text-white text-xs font-semibold cursor-pointer shrink-0', 'bg-brand-dark')}
                 onClick={() => {
                   const text = (boardCommentInputs[m.id] || '').trim();
                   if (text && socketRef.current && roomId) {

@@ -30,7 +30,7 @@ export function AuthCard({ children, title, subtext, className }: Props) {
       {/* Right: form */}
       <div className="flex-1 min-w-[340px] flex flex-col justify-center bg-white px-10 sm:px-14 py-12">
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-14 h-14 mb-4 rounded-lg bg-[#7CA5FF]/20 flex items-center justify-center">
+          <div className="w-14 h-14 mb-4 rounded-lg bg-brand-light/20 flex items-center justify-center">
             <img src={LOGO_SRC} alt="" className="w-10 h-10 object-contain" aria-hidden />
           </div>
           <h1 className="text-xl font-bold text-black">{title}</h1>

@@ -20,7 +20,7 @@ export function WeekBarChart({ isDark, data }: WeekBarChartProps) {
           <div key={d.dateKey} className="flex flex-col items-center gap-1 flex-1 min-w-0">
             <div className="w-full flex flex-col justify-end items-center" style={{ height: barH }}>
               <div
-                className={cn('w-6 rounded-t shrink-0 transition-all', d.count > 0 ? 'bg-[#5B8DEF]' : isDark ? 'bg-slate-700' : 'bg-slate-200')}
+                className={cn('w-6 rounded-t shrink-0 transition-all', d.count > 0 ? 'bg-brand-dark' : isDark ? 'bg-slate-700' : 'bg-slate-200')}
                 style={{ height: barHeight }}
               />
             </div>
@@ -28,7 +28,7 @@ export function WeekBarChart({ isDark, data }: WeekBarChartProps) {
               {d.label}
             </span>
             {d.count > 0 && (
-              <span className={cn('text-[10px] font-bold', 'text-[#5B8DEF]')}>{d.count}</span>
+              <span className="text-[10px] font-bold text-brand-dark">{d.count}</span>
             )}
           </div>
         );

@@ -73,7 +73,7 @@ function RoomListItem({
         )}
         {mutedRoomIds.has(room.id) && <span className="text-[10px] text-[#94a3b8]" title="알림 꺼짐">음소거</span>}
         {(room.unreadCount ?? 0) > 0 && (
-          <span className="min-w-[18px] h-[18px] px-[5px] rounded-[9px] bg-[#74A0FF] text-white text-[10px] font-bold flex items-center justify-center">
+          <span className="min-w-[18px] h-[18px] px-[5px] rounded-[9px] bg-brand text-white text-[10px] font-bold flex items-center justify-center">
             {room.unreadCount! > 99 ? '99+' : room.unreadCount}
           </span>
         )}

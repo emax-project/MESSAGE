@@ -182,7 +182,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
         <TitleBar title="프로젝트 보드" isDark={isDark} />
       )}
       {/* Header */}
-      <div className={cn('shrink-0 flex items-center justify-between px-4 h-[50px]', isDark ? 'bg-slate-800' : 'bg-[#5B8DEF]')}>
+      <div className={cn('shrink-0 flex items-center justify-between px-4 h-[50px]', isDark ? 'bg-slate-800' : 'bg-brand-dark')}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -270,7 +270,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
               >
                 취소
               </button>
-              <button type="button" onClick={handleCreateProject} className="py-2 px-4 border-none rounded-lg bg-[#5B8DEF] text-white text-[13px] font-semibold cursor-pointer">만들기</button>
+              <button type="button" onClick={handleCreateProject} className="py-2 px-4 border-none rounded-lg bg-brand-dark text-white text-[13px] font-semibold cursor-pointer">만들기</button>
             </div>
           </div>
         </div>
@@ -283,7 +283,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
           <button
             type="button"
             onClick={() => setShowCreateProject(true)}
-            className="py-3 px-6 border-none rounded-lg bg-[#5B8DEF] text-white text-sm font-semibold cursor-pointer"
+            className="py-3 px-6 border-none rounded-lg bg-brand-dark text-white text-sm font-semibold cursor-pointer"
           >
             프로젝트 만들기
           </button>
@@ -431,7 +431,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
                   )}
                 />
                 <div className="flex gap-1.5">
-                  <button type="button" onClick={handleAddBoard} className="py-1.5 px-3 border-none rounded-md bg-[#5B8DEF] text-white text-xs font-semibold cursor-pointer">추가</button>
+                  <button type="button" onClick={handleAddBoard} className="py-1.5 px-3 border-none rounded-md bg-brand-dark text-white text-xs font-semibold cursor-pointer">추가</button>
                   <button
                     type="button"
                     onClick={() => setAddingBoard(false)}

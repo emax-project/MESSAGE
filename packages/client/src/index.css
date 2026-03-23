@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
 :root {
+  --color-brand: #74A0FF;
+  --color-brand-light: #7CA5FF;
+  --color-brand-dark: #5B8DEF;
+  --color-chart-primary: #5B8DEF;
+  --color-chart-secondary: #7CA5FF;
   --ui-radius-sm: 6px;
   --ui-radius-md: 8px;
   --ui-radius-lg: 10px;

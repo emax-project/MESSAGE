@@ -34,7 +34,7 @@ function TopMenuBar({
     alignItems: 'center',
     justifyContent: 'center',
     background: active ? (isDark ? '#334155' : '#f1f5f9') : 'transparent',
-    color: active ? (isDark ? '#7CA5FF' : '#5B8DEF') : (isDark ? '#94a3b8' : '#64748b'),
+    color: active ? (isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)') : (isDark ? '#94a3b8' : '#64748b'),
   });
 
   return (
@@ -55,7 +55,7 @@ function TopMenuBar({
             <circle cx="12" cy="12" r="4" /><path d="M16 8v5a3 3 0 006 0v-1a10 10 0 10-3.92 7.94" />
           </svg>
           {unreadMentionCount > 0 && (
-            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-[#74A0FF] text-white text-[10px] font-bold flex items-center justify-center">
+            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center">
               {unreadMentionCount > 9 ? '9+' : unreadMentionCount}
             </span>
           )}

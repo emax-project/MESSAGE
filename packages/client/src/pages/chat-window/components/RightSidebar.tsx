@@ -58,7 +58,7 @@ export default function RightSidebar({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: rightPanel === 'file' ? (isDark ? '#7CA5FF' : '#5B8DEF') : (isDark ? '#94a3b8' : '#64748b'),
+            color: rightPanel === 'file' ? (isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)') : (isDark ? '#94a3b8' : '#64748b'),
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -79,7 +79,7 @@ export default function RightSidebar({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: rightPanel === 'members' ? (isDark ? '#7CA5FF' : '#5B8DEF') : (isDark ? '#94a3b8' : '#64748b'),
+            color: rightPanel === 'members' ? (isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)') : (isDark ? '#94a3b8' : '#64748b'),
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -100,7 +100,7 @@ export default function RightSidebar({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: rightPanel === 'pins' ? (isDark ? '#7CA5FF' : '#5B8DEF') : (isDark ? '#94a3b8' : '#64748b'),
+            color: rightPanel === 'pins' ? (isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)') : (isDark ? '#94a3b8' : '#64748b'),
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -44,7 +44,7 @@ function MessageActionButton({
   icon: React.ReactNode;
 }) {
   const idleColor = isDark ? '#94a3b8' : '#64748b';
-  const accentColor = isDark ? '#7CA5FF' : '#5B8DEF';
+  const accentColor = isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)';
   const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
   const activeBg = isDark ? 'rgba(124,165,255,0.12)' : 'rgba(91,141,239,0.1)';
   const color = isActive ? accentColor : idleColor;
@@ -183,7 +183,7 @@ export default function ChatBubbleList({
                 <div className={cn('w-fit max-w-[75%] min-w-0', isMine && 'ml-auto')}>
                   <div className={cn(
                     'min-w-[80px] py-2.5 px-3.5 rounded-2xl rounded-tl',
-                    isMine ? 'bg-[#5B8DEF]/80 text-white rounded-tl-2xl rounded-tr' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
+                    isMine ? 'bg-brand-dark/80 text-white rounded-tl-2xl rounded-tr' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
                     'opacity-50 italic',
                   )}>
                     <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">[삭제된 메시지]</span>
@@ -234,7 +234,7 @@ export default function ChatBubbleList({
                   padding: '4px 10px',
                   borderRadius: 8,
                   background: isDark ? 'rgba(91,141,239,0.15)' : 'rgba(91,141,239,0.1)',
-                  color: isDark ? '#bfdbfe' : '#5B8DEF',
+                  color: isDark ? '#bfdbfe' : 'var(--color-brand-dark)',
                   marginBottom: 4,
                   cursor: 'pointer',
                   display: 'inline-flex',
@@ -317,7 +317,7 @@ export default function ChatBubbleList({
                   className={cn(
                     isHighlighted && 'message-bubble-highlight',
                     'min-w-[80px] py-2.5 px-3.5 rounded-2xl rounded-tl shadow-sm',
-                    isMine ? 'bg-[#5B8DEF] text-white rounded-tl-2xl rounded-tr shadow-sm' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
+                    isMine ? 'bg-brand-dark text-white rounded-tl-2xl rounded-tr shadow-sm' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
                   )}
                 >
                   {m.poll ? (

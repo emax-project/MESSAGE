@@ -39,7 +39,7 @@ export default function UserPicker({ onSelect, compact }: Props) {
         className={cn(
           compact
             ? 'w-[30px] h-[30px] p-0 border-none rounded-full bg-white/20 text-white cursor-pointer text-base font-semibold leading-none flex items-center justify-center'
-            : 'w-full px-3.5 py-2.5 border-none rounded-[10px] bg-[#5B8DEF] cursor-pointer text-sm font-semibold text-white',
+            : 'w-full px-3.5 py-2.5 border-none rounded-[10px] bg-brand-dark cursor-pointer text-sm font-semibold text-white',
         )}
         aria-label="새 채팅"
         aria-expanded={open}

@@ -66,7 +66,7 @@ function FriendsPanel({
             onChange={(e) => onSearchQueryChange(e.target.value)}
             style={{ padding: '5px 10px', border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, borderRadius: 6, fontSize: 12, background: isDark ? '#334155' : '#f5f5f5', color: isDark ? '#e2e8f0' : '#0f172a', outline: 'none', width: isNarrowLayout ? '100%' : 140, minWidth: 0, boxSizing: 'border-box' }}
           />
-          <button type="button" role="switch" aria-checked={showOnlineOnly} onClick={onToggleOnlineOnly} className={cn('flex items-center gap-1.5 px-2 py-1 border rounded-2xl bg-transparent text-[12px]', showOnlineOnly && 'border-[#74A0FF] bg-[#74A0FF] text-white')}>
+          <button type="button" role="switch" aria-checked={showOnlineOnly} onClick={onToggleOnlineOnly} className={cn('flex items-center gap-1.5 px-2 py-1 border rounded-2xl bg-transparent text-[12px]', showOnlineOnly && 'border-brand bg-brand text-white')}>
             <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />
             온라인만
           </button>

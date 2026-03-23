@@ -89,7 +89,7 @@ export default function MainOverlays({
             <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 14, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 16 }}>{announcementContent}</div>
             <button
               type="button"
-              className="w-full py-2 px-4 border-none rounded-lg bg-gradient-to-br from-[#7CA5FF] to-[#5B8DEF] text-white text-[13px] font-bold cursor-pointer"
+              className="w-full py-2 px-4 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-bold cursor-pointer"
               onClick={() => setShowAnnouncementModal(false)}
             >
               확인

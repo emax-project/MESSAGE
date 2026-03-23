@@ -87,7 +87,7 @@ function RoomSections({
             <span className={cn('text-[13px] font-bold', isDark ? 'text-white' : 'text-slate-900')}>아젠다</span>
             <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>{topicRooms.length}개</span>
             {topicUnreadCount > 0 && (
-              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-[#74A0FF] text-white text-[10px] font-bold inline-flex items-center justify-center">
+              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-brand text-white text-[10px] font-bold inline-flex items-center justify-center">
                 {topicUnreadCount > 99 ? '99+' : topicUnreadCount}
               </span>
             )}
@@ -104,7 +104,7 @@ function RoomSections({
             >폴더</button>
             <button
               type="button"
-              className="w-[22px] h-[22px] rounded-[6px] border-none bg-[#74A0FF] text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
+              className="w-[22px] h-[22px] rounded-[6px] border-none bg-brand text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
               onClick={(e) => { e.stopPropagation(); openCreateModal('topic'); }}
               title="아젠다 만들기"
               aria-label="아젠다 만들기"
@@ -139,7 +139,7 @@ function RoomSections({
                         <span>{f.name}</span>
                         <span className="text-[11px] opacity-80">({rooms.length})</span>
                         {folderUnread > 0 && (
-                          <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-[#74A0FF] text-white text-[10px] font-bold inline-flex items-center justify-center">
+                          <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-brand text-white text-[10px] font-bold inline-flex items-center justify-center">
                             {folderUnread > 99 ? '99+' : folderUnread}
                           </span>
                         )}
@@ -195,14 +195,14 @@ function RoomSections({
             <span className={cn('text-[13px] font-bold', isDark ? 'text-white' : 'text-slate-900')}>채팅</span>
             <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>{chatRooms.length}개</span>
             {chatUnreadCount > 0 && (
-              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-[#74A0FF] text-white text-[10px] font-bold inline-flex items-center justify-center">
+              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-brand text-white text-[10px] font-bold inline-flex items-center justify-center">
                 {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
               </span>
             )}
           </span>
           <button
             type="button"
-            className="w-[22px] h-[22px] rounded-[6px] border-none bg-[#74A0FF] text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
+            className="w-[22px] h-[22px] rounded-[6px] border-none bg-brand text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
             onClick={(e) => { e.stopPropagation(); openCreateModal('chat'); }}
             title="1:1 채팅 만들기"
             aria-label="1:1 채팅 만들기"

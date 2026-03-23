@@ -169,7 +169,7 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
             />
             <button
               type="button"
-              className="px-4 py-2 border-none rounded-lg bg-[#5B8DEF] text-white text-[13px] font-semibold cursor-pointer"
+              className="px-4 py-2 border-none rounded-lg bg-brand-dark text-white text-[13px] font-semibold cursor-pointer"
               onClick={handleCreateFolder}
               disabled={loading || !newFolderName.trim()}
             >
@@ -273,7 +273,7 @@ export default function FolderManageModal({ topicRooms, onClose }: Props) {
         <div className={cn('p-4 border-t', borderColor)}>
           <button
             type="button"
-            className="w-full px-4 py-2.5 border-none rounded-lg bg-[#5B8DEF] text-white text-sm font-semibold cursor-pointer"
+            className="w-full px-4 py-2.5 border-none rounded-lg bg-brand-dark text-white text-sm font-semibold cursor-pointer"
             onClick={handleDone}
             disabled={loading}
           >

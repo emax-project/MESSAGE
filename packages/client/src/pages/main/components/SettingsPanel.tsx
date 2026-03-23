@@ -100,12 +100,12 @@ function SettingsPanel({
           {notificationsSnoozedUntil > Date.now() ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8, fontSize: 12, color: isDark ? '#64748b' : '#64748b' }}>
               <span>해제: {new Date(notificationsSnoozedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#7CA5FF] to-[#5B8DEF] text-white text-[13px] font-semibold cursor-pointer" onClick={clearSnooze}>해제</button>
+              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" onClick={clearSnooze}>해제</button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#7CA5FF] to-[#5B8DEF] text-white text-[13px] font-semibold cursor-pointer" onClick={() => snoozeNotifications(10)}>10분</button>
-              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#7CA5FF] to-[#5B8DEF] text-white text-[13px] font-semibold cursor-pointer" onClick={() => snoozeNotifications(60)}>1시간</button>
+              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" onClick={() => snoozeNotifications(10)}>10분</button>
+              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" onClick={() => snoozeNotifications(60)}>1시간</button>
             </div>
           )}
         </div>
@@ -128,7 +128,7 @@ function SettingsPanel({
                 {updateStatus === 'error' && updateError && ` · ${updateError}`}
               </span>
               {updateStatus !== 'ready' ? (
-                <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#7CA5FF] to-[#5B8DEF] text-white text-[13px] font-semibold cursor-pointer" disabled={updateStatus === 'checking'} onClick={() => void handleCheckForUpdates()}>
+                <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" disabled={updateStatus === 'checking'} onClick={() => void handleCheckForUpdates()}>
                   {updateStatus === 'checking' ? '확인 중...' : '업데이트 확인'}
                 </button>
               ) : (
@@ -179,7 +179,7 @@ function SettingsPanel({
           <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
             <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>공지 등록</h4>
             <textarea value={announcementEdit} onChange={(e) => setAnnouncementEdit(e.target.value)} placeholder="공지 내용을 입력하세요." style={{ width: '100%', padding: 12, border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, borderRadius: 8, fontSize: 14, lineHeight: 1.5, resize: 'vertical' as const, marginBottom: 10, boxSizing: 'border-box' as const, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#0f172a' }} rows={3} />
-            <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-[#7CA5FF] to-[#5B8DEF] text-white text-[13px] font-semibold cursor-pointer" disabled={announcementSaving} onClick={() => void onSaveAnnouncement()}>{announcementSaving ? '저장 중...' : '저장'}</button>
+            <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" disabled={announcementSaving} onClick={() => void onSaveAnnouncement()}>{announcementSaving ? '저장 중...' : '저장'}</button>
           </div>
         )}
 

@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { cn } from '../../../utils/cn';
 
-const DONUT_COLORS = ['#5B8DEF', '#7CA5FF'];
+const DONUT_COLORS = ['var(--color-brand-dark)', 'var(--color-brand-light)'];
 
 type DonutChartDataItem = { name: string; value: number };
 
@@ -19,14 +20,13 @@ export function DonutChart({ isDark, data, size = 80 }: DonutChartProps) {
   if (isEmpty) {
     return (
       <div
-        className="shrink-0 rounded-full flex items-center justify-center"
-        style={{
-          width: size,
-          height: size,
-          background: isDark ? '#334155' : '#e2e8f0',
-        }}
+        className={cn(
+          'shrink-0 rounded-full flex items-center justify-center',
+          isDark ? 'bg-slate-700' : 'bg-slate-200'
+        )}
+        style={{ width: size, height: size }}
       >
-        <span className="text-[10px] font-bold" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+        <span className={cn('text-[10px] font-bold', isDark ? 'text-slate-400' : 'text-slate-500')}>
           {total}
         </span>
       </div>
@@ -55,8 +55,10 @@ export function DonutChart({ isDark, data, size = 80 }: DonutChartProps) {
         </PieChart>
       </ResponsiveContainer>
       <span
-        className="absolute inset-0 flex items-center justify-center select-none text-[10px] font-bold pointer-events-none"
-        style={{ color: isDark ? '#94a3b8' : '#64748b' }}
+        className={cn(
+          'absolute inset-0 flex items-center justify-center select-none text-[10px] font-bold pointer-events-none',
+          isDark ? 'text-slate-400' : 'text-slate-500'
+        )}
       >
         {total}
       </span>

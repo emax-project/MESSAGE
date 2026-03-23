@@ -150,7 +150,7 @@ function renderLink(key: number, href: string, label: string, linkColor: string)
 
 export function renderContentWithMentions(content: string, isDark: boolean): ReactNode {
   const parts = content.split(LINK_SPLIT_REGEX);
-  const linkColor = isDark ? '#7CA5FF' : '#5B8DEF';
+  const linkColor = isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)';
   return parts.map((part, i) => {
     if (/^https?:\/\//i.test(part)) {
       const href = part.replace(/[.,;:!?)]+$/, '');

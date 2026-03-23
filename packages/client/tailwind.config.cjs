@@ -11,6 +11,7 @@ module.exports = {
           DEFAULT: '#74A0FF',
           light: '#7CA5FF',
           dark: '#5B8DEF',
+          'dark-hover': '#4a7bd9',
         },
         pastel: {
           purple: '#dbeafe',

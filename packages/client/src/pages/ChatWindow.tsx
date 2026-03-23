@@ -678,7 +678,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               className={cn('flex-1 px-3 py-2 border rounded-lg text-[13px] outline-none', isDark ? 'border-slate-600 bg-slate-950 text-slate-200' : 'border-slate-200 bg-slate-100 text-slate-800')}
               autoFocus
             />
-            <button type="button" onClick={handleSearch} className="h-8 min-h-8 px-3.5 border-none rounded-lg bg-[#74A0FF] text-white text-[13px] cursor-pointer inline-flex items-center justify-center">
+            <button type="button" onClick={handleSearch} className="h-8 min-h-8 px-3.5 border-none rounded-lg bg-brand text-white text-[13px] cursor-pointer inline-flex items-center justify-center">
               검색
             </button>
             <UICloseButton
@@ -936,7 +936,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         {(replyTo || editingMsg) && (
           <div className={cn('flex items-start gap-2 py-2 px-4 border-t', isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-slate-50')}>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#7CA5FF' : '#5B8DEF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {editingMsg ? '메시지 수정' : `${replyTo!.sender.name}에게 답장`}
               </span>
               <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.35, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
@@ -990,7 +990,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         {fileUploading && (
           <div style={{ padding: '0 16px 4px', background: isDark ? '#1e293b' : '#f8fafc' }}>
             <div style={{ height: 4, borderRadius: 2, background: isDark ? '#334155' : '#e2e8f0', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${fileUploadProgress}%`, background: '#74A0FF', borderRadius: 2, transition: 'width 0.2s' }} />
+              <div style={{ height: '100%', width: `${fileUploadProgress}%`, background: 'var(--color-brand)', borderRadius: 2, transition: 'width 0.2s' }} />
             </div>
             <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8', marginTop: 2 }}>업로드 중 {Math.round(fileUploadProgress)}%</div>
           </div>
@@ -1004,7 +1004,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 padding: '4px 10px',
                 borderRadius: 8,
                 background: isDark ? 'rgba(91,141,239,0.2)' : 'rgba(91,141,239,0.12)',
-                color: isDark ? '#93c5fd' : '#5B8DEF',
+                color: isDark ? '#93c5fd' : 'var(--color-brand-dark)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
@@ -1100,7 +1100,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 'py-2.5 px-5 rounded-full font-bold text-sm cursor-pointer whitespace-nowrap transition-colors',
                 !input.trim() || !socket || fileUploading
                   ? (isDark ? 'bg-slate-700 text-slate-400 opacity-90' : 'bg-slate-300 text-white opacity-90')
-                  : 'bg-[#5B8DEF] text-white',
+                  : 'bg-brand-dark text-white',
               )}
               disabled={!input.trim() || !socket || fileUploading}
             >
