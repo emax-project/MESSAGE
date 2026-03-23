@@ -499,6 +499,16 @@ export default function Main() {
     openChatWindow,
   });
 
+  const handleDashboardEventClick = useCallback(
+    (ev: Event) => {
+      handleEditEvent(ev);
+      setSelectedDate(toLocalDateKey(ev.startAt));
+      setCalendarMonth(new Date(ev.startAt));
+      setActivePanel('schedule');
+    },
+    [handleEditEvent, setSelectedDate, setCalendarMonth, setActivePanel]
+  );
+
   // --- Room item renderer ---
   const renderRoomItem = useCallback((r: Room) => (
     <RoomListItem
@@ -599,6 +609,7 @@ export default function Main() {
                 todayEvents,
                 weekEvents,
                 setActivePanel,
+                onEventClick: handleDashboardEventClick,
               }}
               scheduleProps={{
                 calendarMonth,

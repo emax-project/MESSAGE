@@ -115,7 +115,7 @@ export default function CreateGroupModal({ mode, onClose, onCreated, onTopicCrea
         const newRoomData = {
           id: room.id,
           name: room.name,
-          avatarUrl: null,
+          avatarUrl: undefined,
           initials: initialsFromServer,
           isGroup: room.isGroup,
           isTopic: (room as { isTopic?: boolean })?.isTopic ?? (mode === 'topic'),

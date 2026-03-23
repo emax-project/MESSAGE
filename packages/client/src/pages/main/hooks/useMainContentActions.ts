@@ -93,23 +93,22 @@ export function useMainContentActions({
     const description = eventForm.description.trim() || undefined;
 
     try {
-      if (mode === 'period') {
-        const periodStartDate = options.periodStartDate;
-        const periodEndDate = options.periodEndDate;
+      if (mode === 'period' && options?.mode === 'period') {
+        const { periodStartDate, periodEndDate } = options;
         if (!periodStartDate || !periodEndDate) return;
         const startAt = `${periodStartDate}T${eventForm.startAt.slice(11, 16) || '09:00'}`;
         const endAt = `${periodEndDate}T${eventForm.endAt.slice(11, 16) || '18:00'}`;
         await eventsApi.create({ title, startAt, endAt, description });
-      } else if (mode === 'repeat') {
-        const repeatUntil = options.repeatUntil;
-        if (!repeatUntil) return;
+      } else if (mode === 'repeat' && options?.mode === 'repeat') {
+        const { repeatUntil, repeatType } = options;
+        if (!repeatUntil || !repeatType) return;
 
         const untilDate = new Date(`${repeatUntil}T23:59:59`);
         if (Number.isNaN(untilDate.getTime()) || parsedStart.getTime() > untilDate.getTime()) return;
 
         const maxOccurrences = 180;
         const occurrences: { startAt: string; endAt: string }[] = [];
-        let cursor = new Date(parsedStart);
+        const cursor = new Date(parsedStart);
         while (cursor.getTime() <= untilDate.getTime() && occurrences.length < maxOccurrences) {
           const occStart = new Date(cursor);
           const occEnd = new Date(occStart.getTime() + durationMs);
@@ -117,9 +116,9 @@ export function useMainContentActions({
             startAt: toLocalInputDateTime(occStart),
             endAt: toLocalInputDateTime(occEnd),
           });
-          if (options.repeatType === 'daily') cursor.setDate(cursor.getDate() + 1);
-          if (options.repeatType === 'weekly') cursor.setDate(cursor.getDate() + 7);
-          if (options.repeatType === 'monthly') cursor.setMonth(cursor.getMonth() + 1);
+          if (repeatType === 'daily') cursor.setDate(cursor.getDate() + 1);
+          if (repeatType === 'weekly') cursor.setDate(cursor.getDate() + 7);
+          if (repeatType === 'monthly') cursor.setMonth(cursor.getMonth() + 1);
         }
 
         for (const occ of occurrences) {

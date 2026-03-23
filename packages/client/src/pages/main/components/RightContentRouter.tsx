@@ -72,6 +72,7 @@ type RightContentRouterProps = {
     todayEvents: Event[];
     weekEvents: { dateKey: string; label: string; count: number }[];
     setActivePanel: (panel: ActivePanel) => void;
+    onEventClick?: (event: Event) => void;
   };
   settingsProps: {
     notificationsSnoozedUntil: number;
@@ -139,6 +140,7 @@ function RightContentRouter({
           todayEvents={dashboardProps.todayEvents}
           weekEvents={dashboardProps.weekEvents}
           setActivePanel={dashboardProps.setActivePanel}
+          onEventClick={dashboardProps.onEventClick}
         />
       )}
 

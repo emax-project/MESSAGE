@@ -21,6 +21,7 @@ type DashboardHomeProps = {
   todayEvents: Event[];
   weekEvents: WeekEventItem[];
   setActivePanel: (panel: ActivePanel) => void;
+  onEventClick?: (event: Event) => void;
 };
 
 function DashboardHome({
@@ -35,6 +36,7 @@ function DashboardHome({
   todayEvents,
   weekEvents,
   setActivePanel,
+  onEventClick,
 }: DashboardHomeProps) {
   const sortedTodayEvents = useMemo(
     () => [...todayEvents].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()),
@@ -167,7 +169,24 @@ function DashboardHome({
               <>
                 <ul className="list-none m-0 p-0 flex flex-col gap-1.5 overflow-auto min-h-0 flex-1">
                   {sortedTodayEvents.slice(0, 5).map((ev) => (
-                    <li key={ev.id} className={s.eventItem}>
+                    <li
+                      key={ev.id}
+                      className={cn(s.eventItem, onEventClick && 'cursor-pointer hover:opacity-90 transition-opacity')}
+                      role={onEventClick ? 'button' : undefined}
+                      tabIndex={onEventClick ? 0 : undefined}
+                      onClick={onEventClick ? () => onEventClick(ev) : undefined}
+                      onKeyDown={
+                        onEventClick
+                          ? (e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                onEventClick(ev);
+                              }
+                            }
+                          : undefined
+                      }
+                      aria-label={onEventClick ? `${ev.title}, ${formatEventTime(ev.startAt, ev.endAt)}. 클릭하면 일정 상세를 엽니다` : undefined}
+                    >
                       <span className="w-1 h-8 rounded-full shrink-0 bg-brand-dark" />
                       <div className="min-w-0 flex-1">
                         <div className={s.eventTitle}>

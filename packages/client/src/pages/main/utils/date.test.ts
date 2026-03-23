@@ -3,6 +3,7 @@ import {
   addMonths,
   dateKeyWithTime,
   daysInMonth,
+  formatEventTime,
   normalizeTimeRange,
   startOfMonth,
   toLocalDateKey,
@@ -66,6 +67,32 @@ describe('main date utils', () => {
     expect(normalizeTimeRange('2026-04-30', '2026-03-18T14:15', '2026-03-18T16:45')).toEqual({
       startAt: '2026-04-30T14:15',
       endAt: '2026-04-30T16:45',
+    });
+  });
+
+  describe('formatEventTime', () => {
+    it('formats AM–PM time range as "오전 9:00 – 오후 2:30"', () => {
+      expect(formatEventTime('2026-03-18T09:00:00', '2026-03-18T14:30:00')).toBe('오전 9:00 – 오후 2:30');
+    });
+
+    it('formats same-period times correctly', () => {
+      expect(formatEventTime('2026-03-18T09:00:00', '2026-03-18T11:30:00')).toBe('오전 9:00 – 오전 11:30');
+    });
+
+    it('formats afternoon times correctly', () => {
+      expect(formatEventTime('2026-03-18T14:00:00', '2026-03-18T18:45:00')).toBe('오후 2:00 – 오후 6:45');
+    });
+
+    it('handles noon (12:00) as 오후', () => {
+      expect(formatEventTime('2026-03-18T12:00:00', '2026-03-18T13:00:00')).toBe('오후 12:00 – 오후 1:00');
+    });
+
+    it('handles midnight (00:00) as 오전', () => {
+      expect(formatEventTime('2026-03-18T00:00:00', '2026-03-18T01:30:00')).toBe('오전 12:00 – 오전 1:30');
+    });
+
+    it('pads minutes with zero', () => {
+      expect(formatEventTime('2026-03-18T09:05:00', '2026-03-18T10:09:00')).toBe('오전 9:05 – 오전 10:09');
     });
   });
 });
