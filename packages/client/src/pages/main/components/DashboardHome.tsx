@@ -1,12 +1,12 @@
 import { memo, useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import type { Event } from '../../../api';
 import { cn } from '../../../utils/cn';
 import { formatEventTime } from '../utils/date';
+import { RoomDonutChart, UnreadDonutChart } from './DonutChart';
+import { WeekBarChart } from './WeekBarChart';
+import type { WeekEventItem } from './WeekBarChart';
 
 type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings';
-
-type WeekEventItem = { dateKey: string; label: string; count: number };
 
 type DashboardHomeProps = {
   isDark: boolean;
@@ -21,121 +21,6 @@ type DashboardHomeProps = {
   weekEvents: WeekEventItem[];
   setActivePanel: (panel: ActivePanel) => void;
 };
-
-const DONUT_COLORS = ['#5B8DEF', '#7CA5FF'];
-
-/** Donut chart using Recharts */
-function DonutChart({
-  isDark,
-  data,
-  size = 80,
-}: {
-  isDark: boolean;
-  data: { name: string; value: number }[];
-  size?: number;
-}) {
-  const total = data.reduce((s, d) => s + d.value, 0);
-  const displayData = data.filter((d) => d.value > 0);
-  const isEmpty = displayData.length === 0;
-
-  if (isEmpty) {
-    return (
-      <div
-        className="shrink-0 rounded-full flex items-center justify-center"
-        style={{
-          width: size,
-          height: size,
-          background: isDark ? '#334155' : '#e2e8f0',
-        }}
-      >
-        <span className="text-[10px] font-bold" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
-          {total}
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="shrink-0 relative" style={{ width: size, height: size }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={displayData}
-            cx="50%"
-            cy="50%"
-            innerRadius={size * 0.4}
-            outerRadius={size * 0.5}
-            paddingAngle={0}
-            dataKey="value"
-            startAngle={90}
-            endAngle={-270}
-          >
-            {displayData.map((_, i) => (
-              <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} stroke="none" />
-            ))}
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <span
-        className="absolute inset-0 flex items-center justify-center select-none text-[10px] font-bold pointer-events-none"
-        style={{ color: isDark ? '#94a3b8' : '#64748b' }}
-      >
-        {total}
-      </span>
-    </div>
-  );
-}
-
-/** Alias for backward compatibility */
-const RoomDonutChart = ({
-  isDark,
-  topicCount,
-  chatCount,
-}: {
-  isDark: boolean;
-  topicCount: number;
-  chatCount: number;
-}) => <DonutChart isDark={isDark} data={[{ name: '아젠다', value: topicCount }, { name: '채팅', value: chatCount }]} />;
-
-const UnreadDonutChart = ({
-  isDark,
-  topicUnread,
-  chatUnread,
-}: {
-  isDark: boolean;
-  topicUnread: number;
-  chatUnread: number;
-}) => <DonutChart isDark={isDark} data={[{ name: '아젠다', value: topicUnread }, { name: '채팅', value: chatUnread }]} />;
-
-/** Bar chart for week events - bars aligned to bottom */
-function WeekBarChart({ isDark, data }: { isDark: boolean; data: WeekEventItem[] }) {
-  const maxCount = Math.max(1, ...data.map((d) => d.count));
-  const barH = 56;
-  return (
-    <div className="flex items-end justify-between gap-1" style={{ minHeight: barH + 24 }}>
-      {data.map((d) => {
-        const h = maxCount > 0 ? (d.count / maxCount) * barH : 0;
-        const barHeight = Math.max(h, d.count > 0 ? 4 : 0);
-        return (
-          <div key={d.dateKey} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            <div className="w-full flex flex-col justify-end items-center" style={{ height: barH }}>
-              <div
-                className={cn('w-6 rounded-t shrink-0 transition-all', d.count > 0 ? 'bg-[#5B8DEF]' : isDark ? 'bg-slate-700' : 'bg-slate-200')}
-                style={{ height: barHeight }}
-              />
-            </div>
-            <span className={cn('text-[10px] font-medium truncate w-full text-center', isDark ? 'text-slate-500' : 'text-slate-500')}>
-              {d.label}
-            </span>
-            {d.count > 0 && (
-              <span className={cn('text-[10px] font-bold', 'text-[#5B8DEF]')}>{d.count}</span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function DashboardHome({
   isDark,
@@ -289,7 +174,7 @@ function DashboardHome({
                       <div className={cn('text-[12px] font-semibold truncate', isDark ? 'text-slate-200' : 'text-slate-800')}>
                         {ev.title}
                       </div>
-                      <div className={cn('text-[10px]', isDark ? 'text-slate-500' : 'text-slate-500')}>
+                      <div className="text-[10px] text-slate-500">
                         {formatEventTime(ev.startAt, ev.endAt)}
                       </div>
                     </div>
