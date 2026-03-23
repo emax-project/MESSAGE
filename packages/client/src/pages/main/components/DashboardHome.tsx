@@ -71,7 +71,13 @@ function DashboardHome({
               onClick={() => setActivePanel('mention')}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && setActivePanel('mention')}
+              aria-label={`읽지 않음 ${totalUnread}건${unreadMentionCount > 0 ? `, 멘션 ${unreadMentionCount}건` : ''}. 클릭하면 읽지 않은 메시지 목록을 엽니다`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setActivePanel('mention');
+                }
+              }}
             >
               <span className={s.statValue(totalUnread > 0)}>
                 {totalUnread}
@@ -97,7 +103,7 @@ function DashboardHome({
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3 min-h-0">
           <div className={cn(s.card, 'flex flex-col')}>
             <h2 className={cn(s.heading, 'm-0 mb-2 shrink-0')}>방 분포</h2>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3" role="img" aria-label={`방 분포: 아젠다 ${topicCount}개, 채팅 ${chatCount}개`}>
               <RoomDonutChart isDark={isDark} topicCount={topicCount} chatCount={chatCount} />
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
@@ -114,7 +120,7 @@ function DashboardHome({
 
           <div className={cn(s.card, 'flex flex-col')}>
             <h2 className={cn(s.heading, 'm-0 mb-2 shrink-0')}>읽지 않음</h2>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3" role="img" aria-label={`읽지 않음: 아젠다 ${topicUnreadCount}건, 채팅 ${chatUnreadCount}건`}>
               <UnreadDonutChart isDark={isDark} topicUnread={topicUnreadCount} chatUnread={chatUnreadCount} />
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
@@ -131,7 +137,12 @@ function DashboardHome({
 
           <div className={cn(s.card, 'sm:col-span-2 xl:col-span-1')}>
             <h2 className={cn(s.heading, 'm-0 mb-2')}>이번 주 일정</h2>
-            <WeekBarChart isDark={isDark} data={weekEvents} />
+            <div
+              role="img"
+              aria-label={`이번 주 일정: ${weekEvents.map((d) => `${d.label} ${d.count}건`).join(', ')}`}
+            >
+              <WeekBarChart isDark={isDark} data={weekEvents} />
+            </div>
           </div>
         </div>
 
@@ -153,21 +164,32 @@ function DashboardHome({
                 오늘 예정된 일정이 없습니다
               </p>
             ) : (
-              <ul className="list-none m-0 p-0 flex flex-col gap-1.5 overflow-auto min-h-0 flex-1">
-                {sortedTodayEvents.slice(0, 5).map((ev) => (
-                  <li key={ev.id} className={s.eventItem}>
-                    <span className="w-1 h-8 rounded-full shrink-0 bg-brand-dark" />
-                    <div className="min-w-0 flex-1">
-                      <div className={s.eventTitle}>
-                        {ev.title}
+              <>
+                <ul className="list-none m-0 p-0 flex flex-col gap-1.5 overflow-auto min-h-0 flex-1">
+                  {sortedTodayEvents.slice(0, 5).map((ev) => (
+                    <li key={ev.id} className={s.eventItem}>
+                      <span className="w-1 h-8 rounded-full shrink-0 bg-brand-dark" />
+                      <div className="min-w-0 flex-1">
+                        <div className={s.eventTitle}>
+                          {ev.title}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          {formatEventTime(ev.startAt, ev.endAt)}
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-500">
-                        {formatEventTime(ev.startAt, ev.endAt)}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                    </li>
+                  ))}
+                </ul>
+                {sortedTodayEvents.length > 5 && (
+                  <button
+                    type="button"
+                    className={cn(s.btnLink, 'mt-1.5 text-left shrink-0')}
+                    onClick={() => setActivePanel('schedule')}
+                  >
+                    외 {sortedTodayEvents.length - 5}건 더보기
+                  </button>
+                )}
+              </>
             )}
           </div>
 
