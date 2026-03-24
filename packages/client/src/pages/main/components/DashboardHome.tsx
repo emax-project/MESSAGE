@@ -61,17 +61,23 @@ function DashboardHome({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 shrink-0">
-            <div className={s.stat}>
-              <span className={s.statValue()}>{topicCount}</span>
+          <div className="grid grid-cols-2 gap-3 shrink-0">
+            <div className={s.statCard}>
               <span className={s.statLabel}>{t.statAgenda}</span>
+              <span className={s.statCardValue()}>{topicCount}</span>
             </div>
-            <div className={s.stat}>
-              <span className={s.statValue()}>{chatCount}</span>
+            <div className={s.statCard}>
               <span className={s.statLabel}>{t.statChat}</span>
+              <span className={s.statCardValue()}>{chatCount}</span>
             </div>
             <div
-              className={cn(s.stat, 'cursor-pointer hover:opacity-90')}
+              className={cn(
+                s.statCard,
+                'cursor-pointer hover:opacity-95 transition-shadow',
+                !isDark && 'hover:shadow-md',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark/35 focus-visible:ring-offset-2',
+                isDark ? 'focus-visible:ring-offset-slate-900' : 'focus-visible:ring-offset-white'
+              )}
               onClick={() => setActivePanel('mention')}
               role="button"
               tabIndex={0}
@@ -83,21 +89,19 @@ function DashboardHome({
                 }
               }}
             >
-              <span className={s.statValue(totalUnread > 0)}>
-                {totalUnread}
-              </span>
-              <span className={s.statLabel}>{t.statUnread}</span>
-              {unreadMentionCount > 0 && (
-                <span className="ml-auto min-w-[16px] h-4 rounded-full bg-brand text-white text-[9px] font-bold flex items-center justify-center">
-                  {unreadMentionCount > 9 ? '9+' : unreadMentionCount}
-                </span>
-              )}
+              <div className="flex items-start justify-between gap-2">
+                <span className={s.statLabel}>{t.statUnread}</span>
+                {unreadMentionCount > 0 && (
+                  <span className="shrink-0 min-w-[16px] h-4 px-1 rounded-full bg-brand text-white text-[9px] font-bold flex items-center justify-center">
+                    {unreadMentionCount > 9 ? '9+' : unreadMentionCount}
+                  </span>
+                )}
+              </div>
+              <span className={s.statCardValue(totalUnread > 0)}>{totalUnread}</span>
             </div>
-            <div className={s.stat}>
-              <span className={s.statValue()}>
-                {sortedTodayEvents.length}
-              </span>
+            <div className={s.statCard}>
               <span className={s.statLabel}>{t.statTodayEvents}</span>
+              <span className={s.statCardValue()}>{sortedTodayEvents.length}</span>
             </div>
           </div>
 
