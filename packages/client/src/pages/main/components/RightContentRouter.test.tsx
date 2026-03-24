@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Event, OrgCompany, OrgUser } from '../../../api';
 import RightContentRouter from './RightContentRouter';
@@ -155,20 +155,24 @@ describe('RightContentRouter', () => {
     expect(screen.getByTestId('dashboard-home')).toBeInTheDocument();
   });
 
-  it('routes schedule panel when active panel is schedule', () => {
+  it('routes schedule panel when active panel is schedule', async () => {
     const props = baseProps();
     props.activePanel = 'schedule';
     props.scheduleProps.eventsByDate = new Map([['2026-03-18', [makeEvent()]]]);
 
     render(<RightContentRouter {...props} />);
-    expect(screen.getByTestId('schedule-panel')).toHaveTextContent('2026-03-18');
+    await waitFor(() => {
+      expect(screen.getByTestId('schedule-panel')).toHaveTextContent('2026-03-18');
+    });
   });
 
-  it('routes settings panel when active panel is settings', () => {
+  it('routes settings panel when active panel is settings', async () => {
     const props = baseProps();
     props.activePanel = 'settings';
 
     render(<RightContentRouter {...props} />);
-    expect(screen.getByTestId('settings-panel')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-panel')).toBeInTheDocument();
+    });
   });
 });

@@ -1,15 +1,28 @@
-import { memo } from 'react';
+import { lazy, memo, Suspense } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Event, OrgCompany, OrgUser } from '../../../api';
+import { getCommonMessages } from '../../../i18n';
 import type { UpdateStatus } from '../hooks/useUpdateManager';
 import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
 import ChatWindow from '../../ChatWindow';
-import MentionPanel, { type MentionItem } from './MentionPanel';
-import BookmarkPanel, { type BookmarkItem } from './BookmarkPanel';
-import FriendsPanel from './FriendsPanel';
-import SchedulePanel from './SchedulePanel';
-import SettingsPanel from './SettingsPanel';
+import type { MentionItem } from './MentionPanel';
+import type { BookmarkItem } from './BookmarkPanel';
 import DashboardHome from './DashboardHome';
+
+const MentionPanel = lazy(() => import('./MentionPanel'));
+const BookmarkPanel = lazy(() => import('./BookmarkPanel'));
+const FriendsPanel = lazy(() => import('./FriendsPanel'));
+const SchedulePanel = lazy(() => import('./SchedulePanel'));
+const SettingsPanel = lazy(() => import('./SettingsPanel'));
+
+function PanelLoadingFallback() {
+  const c = getCommonMessages();
+  return (
+    <div className="flex flex-1 min-h-0 items-center justify-center text-sm text-slate-500" role="status" aria-live="polite">
+      {c.loading}
+    </div>
+  );
+}
 
 type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings';
 type EventFormState = { title: string; startAt: string; endAt: string; description: string };
@@ -145,92 +158,102 @@ function RightContentRouter({
       )}
 
       {activePanel === 'mention' && (
-        <MentionPanel isDark={isDark} mentions={mentions} panelWrapStyle={panelWrapStyle} onSelectMention={onSelectMention} />
+        <Suspense fallback={<PanelLoadingFallback />}>
+          <MentionPanel isDark={isDark} mentions={mentions} panelWrapStyle={panelWrapStyle} onSelectMention={onSelectMention} />
+        </Suspense>
       )}
 
       {activePanel === 'bookmark' && (
-        <BookmarkPanel isDark={isDark} bookmarks={bookmarks} panelWrapStyle={panelWrapStyle} onSelectBookmark={onSelectBookmark} onRemoveBookmark={onRemoveBookmark} />
+        <Suspense fallback={<PanelLoadingFallback />}>
+          <BookmarkPanel isDark={isDark} bookmarks={bookmarks} panelWrapStyle={panelWrapStyle} onSelectBookmark={onSelectBookmark} onRemoveBookmark={onRemoveBookmark} />
+        </Suspense>
       )}
 
       {activePanel === 'friends' && (
-        <FriendsPanel
-          isDark={isDark}
-          isNarrowLayout={isNarrowLayout}
-          panelWrapStyle={panelWrapStyle}
-          searchQuery={friendsProps.searchQuery}
-          showOnlineOnly={friendsProps.showOnlineOnly}
-          orgLoading={friendsProps.orgLoading}
-          orgError={friendsProps.orgError}
-          orgTree={friendsProps.orgTree}
-          treeOpen={friendsProps.treeOpen}
-          onlineUserIds={friendsProps.onlineUserIds}
-          myId={friendsProps.myId}
-          myEmail={friendsProps.myEmail}
-          socketConnected={friendsProps.socketConnected}
-          onSearchQueryChange={friendsProps.onSearchQueryChange}
-          onToggleOnlineOnly={friendsProps.onToggleOnlineOnly}
-          onRetryOrg={friendsProps.onRetryOrg}
-          onToggleTree={friendsProps.onToggleTree}
-          onOpenDirectMessage={friendsProps.onOpenDirectMessage}
-          onUserContextMenu={friendsProps.onUserContextMenu}
-          hasStatusIcon={friendsProps.hasStatusIcon}
-          renderStatusIcon={friendsProps.renderStatusIcon}
-        />
+        <Suspense fallback={<PanelLoadingFallback />}>
+          <FriendsPanel
+            isDark={isDark}
+            isNarrowLayout={isNarrowLayout}
+            panelWrapStyle={panelWrapStyle}
+            searchQuery={friendsProps.searchQuery}
+            showOnlineOnly={friendsProps.showOnlineOnly}
+            orgLoading={friendsProps.orgLoading}
+            orgError={friendsProps.orgError}
+            orgTree={friendsProps.orgTree}
+            treeOpen={friendsProps.treeOpen}
+            onlineUserIds={friendsProps.onlineUserIds}
+            myId={friendsProps.myId}
+            myEmail={friendsProps.myEmail}
+            socketConnected={friendsProps.socketConnected}
+            onSearchQueryChange={friendsProps.onSearchQueryChange}
+            onToggleOnlineOnly={friendsProps.onToggleOnlineOnly}
+            onRetryOrg={friendsProps.onRetryOrg}
+            onToggleTree={friendsProps.onToggleTree}
+            onOpenDirectMessage={friendsProps.onOpenDirectMessage}
+            onUserContextMenu={friendsProps.onUserContextMenu}
+            hasStatusIcon={friendsProps.hasStatusIcon}
+            renderStatusIcon={friendsProps.renderStatusIcon}
+          />
+        </Suspense>
       )}
 
       {activePanel === 'schedule' && (
-        <SchedulePanel
-          isDark={isDark}
-          isNarrowLayout={isNarrowLayout}
-          panelWrapStyle={panelWrapStyle}
-          calendarMonth={scheduleProps.calendarMonth}
-          selectedDate={scheduleProps.selectedDate}
-          eventsByDate={scheduleProps.eventsByDate}
-          eventForm={scheduleProps.eventForm}
-          editingEventId={scheduleProps.editingEventId}
-          setCalendarMonth={scheduleProps.setCalendarMonth}
-          setSelectedDate={scheduleProps.setSelectedDate}
-          setEventForm={scheduleProps.setEventForm}
-          onUpdateEvent={scheduleProps.onUpdateEvent}
-          onCreateEvent={scheduleProps.onCreateEvent}
-          onCancelEdit={scheduleProps.onCancelEdit}
-          onEditEvent={scheduleProps.onEditEvent}
-          onDeleteEvent={scheduleProps.onDeleteEvent}
-        />
+        <Suspense fallback={<PanelLoadingFallback />}>
+          <SchedulePanel
+            isDark={isDark}
+            isNarrowLayout={isNarrowLayout}
+            panelWrapStyle={panelWrapStyle}
+            calendarMonth={scheduleProps.calendarMonth}
+            selectedDate={scheduleProps.selectedDate}
+            eventsByDate={scheduleProps.eventsByDate}
+            eventForm={scheduleProps.eventForm}
+            editingEventId={scheduleProps.editingEventId}
+            setCalendarMonth={scheduleProps.setCalendarMonth}
+            setSelectedDate={scheduleProps.setSelectedDate}
+            setEventForm={scheduleProps.setEventForm}
+            onUpdateEvent={scheduleProps.onUpdateEvent}
+            onCreateEvent={scheduleProps.onCreateEvent}
+            onCancelEdit={scheduleProps.onCancelEdit}
+            onEditEvent={scheduleProps.onEditEvent}
+            onDeleteEvent={scheduleProps.onDeleteEvent}
+          />
+        </Suspense>
       )}
 
       {activePanel === 'settings' && (
-        <SettingsPanel
-          panelWrapStyle={panelWrapStyle}
-          isDark={isDark}
-          isNarrowLayout={isNarrowLayout}
-          user={settingsProps.user}
-          notificationsSnoozedUntil={settingsProps.notificationsSnoozedUntil}
-          snoozeNotifications={settingsProps.snoozeNotifications}
-          clearSnooze={settingsProps.clearSnooze}
-          toggleDark={settingsProps.toggleDark}
-          hasElectron={settingsProps.hasElectron}
-          appVersion={settingsProps.appVersion}
-          updateStatus={settingsProps.updateStatus}
-          updateVersion={settingsProps.updateVersion}
-          updateError={settingsProps.updateError}
-          handleCheckForUpdates={settingsProps.handleCheckForUpdates}
-          handleQuitAndInstall={settingsProps.handleQuitAndInstall}
-          statusInput={settingsProps.statusInput}
-          statusOptions={settingsProps.statusOptions}
-          renderStatusIcon={settingsProps.renderStatusIcon}
-          handleSetStatus={settingsProps.handleSetStatus}
-          notificationStatus={settingsProps.notificationStatus}
-          announcementEdit={settingsProps.announcementEdit}
-          setAnnouncementEdit={settingsProps.setAnnouncementEdit}
-          announcementSaving={settingsProps.announcementSaving}
-          onSaveAnnouncement={settingsProps.onSaveAnnouncement}
-          onSelectAvatarFile={settingsProps.onSelectAvatarFile}
-          onDeleteAvatar={settingsProps.onDeleteAvatar}
-          onTestNotification={settingsProps.onTestNotification}
-          onRequestNotificationPermission={settingsProps.onRequestNotificationPermission}
-          onLogout={settingsProps.onLogout}
-        />
+        <Suspense fallback={<PanelLoadingFallback />}>
+          <SettingsPanel
+            panelWrapStyle={panelWrapStyle}
+            isDark={isDark}
+            isNarrowLayout={isNarrowLayout}
+            user={settingsProps.user}
+            notificationsSnoozedUntil={settingsProps.notificationsSnoozedUntil}
+            snoozeNotifications={settingsProps.snoozeNotifications}
+            clearSnooze={settingsProps.clearSnooze}
+            toggleDark={settingsProps.toggleDark}
+            hasElectron={settingsProps.hasElectron}
+            appVersion={settingsProps.appVersion}
+            updateStatus={settingsProps.updateStatus}
+            updateVersion={settingsProps.updateVersion}
+            updateError={settingsProps.updateError}
+            handleCheckForUpdates={settingsProps.handleCheckForUpdates}
+            handleQuitAndInstall={settingsProps.handleQuitAndInstall}
+            statusInput={settingsProps.statusInput}
+            statusOptions={settingsProps.statusOptions}
+            renderStatusIcon={settingsProps.renderStatusIcon}
+            handleSetStatus={settingsProps.handleSetStatus}
+            notificationStatus={settingsProps.notificationStatus}
+            announcementEdit={settingsProps.announcementEdit}
+            setAnnouncementEdit={settingsProps.setAnnouncementEdit}
+            announcementSaving={settingsProps.announcementSaving}
+            onSaveAnnouncement={settingsProps.onSaveAnnouncement}
+            onSelectAvatarFile={settingsProps.onSelectAvatarFile}
+            onDeleteAvatar={settingsProps.onDeleteAvatar}
+            onTestNotification={settingsProps.onTestNotification}
+            onRequestNotificationPermission={settingsProps.onRequestNotificationPermission}
+            onLogout={settingsProps.onLogout}
+          />
+        </Suspense>
       )}
     </>
   );

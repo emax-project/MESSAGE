@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
 import type { Event } from '../../../api';
+import { getDashboardMessages } from '../../../i18n';
 import { cn } from '../../../utils/cn';
 import { formatEventTime } from '../utils/date';
 import { dashboardStyles } from '../utils/dashboardStyles';
@@ -44,6 +45,7 @@ function DashboardHome({
   );
 
   const s = dashboardStyles(isDark);
+  const t = getDashboardMessages();
 
   return (
     <div className="flex-1 min-h-0 overflow-auto p-4">
@@ -52,28 +54,28 @@ function DashboardHome({
         <div className="flex flex-col gap-3 min-h-0">
           <div className={cn(s.card, 'py-4 shrink-0')}>
             <h1 className={cn(s.headingLg, 'm-0 mb-0.5')}>
-              안녕하세요, {userName || '사용자'}님
+              {t.welcome(userName || t.defaultUserName)}
             </h1>
             <p className={cn(s.body, 'm-0')}>
-              오늘도 좋은 하루 보내세요
+              {t.greetingSub}
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-2 shrink-0">
             <div className={s.stat}>
               <span className={s.statValue()}>{topicCount}</span>
-              <span className={s.statLabel}>아젠다</span>
+              <span className={s.statLabel}>{t.statAgenda}</span>
             </div>
             <div className={s.stat}>
               <span className={s.statValue()}>{chatCount}</span>
-              <span className={s.statLabel}>채팅</span>
+              <span className={s.statLabel}>{t.statChat}</span>
             </div>
             <div
               className={cn(s.stat, 'cursor-pointer hover:opacity-90')}
               onClick={() => setActivePanel('mention')}
               role="button"
               tabIndex={0}
-              aria-label={`읽지 않음 ${totalUnread}건${unreadMentionCount > 0 ? `, 멘션 ${unreadMentionCount}건` : ''}. 클릭하면 읽지 않은 메시지 목록을 엽니다`}
+              aria-label={t.unreadStatAria(totalUnread, unreadMentionCount)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
@@ -84,7 +86,7 @@ function DashboardHome({
               <span className={s.statValue(totalUnread > 0)}>
                 {totalUnread}
               </span>
-              <span className={s.statLabel}>읽지 않음</span>
+              <span className={s.statLabel}>{t.statUnread}</span>
               {unreadMentionCount > 0 && (
                 <span className="ml-auto min-w-[16px] h-4 rounded-full bg-brand text-white text-[9px] font-bold flex items-center justify-center">
                   {unreadMentionCount > 9 ? '9+' : unreadMentionCount}
@@ -95,7 +97,7 @@ function DashboardHome({
               <span className={s.statValue()}>
                 {sortedTodayEvents.length}
               </span>
-              <span className={s.statLabel}>오늘 일정</span>
+              <span className={s.statLabel}>{t.statTodayEvents}</span>
             </div>
           </div>
 
@@ -104,44 +106,44 @@ function DashboardHome({
         {/* Col 2: Charts */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3 min-h-0">
           <div className={cn(s.card, 'flex flex-col')}>
-            <h2 className={cn(s.heading, 'm-0 mb-2 shrink-0')}>방 분포</h2>
-            <div className="flex items-center gap-3" role="img" aria-label={`방 분포: 아젠다 ${topicCount}개, 채팅 ${chatCount}개`}>
+            <h2 className={cn(s.heading, 'm-0 mb-2 shrink-0')}>{t.chartRoomDistribution}</h2>
+            <div className="flex items-center gap-3" role="img" aria-label={t.ariaRoomDistribution(topicCount, chatCount)}>
               <RoomDonutChart isDark={isDark} topicCount={topicCount} chatCount={chatCount} />
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-brand-dark shrink-0" />
-                  <span className={s.subtitle}>아젠다 {topicCount}개</span>
+                  <span className={s.subtitle}>{t.legendAgendaRooms(topicCount)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-brand-light shrink-0" />
-                  <span className={s.subtitle}>채팅 {chatCount}개</span>
+                  <span className={s.subtitle}>{t.legendChatRooms(chatCount)}</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div className={cn(s.card, 'flex flex-col')}>
-            <h2 className={cn(s.heading, 'm-0 mb-2 shrink-0')}>읽지 않음</h2>
-            <div className="flex items-center gap-3" role="img" aria-label={`읽지 않음: 아젠다 ${topicUnreadCount}건, 채팅 ${chatUnreadCount}건`}>
+            <h2 className={cn(s.heading, 'm-0 mb-2 shrink-0')}>{t.chartUnreadTitle}</h2>
+            <div className="flex items-center gap-3" role="img" aria-label={t.ariaUnreadChart(topicUnreadCount, chatUnreadCount)}>
               <UnreadDonutChart isDark={isDark} topicUnread={topicUnreadCount} chatUnread={chatUnreadCount} />
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-brand-dark shrink-0" />
-                  <span className={s.subtitle}>아젠다 {topicUnreadCount}건</span>
+                  <span className={s.subtitle}>{t.legendAgendaUnread(topicUnreadCount)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-brand-light shrink-0" />
-                  <span className={s.subtitle}>채팅 {chatUnreadCount}건</span>
+                  <span className={s.subtitle}>{t.legendChatUnread(chatUnreadCount)}</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div className={cn(s.card, 'sm:col-span-2 xl:col-span-1')}>
-            <h2 className={cn(s.heading, 'm-0 mb-2')}>이번 주 일정</h2>
+            <h2 className={cn(s.heading, 'm-0 mb-2')}>{t.chartWeek}</h2>
             <div
               role="img"
-              aria-label={`이번 주 일정: ${weekEvents.map((d) => `${d.label} ${d.count}건`).join(', ')}`}
+              aria-label={t.ariaWeekBar(weekEvents.map((d) => `${d.label} ${d.count}건`).join(', '))}
             >
               <WeekBarChart isDark={isDark} data={weekEvents} />
             </div>
@@ -152,18 +154,18 @@ function DashboardHome({
         <div className="flex flex-col gap-3 min-h-0 md:col-span-2 xl:col-span-1">
           <div className={cn(s.card, 'flex-1 min-h-0 flex flex-col overflow-hidden')}>
             <div className="flex items-center justify-between mb-2 shrink-0">
-              <h2 className={cn(s.heading, 'm-0')}>오늘의 일정</h2>
+              <h2 className={cn(s.heading, 'm-0')}>{t.todayScheduleTitle}</h2>
               <button
                 type="button"
                 className={s.btnLink}
                 onClick={() => setActivePanel('schedule')}
               >
-                전체 보기
+                {t.viewAll}
               </button>
             </div>
             {sortedTodayEvents.length === 0 ? (
               <p className={cn(s.bodyMuted, 'm-0 py-2')}>
-                오늘 예정된 일정이 없습니다
+                {t.noEventsToday}
               </p>
             ) : (
               <>
@@ -185,7 +187,7 @@ function DashboardHome({
                             }
                           : undefined
                       }
-                      aria-label={onEventClick ? `${ev.title}, ${formatEventTime(ev.startAt, ev.endAt)}. 클릭하면 일정 상세를 엽니다` : undefined}
+                      aria-label={onEventClick ? t.eventRowAria(ev.title, formatEventTime(ev.startAt, ev.endAt)) : undefined}
                     >
                       <span className="w-1 h-8 rounded-full shrink-0 bg-brand-dark" />
                       <div className="min-w-0 flex-1">
@@ -205,7 +207,7 @@ function DashboardHome({
                     className={cn(s.btnLink, 'mt-1.5 text-left shrink-0')}
                     onClick={() => setActivePanel('schedule')}
                   >
-                    외 {sortedTodayEvents.length - 5}건 더보기
+                    {t.moreEvents(sortedTodayEvents.length - 5)}
                   </button>
                 )}
               </>
@@ -214,7 +216,7 @@ function DashboardHome({
 
           <div className={s.ctaCard}>
             <p className={cn(s.body, 'm-0')}>
-              왼쪽 아젠다 또는 채팅에서 대화를 시작하세요
+              {t.ctaStartChat}
             </p>
           </div>
         </div>
