@@ -77,11 +77,10 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
     setSelectedProjectId(project.id);
   }
 
-  const boards = project?.boards || [];
-  const tasks = project?.tasks || [];
-
-  // Build rows: board headers + tasks grouped by board
+  // Build rows: board headers + tasks grouped by board (deps on project to avoid [] identity churn)
   const rows = useMemo(() => {
+    const boards = project?.boards || [];
+    const tasks = project?.tasks || [];
     const result: Array<{ type: 'board'; name: string; count: number } | { type: 'task'; task: TaskItem }> = [];
     for (const board of boards) {
       const boardTasks = tasks.filter((t) => t.boardId === board.id).sort((a, b) => a.position - b.position);
@@ -91,10 +90,11 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
       }
     }
     return result;
-  }, [boards, tasks]);
+  }, [project]);
 
   // Calculate timeline range
   const { minDate, totalDays } = useMemo(() => {
+    const tasks = project?.tasks || [];
     const today = startOfDay(new Date());
     let min = addDays(today, -7);
     let max = addDays(today, 30);
@@ -114,7 +114,7 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
     max = addDays(max, 7);
     const total = diffDays(min, max) + 1;
     return { minDate: min, maxDate: max, totalDays: total };
-  }, [tasks]);
+  }, [project]);
 
   const today = startOfDay(new Date());
   const todayOffset = diffDays(minDate, today);

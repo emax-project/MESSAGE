@@ -58,8 +58,9 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
   const tasks = project?.tasks || [];
 
   const getTasksForBoard = useCallback((boardId: string) => {
-    return tasks.filter((t) => t.boardId === boardId).sort((a, b) => a.position - b.position);
-  }, [tasks]);
+    const list = project?.tasks || [];
+    return list.filter((t) => t.boardId === boardId).sort((a, b) => a.position - b.position);
+  }, [project]);
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;

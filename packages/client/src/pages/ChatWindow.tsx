@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
@@ -164,12 +164,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     [messagesInfinite]
   );
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (messagesScrollRef.current) {
       prevScrollHeightRef.current = messagesScrollRef.current.scrollHeight;
     }
     fetchNextPage();
-  };
+  }, [fetchNextPage]);
 
   const viewModeFromListNow = roomId ? roomsList.find((r) => r.id === roomId)?.viewMode : undefined;
   useEffect(() => {
@@ -197,7 +197,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage]);
+  }, [hasNextPage, isFetchingNextPage, handleLoadMore]);
 
   // 이전 페이지 로드 완료 시 스크롤 위치 보정
   useEffect(() => {
@@ -255,8 +255,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     prevMsgCountRef.current = curCount;
 
     // 이전 메시지 로드(페이지 추가)일 때는 스크롤 금지 - 위 useEffect에서 보정함
-    const pageCount = messagesInfinite?.pages?.length ?? 0;
-    if (pageCount > 1 && curCount > prevCount && curCount - prevCount >= 10) return;
+    const pagesLen = messagesInfinite?.pages?.length ?? 0;
+    if (pagesLen > 1 && curCount > prevCount && curCount - prevCount >= 10) return;
 
     // 초기 로드 시에만 진입 스크롤 (room + messages 준비 후)
     if (curCount > 0 && !initialScrollDoneRef.current) {
@@ -284,7 +284,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       const t = setTimeout(run, 150);
       return () => clearTimeout(t);
     }
-  }, [messages.length, room, firstUnreadMessageId, messages, myId]);
+  }, [messages.length, room, firstUnreadMessageId, messages, myId, messagesInfinite?.pages?.length]);
 
   // Close context menu on outside click
   useEffect(() => {
