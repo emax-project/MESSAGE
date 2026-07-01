@@ -68,6 +68,8 @@ const baseProps = () => ({
     orgError: false,
     orgTree: [] as OrgCompany[],
     treeOpen: {},
+    orgStarred: new Set<string>(),
+    onToggleOrgStar: vi.fn(),
     onlineUserIds: new Set<string>(),
     myId: 'me',
     myEmail: 'me@emax.com',

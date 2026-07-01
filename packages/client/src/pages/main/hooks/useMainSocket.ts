@@ -108,13 +108,17 @@ export function useMainSocket({
           (async () => {
             let icon: string | null = null;
             let imagePreview: string | null = null;
-            const senderId = msg.senderId;
-            if (senderId && token) {
+            const base = getBaseUrl();
+            if (token && base) {
               try {
-                const base = getBaseUrl();
-                if (electronAPI.fetchUserAvatar && base) {
+                if (isTopic && msg.roomId && electronAPI.fetchRoomAvatar) {
                   icon = await Promise.race([
-                    electronAPI.fetchUserAvatar(senderId, base, token),
+                    electronAPI.fetchRoomAvatar(msg.roomId, base, token),
+                    new Promise<null>((r) => setTimeout(() => r(null), 250)),
+                  ]);
+                } else if (msg.senderId && electronAPI.fetchUserAvatar) {
+                  icon = await Promise.race([
+                    electronAPI.fetchUserAvatar(msg.senderId, base, token),
                     new Promise<null>((r) => setTimeout(() => r(null), 250)),
                   ]);
                 }

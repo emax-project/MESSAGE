@@ -14,8 +14,9 @@ import PinnedMessages from '../components/PinnedMessages';
 import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
 import ContextAttachModal, { type MessageContext } from '../components/ContextAttachModal';
+import BoardEditor from '../components/BoardEditor';
 import UICloseButton from '../components/ui/UICloseButton';
-import { canEditOrDelete } from './chat-window/utils';
+import { canEditOrDelete, HIDE_CONTEXT_ATTACH } from './chat-window/utils';
 import { useChatSocket } from './chat-window/hooks/useChatSocket';
 import { useActiveChatPresence } from './chat-window/hooks/useActiveChatPresence';
 import { cn } from '../utils/cn';
@@ -71,6 +72,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const [messageContext, setMessageContext] = useState<MessageContext | null>(null);
   useEffect(() => {
     setRightPanel('none');
+    setInput('');
+    setReplyTo(null);
+    setEditingMsg(null);
   }, [roomId]);
   const [boardCommentInputs, setBoardCommentInputs] = useState<Record<string, string>>({});
   const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
@@ -85,6 +89,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const prevPageCountRef = useRef(0);
   const prevMsgCountRef = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const boardEditorRef = useRef<{ focus: () => void } | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const checkAtBottom = () => {
     const el = messagesScrollRef.current;
@@ -215,9 +220,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   // 채팅창이 열리면 입력 칸에 포커스
   useEffect(() => {
     if (!roomId || !room) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 150);
+    const t = setTimeout(() => {
+      if (room?.viewMode === 'board') boardEditorRef.current?.focus();
+      else inputRef.current?.focus();
+    }, 150);
     return () => clearTimeout(t);
-  }, [roomId, room]);
+  }, [roomId, room?.id, room?.viewMode]);
 
   useEffect(() => {
     if (roomId) {
@@ -295,7 +303,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   }, [contextMenu]);
 
   const sendMessage = async () => {
-    const text = input.trim();
+    const text = isBoardView
+      ? (input === '<p></p>' ? '' : input.trim())
+      : input.trim();
 
     if (editingMsg) {
       if (!text || !roomId) return;
@@ -703,7 +713,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           </div>
         )}
 
-        {contextOpen && (
+        {!HIDE_CONTEXT_ATTACH && contextOpen && (
           <ContextAttachModal
             initialContext={messageContext}
             onClose={() => setContextOpen(false)}
@@ -814,7 +824,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         {/* Context menu */}
         {contextMenu && (
           <div className={cn('fixed z-[10000] min-w-[120px] p-1 rounded-lg shadow-lg border whitespace-nowrap', isDark ? 'bg-slate-700 border-slate-600' : 'bg-white border-slate-200')} style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(e) => e.stopPropagation()}>
-            <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { setReplyTo(contextMenu.message); setContextMenu(null); inputRef.current?.focus(); }}>
+            <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { setReplyTo(contextMenu.message); setContextMenu(null); if (isBoardView) boardEditorRef.current?.focus(); else inputRef.current?.focus(); }}>
               답장
             </button>
             <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { setForwardOpen(contextMenu.message.id); setContextMenu(null); }}>
@@ -838,7 +848,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                   setEditingMsg(contextMenu.message);
                   setInput(contextMenu.message.content);
                   setContextMenu(null);
-                  inputRef.current?.focus();
+                  if (isBoardView) boardEditorRef.current?.focus();
+                  else inputRef.current?.focus();
                 }}>
                   수정
                 </button>
@@ -996,7 +1007,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           </div>
         )}
 
-        {messageContext && (messageContext.filePath || messageContext.branch) && (
+        {!HIDE_CONTEXT_ATTACH && messageContext && (messageContext.filePath || messageContext.branch) && (
           <div style={{ padding: '6px 16px 4px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span
               style={{
@@ -1035,17 +1046,21 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               </button>
               {actionsOpen && (
                 <div className={cn('absolute bottom-12 left-0 py-1.5 px-1.5 flex flex-col gap-0.5 min-w-[150px] z-50 rounded-xl border shadow-lg', isDark ? 'bg-slate-700 border-slate-600' : 'bg-white border-slate-200')}>
-                  <button
-                    type="button"
-                    className={cn('border-none bg-transparent rounded-lg py-2.5 px-3 text-left cursor-pointer text-[13px] transition-colors', isDark ? 'text-slate-200' : 'text-slate-700')}
-                    onClick={() => {
-                      setActionsOpen(false);
-                      setContextOpen(true);
-                    }}
-                  >
-                    코드 위치 첨부
-                  </button>
-                  <div className={cn('h-px my-0.5', isDark ? 'bg-slate-600' : 'bg-slate-200')} />
+                  {!HIDE_CONTEXT_ATTACH && (
+                    <>
+                      <button
+                        type="button"
+                        className={cn('border-none bg-transparent rounded-lg py-2.5 px-3 text-left cursor-pointer text-[13px] transition-colors', isDark ? 'text-slate-200' : 'text-slate-700')}
+                        onClick={() => {
+                          setActionsOpen(false);
+                          setContextOpen(true);
+                        }}
+                      >
+                        코드 위치 첨부
+                      </button>
+                      <div className={cn('h-px my-0.5', isDark ? 'bg-slate-600' : 'bg-slate-200')} />
+                    </>
+                  )}
                   <button
                     type="button"
                     className={cn('border-none bg-transparent rounded-lg py-2.5 px-3 text-left cursor-pointer text-[13px] transition-colors', isDark ? 'text-slate-200' : 'text-slate-700')}
@@ -1078,19 +1093,31 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             />
           </div>
           <div className="flex-1 flex flex-col min-w-0">
-            <textarea
-              ref={inputRef}
-              placeholder="메시지를 입력하세요"
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              rows={1}
-              className={cn(
-                'w-full py-2.5 px-4 border rounded-full text-sm leading-snug min-h-[42px] max-h-[120px] resize-none outline-none transition-colors font-inherit',
-                isDark ? 'border-slate-600 bg-slate-950 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-800',
-              )}
-            />
+            {isBoardView ? (
+              <BoardEditor
+                ref={boardEditorRef}
+                value={input}
+                onChange={setInput}
+                placeholder="글 작성 (Shift+Enter로 줄바꿈)"
+                isDark={isDark}
+                disabled={!socket}
+                onKeyDown={handleKeyDown}
+              />
+            ) : (
+              <textarea
+                ref={inputRef}
+                placeholder="메시지를 입력하세요"
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                rows={1}
+                className={cn(
+                  'w-full py-2.5 px-4 border rounded-full text-sm leading-snug min-h-[42px] max-h-[120px] resize-none outline-none transition-colors font-inherit',
+                  isDark ? 'border-slate-600 bg-slate-950 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-800',
+                )}
+              />
+            )}
           </div>
           <div className="flex items-center justify-end shrink-0">
             <button

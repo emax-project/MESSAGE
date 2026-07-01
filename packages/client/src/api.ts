@@ -167,9 +167,9 @@ export const api = {
   },
 };
 
-export type User = { id: string; email: string; name: string; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; avatarUrl?: string };
+export type User = { id: string; email: string; name: string; phone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; avatarUrl?: string };
 
-export type OrgUser = { id: string; name: string; email: string; avatarUrl?: string; statusMessage?: string | null };
+export type OrgUser = { id: string; name: string; email: string; phone?: string | null; jobTitle?: string | null; avatarUrl?: string; statusMessage?: string | null };
 export type OrgDepartment = { id: string; name: string; users: OrgUser[] };
 export type OrgCompany = { id: string; name: string; departments: OrgDepartment[] };
 
@@ -332,6 +332,8 @@ export const authApi = {
 
 export const usersApi = {
   list: () => api.get('/users') as Promise<User[]>,
+  updateProfile: (data: { phone?: string | null; jobTitle?: string | null; statusMessage?: string | null }) =>
+    api.put('/users/me', data) as Promise<{ ok: boolean }>,
   updateStatus: (statusMessage: string) =>
     api.put('/users/status', { statusMessage }) as Promise<{ ok: boolean }>,
   uploadAvatar: (file: File) => {

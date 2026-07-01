@@ -137,6 +137,9 @@ export default function Main() {
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   });
   const [treeOpen, setTreeOpen] = useState<Record<string, boolean>>({});
+  const [orgStarred, setOrgStarred] = useState<Set<string>>(() => {
+    try { const raw = localStorage.getItem('emax_org_favorites'); if (!raw) return new Set(); const arr = JSON.parse(raw); return new Set(Array.isArray(arr) ? arr.map(String) : []); } catch { return new Set(); }
+  });
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
@@ -239,7 +242,7 @@ export default function Main() {
   const orgTree = useMemo(() => {
     const tree = orgTreeRaw ?? [];
     if (activePanel !== 'friends') return tree;
-    return tree.map((company) => ({
+    const filtered = tree.map((company) => ({
       ...company,
       departments: (company.departments ?? []).map((dept) => ({
         ...dept,
@@ -250,7 +253,10 @@ export default function Main() {
         }),
       })).filter((dept) => (dept.users?.length ?? 0) > 0),
     })).filter((company) => (company.departments?.length ?? 0) > 0);
-  }, [orgTreeRaw, activePanel, q, showOnlineOnly, onlineUserIds]);
+    return filtered
+      .map((c) => ({ ...c, departments: [...c.departments].sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0)) }))
+      .sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0));
+  }, [orgTreeRaw, activePanel, q, showOnlineOnly, onlineUserIds, orgStarred]);
 
   const { data: onlineData } = useQuery({ queryKey: ['org', 'online'], queryFn: orgApi.online, enabled: !!token });
   const { data: announcementData } = useQuery({ queryKey: ['announcement'], queryFn: announcementApi.get, enabled: !!token });
@@ -340,6 +346,7 @@ export default function Main() {
       import('../utils/badgeOverlay').then(({ generateBadgeOverlayIcon }) => {
         const dataUrl = hasUnread ? generateBadgeOverlayIcon('N') : null;
         api.setOverlayIcon!(dataUrl).catch(() => {});
+        api.setTrayBadge?.(dataUrl).catch(() => {});
       });
     } else if (api.setBadgeCount) {
       api.setBadgeCount(hasUnread ? 1 : 0).catch(() => {});
@@ -359,6 +366,14 @@ export default function Main() {
   // --- Handlers ---
   const toggleSection = useCallback((key: 'topic' | 'chat') => setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] })), []);
   const toggleTree = (key: string) => setTreeOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleOrgStar = (id: string) => {
+    setOrgStarred((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem('emax_org_favorites', JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  };
   const handleToggleFavorite = async (room: Room) => { try { await roomsApi.toggleFavorite(room.id, !room.isFavorite); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
   const handleToggleMuteRoom = (roomId: string) => { toggleMuteRoom(roomId); setRoomContextMenu(null); };
   const handleLeaveRoom = async (roomId: string) => { if (!confirm('채팅방을 나가시겠습니까?')) { setRoomContextMenu(null); return; } try { await roomsApi.leave(roomId); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
@@ -585,6 +600,8 @@ export default function Main() {
                 orgError,
                 orgTree,
                 treeOpen,
+                orgStarred,
+                onToggleOrgStar: toggleOrgStar,
                 onlineUserIds,
                 myId,
                 myEmail,

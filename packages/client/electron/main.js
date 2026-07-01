@@ -556,6 +556,24 @@ ipcMain.handle('set-badge-count', (_, count) => {
   }
 });
 
+// 윈도우 트레이 아이콘 배지 (새 메시지 있으면 빨간 N 표시)
+ipcMain.handle('set-tray-badge', (_, dataUrl) => {
+  if (process.platform !== 'win32' || !tray) return;
+  try {
+    const size = 16;
+    if (dataUrl && typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
+      const img = nativeImage.createFromDataURL(dataUrl);
+      if (!img.isEmpty()) tray.setImage(img.resize({ width: size, height: size }));
+    } else {
+      const img = nativeImage.createFromPath(iconPath);
+      const trayIcon = img.isEmpty() ? null : img.resize({ width: size, height: size });
+      tray.setImage(trayIcon && !trayIcon.isEmpty() ? trayIcon : iconPath);
+    }
+  } catch (e) {
+    if (process.env.NODE_ENV !== 'production') console.warn('[set-tray-badge]', e?.message);
+  }
+});
+
 // 윈도우 태스크바 오버레이 아이콘 (N 배지 등)
 ipcMain.handle('set-overlay-icon', (_, dataUrl) => {
   if (process.platform !== 'win32') return;

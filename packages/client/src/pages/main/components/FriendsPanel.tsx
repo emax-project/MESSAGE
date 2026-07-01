@@ -5,6 +5,14 @@ import UIChevron from '../../../components/ui/UIChevron';
 import UserAvatar from '../../../components/UserAvatar';
 import { cn } from '../../../utils/cn';
 
+function StarIcon({ filled, size = 16, color }: { filled: boolean; size?: number; color: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0 }} fill={filled ? color : 'none'} stroke={color} strokeWidth={filled ? 0 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
 type FriendsPanelProps = {
   isDark: boolean;
   isNarrowLayout: boolean;
@@ -15,6 +23,8 @@ type FriendsPanelProps = {
   orgError: boolean;
   orgTree: OrgCompany[];
   treeOpen: Record<string, boolean>;
+  orgStarred: Set<string>;
+  onToggleOrgStar: (id: string) => void;
   onlineUserIds: Set<string>;
   myId?: string;
   myEmail?: string;
@@ -39,6 +49,8 @@ function FriendsPanel({
   orgError,
   orgTree,
   treeOpen,
+  orgStarred,
+  onToggleOrgStar,
   onlineUserIds,
   myId,
   myEmail,
@@ -91,22 +103,28 @@ function FriendsPanel({
               const companyOpen = treeOpen[companyKey] !== false;
               return (
                 <div key={company.id} style={{ marginBottom: 6 }}>
-                  <button type="button" className="flex items-center gap-1.5 px-2 py-[5px] rounded-md bg-transparent text-[13px]" onClick={() => onToggleTree(companyKey)}>
+                  <button type="button" className="flex items-center gap-1.5 px-2 py-[5px] rounded-md bg-transparent text-[13px] w-full" onClick={() => onToggleTree(companyKey)}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <UIChevron open={companyOpen} size={9} color={isDark ? '#64748b' : '#9ca3af'} />
+                      <UIChevron open={companyOpen} size={9} color={companyOpen ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
                     </span>
-                    <span style={{ fontWeight: 600, fontSize: 13, color: isDark ? '#f1f5f9' : '#111827' }}>{company.name}</span>
+                    <span style={{ fontWeight: 600, fontSize: 13, color: companyOpen ? '#007aff' : (isDark ? '#f1f5f9' : '#111827'), flex: 1, textAlign: 'left' }}>{company.name}</span>
+                    <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggleOrgStar(company.id); }} onMouseDown={(e) => e.stopPropagation()} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                      <StarIcon filled={orgStarred.has(company.id)} size={16} color={orgStarred.has(company.id) ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
+                    </span>
                   </button>
                   {companyOpen && company.departments.map((dept) => {
                     const deptKey = `dept-${dept.id}`;
                     const deptOpen = treeOpen[deptKey] !== false;
                     return (
                       <div key={dept.id} style={{ marginLeft: 14, marginTop: 2 }}>
-                        <button type="button" className="flex items-center gap-1.5 px-2 py-[5px] rounded-md bg-transparent text-[13px]" onClick={() => onToggleTree(deptKey)}>
+                        <button type="button" className="flex items-center gap-1.5 px-2 py-[5px] rounded-md bg-transparent text-[13px] w-full" onClick={() => onToggleTree(deptKey)}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <UIChevron open={deptOpen} size={9} color={isDark ? '#64748b' : '#9ca3af'} />
+                            <UIChevron open={deptOpen} size={9} color={deptOpen ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
                           </span>
-                          <span style={{ fontWeight: 500, fontSize: 13, color: isDark ? '#94a3b8' : '#6b7280' }}>{dept.name}</span>
+                          <span style={{ fontWeight: 500, fontSize: 13, color: deptOpen ? '#007aff' : (isDark ? '#94a3b8' : '#6b7280'), flex: 1, textAlign: 'left' }}>{dept.name}</span>
+                          <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggleOrgStar(dept.id); }} onMouseDown={(e) => e.stopPropagation()} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <StarIcon filled={orgStarred.has(dept.id)} size={14} color={orgStarred.has(dept.id) ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
+                          </span>
                         </button>
                         {deptOpen && (
                           <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: 2 }}>

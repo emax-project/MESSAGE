@@ -1,8 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import DOMPurify from 'dompurify';
 import { roomsApi, type Message, type PinnedMessageItem, type User } from '../../api';
 
 const EDIT_LIMIT_MS = 5 * 60 * 1000;
+
+// 코드 위치 첨부 기능 숨김
+export const HIDE_CONTEXT_ATTACH = true;
 
 export function isSystemMessage(content: string): boolean {
   return /님이\s.+님을\s초대했습니다$/.test(content) || content === '[파일 만료됨]' || /님이 채팅방을 나갔습니다$/.test(content);
@@ -146,6 +150,33 @@ function renderLink(key: number, href: string, label: string, linkColor: string)
       {label}
     </a>
   );
+}
+
+/** HTML(리치 텍스트)인지 판별 - TipTap 출력 등 */
+export function looksLikeHtml(content: string): boolean {
+  if (!content || content.length < 3) return false;
+  return /<[a-z][\s\S]*>/i.test(content);
+}
+
+export function renderMessageContent(content: string, isDark: boolean): ReactNode {
+  if (looksLikeHtml(content)) {
+    const sanitized = DOMPurify.sanitize(content, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'a', 'blockquote'],
+    });
+    return (
+      <div
+        className="board-content-html"
+        dangerouslySetInnerHTML={{ __html: sanitized }}
+        style={{
+          fontSize: 14,
+          lineHeight: 1.5,
+          wordBreak: 'break-word',
+        }}
+        data-dark={isDark}
+      />
+    );
+  }
+  return renderContentWithMentions(content, isDark);
 }
 
 export function renderContentWithMentions(content: string, isDark: boolean): ReactNode {

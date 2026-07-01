@@ -20,6 +20,7 @@ interface Window {
     showNotification: (title: string, body: string, roomId?: string, icon?: string | null, imagePreview?: string | null) => Promise<void>;
     setBadgeCount: (count: number) => Promise<void>;
     setOverlayIcon: (dataUrl: string | null) => Promise<void>;
+    setTrayBadge?: (dataUrl: string | null) => Promise<void>;
     openExternal: (url: string) => Promise<void>;
     windowClose: () => Promise<void>;
     windowMinimize: () => Promise<void>;
@@ -32,5 +33,6 @@ interface Window {
     quitAndInstall: () => Promise<void>;
     onUpdateDownloaded: (handler: () => void) => () => void;
     fetchUserAvatar: (userId: string, baseUrl: string, token: string) => Promise<string | null>;
+    fetchRoomAvatar?: (roomId: string, baseUrl: string, token: string) => Promise<string | null>;
   };
 }

@@ -6,7 +6,7 @@ import PollCard from '../../../components/PollCard';
 import FileMessage from '../../../components/FileMessage';
 import LinkPreview, { extractFirstUrl } from '../../../components/LinkPreview';
 import { cn } from '../../../utils/cn';
-import { formatDateLabel, getDateKey, isSystemMessage, renderContentWithMentions } from '../utils';
+import { formatDateLabel, getDateKey, isSystemMessage, renderMessageContent, HIDE_CONTEXT_ATTACH } from '../utils';
 
 type BoardMessageListProps = {
   rootPosts: Message[];
@@ -124,7 +124,7 @@ export default function BoardMessageList({
                 </svg>
               </button>
             </div>
-            {(m.contextFilePath || m.contextBranch) && (
+            {!HIDE_CONTEXT_ATTACH && (m.contextFilePath || m.contextBranch) && (
               <div
                 role="button"
                 tabIndex={0}
@@ -151,7 +151,7 @@ export default function BoardMessageList({
                 <FileMessage message={m} />
               ) : (
                 <>
-                  {renderContentWithMentions(m.content, isDark)}
+                  {renderMessageContent(m.content, isDark)}
                   {extractFirstUrl(m.content) && <LinkPreview url={extractFirstUrl(m.content)!} isDark={isDark} />}
                 </>
               )}
@@ -229,7 +229,7 @@ export default function BoardMessageList({
                         <div className="mt-1"><FileMessage message={reply} /></div>
                       ) : (
                         <div className={cn('text-[13px] leading-relaxed mt-0.5 whitespace-pre-wrap break-words', isDark ? 'text-slate-300' : 'text-slate-700')}>
-                          {renderContentWithMentions(reply.content, isDark)}
+                          {renderMessageContent(reply.content, isDark)}
                         </div>
                       )}
                       {reply.reactions && reply.reactions.length > 0 && (

@@ -6,7 +6,7 @@ import FileMessage from '../../../components/FileMessage';
 import LinkPreview, { extractFirstUrl } from '../../../components/LinkPreview';
 import EmojiPicker from '../../../components/EmojiPicker';
 import { cn } from '../../../utils/cn';
-import { formatDateLabel, getDateKey, isSystemMessage, renderContentWithMentions } from '../utils';
+import { formatDateLabel, getDateKey, isSystemMessage, renderMessageContent, HIDE_CONTEXT_ATTACH } from '../utils';
 
 type ChatBubbleListProps = {
   displayMessages: Message[];
@@ -216,7 +216,7 @@ export default function ChatBubbleList({
               </div>
             )}
 
-            {(m.contextFilePath || m.contextBranch) && (
+            {!HIDE_CONTEXT_ATTACH && (m.contextFilePath || m.contextBranch) && (
               <div
                 role="button"
                 tabIndex={0}
@@ -329,7 +329,7 @@ export default function ChatBubbleList({
                   ) : (
                     <>
                       <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">
-                      {renderContentWithMentions(m.content, isDark)}
+                      {renderMessageContent(m.content, isDark)}
                     </span>
                       {extractFirstUrl(m.content) && (
                         <LinkPreview url={extractFirstUrl(m.content)!} isDark={isDark} />

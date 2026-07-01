@@ -46,6 +46,8 @@ type RightContentRouterProps = {
     orgError: boolean;
     orgTree: OrgCompany[];
     treeOpen: Record<string, boolean>;
+    orgStarred: Set<string>;
+    onToggleOrgStar: (id: string) => void;
     onlineUserIds: Set<string>;
     myId?: string;
     myEmail?: string;
@@ -181,6 +183,8 @@ function RightContentRouter({
             orgError={friendsProps.orgError}
             orgTree={friendsProps.orgTree}
             treeOpen={friendsProps.treeOpen}
+            orgStarred={friendsProps.orgStarred}
+            onToggleOrgStar={friendsProps.onToggleOrgStar}
             onlineUserIds={friendsProps.onlineUserIds}
             myId={friendsProps.myId}
             myEmail={friendsProps.myEmail}

@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showNotification: (title, body, roomId, icon, imagePreview) => ipcRenderer.invoke('show-notification', { title, body, roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null }),
   setBadgeCount: (count) => ipcRenderer.invoke('set-badge-count', count),
   setOverlayIcon: (dataUrl) => ipcRenderer.invoke('set-overlay-icon', dataUrl),
+  setTrayBadge: (dataUrl) => ipcRenderer.invoke('set-tray-badge', dataUrl),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   windowClose: () => ipcRenderer.invoke('window-close'),
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),

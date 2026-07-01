@@ -1,9 +1,60 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import UserAvatar from '../../../components/UserAvatar';
 import { cn } from '../../../utils/cn';
+import { useAuthStore } from '../../../store';
+import { usersApi, authApi } from '../../../api';
 
 type StatusOption = { id: string; label: string };
+
+function ProfileEditSection({ isDark }: { isDark: boolean }) {
+  const authUser = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
+  const [phone, setPhone] = useState(authUser?.phone ?? '');
+  const [jobTitle, setJobTitle] = useState(authUser?.jobTitle ?? '');
+  const [saving, setSaving] = useState(false);
+
+  const inputStyle = { width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#333', fontSize: 14, boxSizing: 'border-box' as const };
+  const labelStyle = { display: 'block', fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 4 };
+
+  return (
+    <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>프로필</h4>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+        <div>
+          <label style={labelStyle}>연락처</label>
+          <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-1234-5678" maxLength={50} style={inputStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>직급</label>
+          <input type="text" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="대리, 과장, 팀장 등" maxLength={30} style={inputStyle} />
+        </div>
+        <button
+          type="button"
+          className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer disabled:opacity-60"
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await usersApi.updateProfile({ phone: phone.trim() || null, jobTitle: jobTitle.trim() || null });
+              const { user: u } = await authApi.me();
+              if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
+              queryClient.invalidateQueries({ queryKey: ['org'] });
+            } catch (err) {
+              console.error(err);
+              alert('프로필 저장에 실패했습니다.');
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          {saving ? '저장 중...' : '저장'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 type SettingsPanelProps = {
   panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
@@ -93,6 +144,8 @@ function SettingsPanel({
             )}
           </div>
         </div>
+
+        <ProfileEditSection isDark={isDark} />
 
         {notificationsSnoozedUntil > Date.now() && <div style={{ padding: '6px 10px', borderRadius: 999, background: isDark ? '#171717' : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' }}>알림 일시 중지 중</div>}
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
