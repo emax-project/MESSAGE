@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, authApi, type Room, type OrgCompany, type OrgUser, type Event } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, authApi, type Room, type OrgCompany, type OrgUser, type Event, type Folder } from '../api';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar from '../components/TitleBar';
 import {
@@ -16,6 +16,7 @@ import { useNotificationPrefs } from './main/hooks/useNotificationPrefs';
 import { useMainSocket } from './main/hooks/useMainSocket';
 import { useMainContentActions } from './main/hooks/useMainContentActions';
 import LeftSidebar from './main/components/LeftSidebar';
+import RoomListItem from './main/components/RoomListItem';
 import TopMenuBar from './main/components/TopMenuBar';
 import { type MentionItem } from './main/components/MentionPanel';
 import { type BookmarkItem } from './main/components/BookmarkPanel';
@@ -93,7 +94,7 @@ function openChatWindow(roomId: string) {
   }
 }
 
-const MAIN_WINDOW_WIDTH = 1250;
+const MAIN_WINDOW_WIDTH = 625;
 const MAIN_WINDOW_HEIGHT = 900;
 
 export default function Main() {
@@ -117,12 +118,15 @@ export default function Main() {
   const toggleDark = useThemeStore((s) => s.toggleDark);
 
   // --- Layout state ---
-  const [activePanel, setActivePanel] = useState<'none' | 'mention' | 'bookmark' | 'schedule' | 'settings'>('none');
+  const [activePanel, setActivePanel] = useState<'none' | 'mention' | 'bookmark' | 'rooms' | 'schedule' | 'settings'>('none');
   const [searchQuery, setSearchQuery] = useState('');
+  const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+  const [sectionOpen, setSectionOpen] = useState<{ topic: boolean; chat: boolean }>({ topic: true, chat: true });
+  const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
-  const [createGroupFor] = useState<'topic' | 'chat'>('topic');
+  const [createGroupFor, setCreateGroupFor] = useState<'topic' | 'chat'>('topic');
   const recentTopicRoomRef = useRef<{ id: string; at: number } | null>(null);
   const [announcementEdit, setAnnouncementEdit] = useState('');
   const [announcementSaving, setAnnouncementSaving] = useState(false);
@@ -190,7 +194,8 @@ export default function Main() {
   }, []);
 
   // --- Queries ---
-  const { data: allRooms = [] } = useQuery<Room[]>({ queryKey: ['rooms', myId], queryFn: roomsApi.list, enabled: !!myId });
+  const { data: allRooms = [], isError: roomsError } = useQuery<Room[]>({ queryKey: ['rooms', myId], queryFn: roomsApi.list, enabled: !!myId });
+  const { data: folders = [] } = useQuery<Folder[]>({ queryKey: ['folders'], queryFn: foldersApi.list, enabled: !!myId });
   useMainSocket({
     token,
     queryClient,
@@ -208,10 +213,29 @@ export default function Main() {
   });
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const q = useMemo(() => deferredSearchQuery.trim().toLowerCase(), [deferredSearchQuery]);
-  const { topicRooms, chatRooms } = useMemo(() => ({
-    topicRooms: allRooms.filter((r) => r.isGroup && r.isTopic),
-    chatRooms: allRooms.filter((r) => !r.isGroup || !r.isTopic),
-  }), [allRooms]);
+  const deferredRoomSearchQuery = useDeferredValue(roomSearchQuery);
+  const roomQ = useMemo(() => deferredRoomSearchQuery.trim().toLowerCase(), [deferredRoomSearchQuery]);
+  const { topicRooms, chatRooms } = useMemo(() => {
+    const filtered = roomQ ? allRooms.filter((r) => r.name?.toLowerCase().includes(roomQ)) : allRooms;
+    return {
+      topicRooms: filtered.filter((r) => r.isGroup && r.isTopic),
+      chatRooms: filtered.filter((r) => !r.isGroup || !r.isTopic),
+    };
+  }, [allRooms, roomQ]);
+
+  const toggleFolder = useCallback((folderId: string) => setFolderOpen((prev) => ({ ...prev, [folderId]: !prev[folderId] })), []);
+  const folderIds = useMemo(() => new Set(folders.map((f) => f.id)), [folders]);
+  const roomsByFolder = useMemo(() => {
+    const byFolder = new Map<string | null, Room[]>();
+    byFolder.set(null, []);
+    for (const f of folders) byFolder.set(f.id, []);
+    for (const r of topicRooms) {
+      const key = r.folderId && folderIds.has(r.folderId) ? r.folderId : null;
+      const list = byFolder.get(key)!;
+      list.push(r);
+    }
+    return byFolder;
+  }, [topicRooms, folders, folderIds]);
 
   const topicUnreadCount = useMemo(() => topicRooms.reduce((sum, r) => sum + (r.unreadCount ?? 0), 0), [topicRooms]);
   const chatUnreadCount = useMemo(() => chatRooms.reduce((sum, r) => sum + (r.unreadCount ?? 0), 0), [chatRooms]);
@@ -242,6 +266,7 @@ export default function Main() {
   const { data: bookmarks = [] } = useQuery({ queryKey: ['bookmarks'], queryFn: bookmarksApi.list, enabled: !!token && activePanel === 'bookmark' });
   const { data: mentions = [] } = useQuery({ queryKey: ['mentions'], queryFn: mentionsApi.list, enabled: !!token && activePanel === 'mention' });
   const { data: unreadMentionCount } = useQuery({ queryKey: ['mentions', 'unread-count'], queryFn: mentionsApi.unreadCount, enabled: !!token, refetchInterval: 30000 });
+  const { data: publicRooms = [] } = useQuery({ queryKey: ['rooms', 'public'], queryFn: roomsApi.listPublic, enabled: !!token && activePanel === 'rooms' && sectionOpen.topic });
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, Event[]>();
@@ -341,6 +366,7 @@ export default function Main() {
   }, [navigate]);
 
   // --- Handlers ---
+  const toggleSection = useCallback((key: 'topic' | 'chat') => setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] })), []);
   const toggleTree = (key: string) => setTreeOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   const toggleOrgStar = (id: string) => {
     setOrgStarred((prev) => {
@@ -388,6 +414,25 @@ export default function Main() {
   }, [logout, queryClient]);
   const statusLabel = useMemo(() => STATUS_OPTIONS.find((o) => o.id === statusInput)?.label || statusInput, [statusInput]);
   const showStatusBadge = useMemo(() => !!statusInput && STATUS_OPTIONS.some((o) => o.id === statusInput), [statusInput]);
+  const handleOpenRoom = useCallback((room: Room) => {
+    setActivePanel('none');
+    navigate(`/room/${room.id}`, room.viewMode ? { state: { viewMode: room.viewMode } } : undefined);
+  }, [navigate]);
+  const handleRoomContextMenu = useCallback((e: React.MouseEvent<HTMLLIElement>, room: Room) => {
+    e.preventDefault();
+    setRoomContextMenu({ x: e.clientX, y: e.clientY, room });
+  }, []);
+  const handleJoinPublicRoom = useCallback(async (publicRoomId: string) => {
+    try {
+      await roomsApi.join(publicRoomId);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['rooms', 'public'] });
+      setActivePanel('none');
+      navigate(`/room/${publicRoomId}`);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [navigate, queryClient]);
   const handleNavigateHome = useCallback(() => {
     setActivePanel('none');
     navigate('/');
@@ -481,6 +526,16 @@ export default function Main() {
     [handleEditEvent, setSelectedDate, setCalendarMonth, setActivePanel]
   );
 
+  const renderRoomItem = useCallback((r: Room) => (
+    <RoomListItem
+      key={r.id}
+      room={r}
+      mutedRoomIds={mutedRoomIds}
+      onOpenRoom={handleOpenRoom}
+      onContextMenu={handleRoomContextMenu}
+    />
+  ), [mutedRoomIds, handleOpenRoom, handleRoomContextMenu]);
+
   return (
     <div className={cn('flex flex-col h-screen w-full min-w-0 overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
       {hasElectron && <TitleBar title="EMAX" isDark={isDark} />}
@@ -522,6 +577,7 @@ export default function Main() {
             activePanel={activePanel}
             setActivePanel={setActivePanel}
             unreadMentionCount={unreadMentionCount?.count ?? 0}
+            totalUnreadCount={totalUnreadCount}
             notificationsSnoozedUntil={notificationsSnoozedUntil}
           />
 
@@ -539,6 +595,29 @@ export default function Main() {
               bookmarks={Array.isArray(bookmarks) ? bookmarks : []}
               onSelectBookmark={handleSelectBookmark}
               onRemoveBookmark={handleRemoveBookmark}
+              roomsProps={{
+                isDark,
+                roomsError,
+                folders,
+                topicRooms,
+                chatRooms,
+                topicUnreadCount,
+                chatUnreadCount,
+                sectionOpen,
+                roomsByFolder,
+                folderOpen,
+                publicRooms,
+                allRooms,
+                toggleSection,
+                toggleFolder,
+                setShowFolderManageModal,
+                setCreateGroupFor,
+                setShowCreateGroupModal,
+                renderRoomItem,
+                onJoinPublicRoom: handleJoinPublicRoom,
+                roomSearchQuery,
+                onRoomSearchQueryChange: setRoomSearchQuery,
+              }}
               dashboardProps={{
                 userName: user?.name,
                 topicCount: topicRooms.length,

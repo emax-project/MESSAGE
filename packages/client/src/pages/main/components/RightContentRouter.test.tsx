@@ -24,6 +24,10 @@ vi.mock('./BookmarkPanel', () => ({
   default: () => <div data-testid="bookmark-panel">bookmark-panel</div>,
 }));
 
+vi.mock('./RoomsPanel', () => ({
+  default: () => <div data-testid="rooms-panel">rooms-panel</div>,
+}));
+
 vi.mock('./SchedulePanel', () => ({
   default: ({ selectedDate }: { selectedDate: string }) => <div data-testid="schedule-panel">{selectedDate}</div>,
 }));
@@ -48,7 +52,7 @@ const makeEvent = (): Event => ({
 const baseProps = () => ({
   isDark: false,
   isNarrowLayout: false,
-  activePanel: 'none' as 'none' | 'mention' | 'bookmark' | 'schedule' | 'settings',
+  activePanel: 'none' as 'none' | 'mention' | 'bookmark' | 'rooms' | 'schedule' | 'settings',
   selectedRoomId: undefined as string | undefined,
   panelWrapStyle: () => ({ className: '', style: {} }),
   onOpenInNewWindow: vi.fn<(roomId: string) => void>(),
@@ -57,6 +61,29 @@ const baseProps = () => ({
   bookmarks: [],
   onSelectBookmark: vi.fn(),
   onRemoveBookmark: vi.fn(),
+  roomsProps: {
+    isDark: false,
+    roomsError: false,
+    folders: [],
+    topicRooms: [],
+    chatRooms: [],
+    topicUnreadCount: 0,
+    chatUnreadCount: 0,
+    sectionOpen: { topic: true, chat: true },
+    roomsByFolder: new Map(),
+    folderOpen: {},
+    publicRooms: [],
+    allRooms: [],
+    toggleSection: vi.fn(),
+    toggleFolder: vi.fn(),
+    setShowFolderManageModal: vi.fn(),
+    setCreateGroupFor: vi.fn(),
+    setShowCreateGroupModal: vi.fn(),
+    renderRoomItem: vi.fn(() => <li />),
+    onJoinPublicRoom: vi.fn(),
+    roomSearchQuery: '',
+    onRoomSearchQueryChange: vi.fn(),
+  },
   dashboardProps: {
     userName: 'Test User',
     topicCount: 0,
@@ -139,6 +166,16 @@ describe('RightContentRouter', () => {
     render(<RightContentRouter {...props} />);
     await waitFor(() => {
       expect(screen.getByTestId('schedule-panel')).toHaveTextContent('2026-03-18');
+    });
+  });
+
+  it('routes rooms panel when active panel is rooms', async () => {
+    const props = baseProps();
+    props.activePanel = 'rooms';
+
+    render(<RightContentRouter {...props} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('rooms-panel')).toBeInTheDocument();
     });
   });
 

@@ -7,10 +7,12 @@ import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
 import ChatWindow from '../../ChatWindow';
 import type { MentionItem } from './MentionPanel';
 import type { BookmarkItem } from './BookmarkPanel';
+import type { RoomSectionsProps } from './RoomSections';
 import DashboardHome from './DashboardHome';
 
 const MentionPanel = lazy(() => import('./MentionPanel'));
 const BookmarkPanel = lazy(() => import('./BookmarkPanel'));
+const RoomsPanel = lazy(() => import('./RoomsPanel'));
 const SchedulePanel = lazy(() => import('./SchedulePanel'));
 const SettingsPanel = lazy(() => import('./SettingsPanel'));
 
@@ -23,7 +25,7 @@ function PanelLoadingFallback() {
   );
 }
 
-type ActivePanel = 'none' | 'mention' | 'bookmark' | 'schedule' | 'settings';
+type ActivePanel = 'none' | 'mention' | 'bookmark' | 'rooms' | 'schedule' | 'settings';
 type EventFormState = { title: string; startAt: string; endAt: string; description: string };
 
 type RightContentRouterProps = {
@@ -38,6 +40,10 @@ type RightContentRouterProps = {
   bookmarks: BookmarkItem[];
   onSelectBookmark: (bookmark: BookmarkItem) => void;
   onRemoveBookmark: (bookmark: BookmarkItem) => void | Promise<void>;
+  roomsProps: RoomSectionsProps & {
+    roomSearchQuery: string;
+    onRoomSearchQueryChange: (value: string) => void;
+  };
   scheduleProps: {
     calendarMonth: Date;
     selectedDate: string;
@@ -108,6 +114,7 @@ function RightContentRouter({
   bookmarks,
   onSelectBookmark,
   onRemoveBookmark,
+  roomsProps,
   scheduleProps,
   dashboardProps,
   settingsProps,
@@ -144,6 +151,15 @@ function RightContentRouter({
       {activePanel === 'bookmark' && (
         <Suspense fallback={<PanelLoadingFallback />}>
           <BookmarkPanel isDark={isDark} bookmarks={bookmarks} panelWrapStyle={panelWrapStyle} onSelectBookmark={onSelectBookmark} onRemoveBookmark={onRemoveBookmark} />
+        </Suspense>
+      )}
+
+      {activePanel === 'rooms' && (
+        <Suspense fallback={<PanelLoadingFallback />}>
+          <RoomsPanel
+            panelWrapStyle={panelWrapStyle}
+            {...roomsProps}
+          />
         </Suspense>
       )}
 

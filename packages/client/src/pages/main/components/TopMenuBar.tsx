@@ -2,13 +2,14 @@ import { memo } from 'react';
 import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';
 
-type ActivePanel = 'none' | 'mention' | 'bookmark' | 'schedule' | 'settings';
+type ActivePanel = 'none' | 'mention' | 'bookmark' | 'rooms' | 'schedule' | 'settings';
 
 type TopMenuBarProps = {
   isDark: boolean;
   activePanel: ActivePanel;
   setActivePanel: Dispatch<SetStateAction<ActivePanel>>;
   unreadMentionCount: number;
+  totalUnreadCount: number;
   notificationsSnoozedUntil: number;
 };
 
@@ -17,6 +18,7 @@ function TopMenuBar({
   activePanel,
   setActivePanel,
   unreadMentionCount,
+  totalUnreadCount,
   notificationsSnoozedUntil,
 }: TopMenuBarProps) {
   const togglePanel = (panel: Exclude<ActivePanel, 'none'>) => {
@@ -65,6 +67,17 @@ function TopMenuBar({
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
           </svg>
+        </button>
+
+        <button type="button" style={btnStyle(activePanel === 'rooms')} onClick={() => togglePanel('rooms')} title="대화" className="relative">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          {totalUnreadCount > 0 && (
+            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center">
+              {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+            </span>
+          )}
         </button>
 
         <button type="button" style={btnStyle(activePanel === 'schedule')} onClick={() => togglePanel('schedule')} title="일정">
