@@ -8,7 +8,7 @@ import { RoomDonutChart, UnreadDonutChart } from './DonutChart';
 import { WeekBarChart } from './WeekBarChart';
 import type { WeekEventItem } from './WeekBarChart';
 
-type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings';
+type ActivePanel = 'none' | 'mention' | 'bookmark' | 'schedule' | 'settings';
 
 type DashboardHomeProps = {
   isDark: boolean;

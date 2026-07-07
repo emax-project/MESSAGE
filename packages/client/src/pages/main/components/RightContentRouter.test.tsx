@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { Event, OrgCompany, OrgUser } from '../../../api';
+import type { Event } from '../../../api';
 import RightContentRouter from './RightContentRouter';
 
 afterEach(() => {
@@ -22,10 +22,6 @@ vi.mock('./MentionPanel', () => ({
 
 vi.mock('./BookmarkPanel', () => ({
   default: () => <div data-testid="bookmark-panel">bookmark-panel</div>,
-}));
-
-vi.mock('./FriendsPanel', () => ({
-  default: () => <div data-testid="friends-panel">friends-panel</div>,
 }));
 
 vi.mock('./SchedulePanel', () => ({
@@ -52,7 +48,7 @@ const makeEvent = (): Event => ({
 const baseProps = () => ({
   isDark: false,
   isNarrowLayout: false,
-  activePanel: 'none' as 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings',
+  activePanel: 'none' as 'none' | 'mention' | 'bookmark' | 'schedule' | 'settings',
   selectedRoomId: undefined as string | undefined,
   panelWrapStyle: () => ({ className: '', style: {} }),
   onOpenInNewWindow: vi.fn<(roomId: string) => void>(),
@@ -61,28 +57,6 @@ const baseProps = () => ({
   bookmarks: [],
   onSelectBookmark: vi.fn(),
   onRemoveBookmark: vi.fn(),
-  friendsProps: {
-    searchQuery: '',
-    showOnlineOnly: false,
-    orgLoading: false,
-    orgError: false,
-    orgTree: [] as OrgCompany[],
-    treeOpen: {},
-    orgStarred: new Set<string>(),
-    onToggleOrgStar: vi.fn(),
-    onlineUserIds: new Set<string>(),
-    myId: 'me',
-    myEmail: 'me@emax.com',
-    socketConnected: true,
-    onSearchQueryChange: vi.fn(),
-    onToggleOnlineOnly: vi.fn(),
-    onRetryOrg: vi.fn(),
-    onToggleTree: vi.fn(),
-    onOpenDirectMessage: vi.fn(),
-    onUserContextMenu: vi.fn<(e: React.MouseEvent<HTMLButtonElement>, user: OrgUser) => void>(),
-    hasStatusIcon: vi.fn(() => false),
-    renderStatusIcon: vi.fn(() => null),
-  },
   dashboardProps: {
     userName: 'Test User',
     topicCount: 0,

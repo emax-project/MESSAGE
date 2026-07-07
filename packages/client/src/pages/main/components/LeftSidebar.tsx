@@ -1,9 +1,10 @@
 import { memo } from 'react';
-import type { Dispatch, ReactNode, SetStateAction } from 'react';
+import type { Dispatch, MouseEvent, ReactNode, SetStateAction } from 'react';
+import type { OrgCompany, OrgUser } from '../../../api';
 import UserAvatar from '../../../components/UserAvatar';
 import { EmaxLogo } from '../../../components/EmaxLogo';
 import UICloseButton from '../../../components/ui/UICloseButton';
-import RoomSections, { type RoomSectionsProps } from './RoomSections';
+import OrgTree from './OrgTree';
 import { cn } from '../../../utils/cn';
 
 type LeftSidebarUser = {
@@ -12,7 +13,7 @@ type LeftSidebarUser = {
   avatarUrl?: string | null;
 } | null | undefined;
 
-type LeftSidebarProps = RoomSectionsProps & {
+type LeftSidebarProps = {
   isDark: boolean;
   user: LeftSidebarUser;
   statusInput: string;
@@ -22,6 +23,24 @@ type LeftSidebarProps = RoomSectionsProps & {
   searchQuery: string;
   setSearchQuery: Dispatch<SetStateAction<string>>;
   onNavigateHome: () => void;
+  showOnlineOnly: boolean;
+  onToggleOnlineOnly: () => void;
+  orgLoading: boolean;
+  orgError: boolean;
+  orgTree: OrgCompany[];
+  treeOpen: Record<string, boolean>;
+  orgStarred: Set<string>;
+  onToggleOrgStar: (id: string) => void;
+  onlineUserIds: Set<string>;
+  myId?: string;
+  myEmail?: string;
+  socketConnected: boolean;
+  onRetryOrg: () => void;
+  onToggleTree: (key: string) => void;
+  onOpenDirectMessage: (userId: string) => void | Promise<void>;
+  onUserContextMenu: (e: MouseEvent<HTMLButtonElement>, user: OrgUser) => void;
+  hasStatusIcon: (status?: string | null) => boolean;
+  renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
 };
 
 function LeftSidebar({
@@ -34,7 +53,24 @@ function LeftSidebar({
   searchQuery,
   setSearchQuery,
   onNavigateHome,
-  ...roomSectionsProps
+  showOnlineOnly,
+  onToggleOnlineOnly,
+  orgLoading,
+  orgError,
+  orgTree,
+  treeOpen,
+  orgStarred,
+  onToggleOrgStar,
+  onlineUserIds,
+  myId,
+  myEmail,
+  socketConnected,
+  onRetryOrg,
+  onToggleTree,
+  onOpenDirectMessage,
+  onUserContextMenu,
+  hasStatusIcon,
+  renderStatusIcon,
 }: LeftSidebarProps) {
   return (
     <div className={cn(
@@ -109,13 +145,13 @@ function LeftSidebar({
       </div>
 
       <div className={cn(
-        'shrink-0 flex items-center px-3 py-2 border-b',
+        'shrink-0 flex items-center gap-2 px-3 py-2 border-b',
         isDark ? 'border-b-slate-600' : 'border-b-slate-200',
       )}>
         <input
           type="text"
-          placeholder="대화방 검색"
-          aria-label="대화방 검색"
+          placeholder="이름 검색"
+          aria-label="멤버 이름 검색"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className={cn(
@@ -128,17 +164,49 @@ function LeftSidebar({
             size="sm"
             variant="subtle"
             onClick={() => setSearchQuery('')}
-            className="ml-1"
             aria-label="검색어 지우기"
             title="검색어 지우기"
           />
         )}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showOnlineOnly}
+          onClick={onToggleOnlineOnly}
+          title="온라인만 보기"
+          className={cn(
+            'shrink-0 flex items-center gap-1 px-2 py-1 border rounded-2xl text-[11px] whitespace-nowrap',
+            showOnlineOnly
+              ? 'border-brand bg-brand text-white'
+              : isDark ? 'border-slate-600 bg-transparent text-slate-300' : 'border-slate-200 bg-transparent text-slate-500',
+          )}
+        >
+          <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />
+          온라인
+        </button>
       </div>
 
-      <RoomSections
-        isDark={isDark}
-        {...roomSectionsProps}
-      />
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        <OrgTree
+          isDark={isDark}
+          orgLoading={orgLoading}
+          orgError={orgError}
+          orgTree={orgTree}
+          treeOpen={treeOpen}
+          orgStarred={orgStarred}
+          onToggleOrgStar={onToggleOrgStar}
+          onlineUserIds={onlineUserIds}
+          myId={myId}
+          myEmail={myEmail}
+          socketConnected={socketConnected}
+          onRetryOrg={onRetryOrg}
+          onToggleTree={onToggleTree}
+          onOpenDirectMessage={onOpenDirectMessage}
+          onUserContextMenu={onUserContextMenu}
+          hasStatusIcon={hasStatusIcon}
+          renderStatusIcon={renderStatusIcon}
+        />
+      </div>
     </div>
   );
 }

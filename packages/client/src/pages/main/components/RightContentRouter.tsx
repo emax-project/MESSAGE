@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { Event, OrgCompany, OrgUser } from '../../../api';
+import type { Event } from '../../../api';
 import { getCommonMessages } from '../../../i18n';
 import type { UpdateStatus } from '../hooks/useUpdateManager';
 import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
@@ -11,7 +11,6 @@ import DashboardHome from './DashboardHome';
 
 const MentionPanel = lazy(() => import('./MentionPanel'));
 const BookmarkPanel = lazy(() => import('./BookmarkPanel'));
-const FriendsPanel = lazy(() => import('./FriendsPanel'));
 const SchedulePanel = lazy(() => import('./SchedulePanel'));
 const SettingsPanel = lazy(() => import('./SettingsPanel'));
 
@@ -24,7 +23,7 @@ function PanelLoadingFallback() {
   );
 }
 
-type ActivePanel = 'none' | 'mention' | 'bookmark' | 'friends' | 'schedule' | 'settings';
+type ActivePanel = 'none' | 'mention' | 'bookmark' | 'schedule' | 'settings';
 type EventFormState = { title: string; startAt: string; endAt: string; description: string };
 
 type RightContentRouterProps = {
@@ -39,28 +38,6 @@ type RightContentRouterProps = {
   bookmarks: BookmarkItem[];
   onSelectBookmark: (bookmark: BookmarkItem) => void;
   onRemoveBookmark: (bookmark: BookmarkItem) => void | Promise<void>;
-  friendsProps: {
-    searchQuery: string;
-    showOnlineOnly: boolean;
-    orgLoading: boolean;
-    orgError: boolean;
-    orgTree: OrgCompany[];
-    treeOpen: Record<string, boolean>;
-    orgStarred: Set<string>;
-    onToggleOrgStar: (id: string) => void;
-    onlineUserIds: Set<string>;
-    myId?: string;
-    myEmail?: string;
-    socketConnected: boolean;
-    onSearchQueryChange: (value: string) => void;
-    onToggleOnlineOnly: () => void;
-    onRetryOrg: () => void;
-    onToggleTree: (key: string) => void;
-    onOpenDirectMessage: (userId: string) => void | Promise<void>;
-    onUserContextMenu: (e: React.MouseEvent<HTMLButtonElement>, user: OrgUser) => void;
-    hasStatusIcon: (status?: string | null) => boolean;
-    renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
-  };
   scheduleProps: {
     calendarMonth: Date;
     selectedDate: string;
@@ -131,7 +108,6 @@ function RightContentRouter({
   bookmarks,
   onSelectBookmark,
   onRemoveBookmark,
-  friendsProps,
   scheduleProps,
   dashboardProps,
   settingsProps,
@@ -168,36 +144,6 @@ function RightContentRouter({
       {activePanel === 'bookmark' && (
         <Suspense fallback={<PanelLoadingFallback />}>
           <BookmarkPanel isDark={isDark} bookmarks={bookmarks} panelWrapStyle={panelWrapStyle} onSelectBookmark={onSelectBookmark} onRemoveBookmark={onRemoveBookmark} />
-        </Suspense>
-      )}
-
-      {activePanel === 'friends' && (
-        <Suspense fallback={<PanelLoadingFallback />}>
-          <FriendsPanel
-            isDark={isDark}
-            isNarrowLayout={isNarrowLayout}
-            panelWrapStyle={panelWrapStyle}
-            searchQuery={friendsProps.searchQuery}
-            showOnlineOnly={friendsProps.showOnlineOnly}
-            orgLoading={friendsProps.orgLoading}
-            orgError={friendsProps.orgError}
-            orgTree={friendsProps.orgTree}
-            treeOpen={friendsProps.treeOpen}
-            orgStarred={friendsProps.orgStarred}
-            onToggleOrgStar={friendsProps.onToggleOrgStar}
-            onlineUserIds={friendsProps.onlineUserIds}
-            myId={friendsProps.myId}
-            myEmail={friendsProps.myEmail}
-            socketConnected={friendsProps.socketConnected}
-            onSearchQueryChange={friendsProps.onSearchQueryChange}
-            onToggleOnlineOnly={friendsProps.onToggleOnlineOnly}
-            onRetryOrg={friendsProps.onRetryOrg}
-            onToggleTree={friendsProps.onToggleTree}
-            onOpenDirectMessage={friendsProps.onOpenDirectMessage}
-            onUserContextMenu={friendsProps.onUserContextMenu}
-            hasStatusIcon={friendsProps.hasStatusIcon}
-            renderStatusIcon={friendsProps.renderStatusIcon}
-          />
         </Suspense>
       )}
 
