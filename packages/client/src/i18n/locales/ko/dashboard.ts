@@ -34,7 +34,7 @@ export const dashboardKo = {
   viewAll: '전체 보기',
   noEventsToday: '오늘 예정된 일정이 없습니다',
   moreEvents: (extraCount: number) => `외 ${extraCount}건 더보기`,
-  ctaStartChat: '왼쪽 아젠다 또는 채팅에서 대화를 시작하세요',
+  ctaStartChat: '상단 메뉴의 대화에서 아젠다·채팅을 시작하세요',
 
   eventRowAria: (title: string, timeRange: string) =>
     `${title}, ${timeRange}. 클릭하면 일정 상세를 엽니다`,

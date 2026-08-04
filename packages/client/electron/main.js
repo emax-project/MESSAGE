@@ -301,9 +301,9 @@ function getLoadFile() {
 
 function createWindow(options = {}) {
   const win = new BrowserWindow({
-    width: 625,
+    width: 430,
     height: 900,
-    minWidth: 520,
+    minWidth: 360,
     minHeight: 560,
     frame: false,
     titleBarStyle: 'hidden',

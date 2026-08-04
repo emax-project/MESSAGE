@@ -23,6 +23,7 @@ import { type BookmarkItem } from './main/components/BookmarkPanel';
 import RightContentRouter from './main/components/RightContentRouter';
 import MainOverlays from './main/components/MainOverlays';
 import { cn } from '../utils/cn';
+import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 
 const STATUS_OPTIONS = [
   { id: '', label: '설정 안 함' },
@@ -94,18 +95,15 @@ function openChatWindow(roomId: string) {
   }
 }
 
-const MAIN_WINDOW_WIDTH = 625;
-const MAIN_WINDOW_HEIGHT = 900;
-
 export default function Main() {
   const { roomId: selectedRoomId } = useParams<{ roomId?: string }>();
   const navigate = useNavigate();
   const token = useAuthStore((s) => s.token);
 
-  // Electron: 메인 화면에서는 메인 창 크기를 일관되게 유지한다.
+  // Electron: 메인 화면에서는 모바일 규격 창 크기를 일관되게 유지한다.
   useEffect(() => {
     if (!token || !window.electronAPI?.windowResize) return;
-    const resize = () => window.electronAPI!.windowResize(MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT);
+    const resize = () => window.electronAPI!.windowResize(APP_MAX_WIDTH, APP_WINDOW_HEIGHT);
     resize();
     const t = setTimeout(resize, 300);
     return () => clearTimeout(t);
@@ -119,6 +117,7 @@ export default function Main() {
 
   // --- Layout state ---
   const [activePanel, setActivePanel] = useState<'none' | 'mention' | 'bookmark' | 'rooms' | 'schedule' | 'settings'>('none');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -174,24 +173,17 @@ export default function Main() {
   const statusSyncedRef = useRef(false);
   const queryClient = useQueryClient();
   myIdRef.current = myId;
-  const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
-  const isCompactLayout = viewportWidth < 1180;
-  const isNarrowLayout = viewportWidth < 980;
-  const panelWrapStyle = useCallback((maxWidth: number) => ({
-    className: 'flex-1 flex flex-col min-h-0 w-full mx-auto',
-    style: { maxWidth: isCompactLayout || isNarrowLayout ? '100%' : maxWidth } as React.CSSProperties,
-  }), [isCompactLayout, isNarrowLayout]);
+  // 모바일 셸(maxWidth) 안에서는 항상 좁은 레이아웃으로 동작
+  const isNarrowLayout = true;
+  const panelWrapStyle = useCallback((_maxWidth: number) => ({
+    className: 'flex-1 flex flex-col min-h-0 w-full',
+    style: { maxWidth: '100%' } as React.CSSProperties,
+  }), []);
 
   const notificationStatus = typeof Notification === 'undefined' ? '지원되지 않음' : Notification.permission === 'granted' ? '허용됨' : Notification.permission === 'denied' ? '차단됨' : '미정';
   const requestNotificationPermission = async () => { if (typeof Notification !== 'undefined' && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch { /* ignore */ } } };
 
   const hasElectron = !!window.electronAPI;
-
-  useEffect(() => {
-    const onResize = () => setViewportWidth(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
 
   // --- Queries ---
   const { data: allRooms = [], isError: roomsError } = useQuery<Room[]>({ queryKey: ['rooms', myId], queryFn: roomsApi.list, enabled: !!myId });
@@ -360,6 +352,7 @@ export default function Main() {
     if (!window.electronAPI?.onNavigateToRoom) return;
     const unsubscribe = window.electronAPI.onNavigateToRoom((roomId: string) => {
       setActivePanel('none');
+      setSidebarOpen(false);
       navigate(`/room/${roomId}`);
     });
     return () => { if (unsubscribe) unsubscribe(); };
@@ -416,6 +409,7 @@ export default function Main() {
   const showStatusBadge = useMemo(() => !!statusInput && STATUS_OPTIONS.some((o) => o.id === statusInput), [statusInput]);
   const handleOpenRoom = useCallback((room: Room) => {
     setActivePanel('none');
+    setSidebarOpen(false);
     navigate(`/room/${room.id}`, room.viewMode ? { state: { viewMode: room.viewMode } } : undefined);
   }, [navigate]);
   const handleRoomContextMenu = useCallback((e: React.MouseEvent<HTMLLIElement>, room: Room) => {
@@ -428,6 +422,7 @@ export default function Main() {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['rooms', 'public'] });
       setActivePanel('none');
+      setSidebarOpen(false);
       navigate(`/room/${publicRoomId}`);
     } catch (err) {
       console.error(err);
@@ -435,6 +430,7 @@ export default function Main() {
   }, [navigate, queryClient]);
   const handleNavigateHome = useCallback(() => {
     setActivePanel('none');
+    setSidebarOpen(false);
     navigate('/');
   }, [navigate]);
   const handleSelectMention = useCallback(async (m: MentionItem) => {
@@ -449,12 +445,14 @@ export default function Main() {
     }
     if (m.message?.room?.id) {
       setActivePanel('none');
+      setSidebarOpen(false);
       navigate(`/room/${m.message.room.id}`);
     }
   }, [navigate, queryClient]);
   const handleSelectBookmark = useCallback((b: BookmarkItem) => {
     if (!b.message?.room?.id) return;
     setActivePanel('none');
+    setSidebarOpen(false);
     navigate(`/room/${b.message.room.id}`);
   }, [navigate]);
   const handleRemoveBookmark = useCallback(async (b: BookmarkItem) => {
@@ -474,6 +472,7 @@ export default function Main() {
       const room = await roomsApi.create(userId);
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       setActivePanel('none');
+      setSidebarOpen(false);
       navigate(`/room/${room.id}`);
     } catch (err) {
       console.error(err);
@@ -537,41 +536,60 @@ export default function Main() {
   ), [mutedRoomIds, handleOpenRoom, handleRoomContextMenu]);
 
   return (
-    <div className={cn('flex flex-col h-screen w-full min-w-0 overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
+    <div className={cn('flex flex-col h-full min-h-0 w-full min-w-0 overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
       {hasElectron && <TitleBar title="EMAX" isDark={isDark} />}
-      <div className="flex flex-1 flex-row min-h-0 min-w-0">
-        <LeftSidebar
-          isDark={isDark}
-          user={user}
-          statusInput={statusInput}
-          statusLabel={statusLabel}
-          showStatusBadge={showStatusBadge}
-          statusBadge={<StatusIcon status={statusInput} size={13} />}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onNavigateHome={handleNavigateHome}
-          showOnlineOnly={showOnlineOnly}
-          onToggleOnlineOnly={handleToggleOnlineOnly}
-          orgLoading={orgLoading}
-          orgError={orgError}
-          orgTree={orgTree}
-          treeOpen={treeOpen}
-          orgStarred={orgStarred}
-          onToggleOrgStar={toggleOrgStar}
-          onlineUserIds={onlineUserIds}
-          myId={myId}
-          myEmail={myEmail}
-          socketConnected={!!socket?.connected}
-          onRetryOrg={() => { void refetchOrg(); }}
-          onToggleTree={toggleTree}
-          onOpenDirectMessage={handleOpenDirectMessage}
-          onUserContextMenu={handleUserContextMenu}
-          hasStatusIcon={hasStatusIcon}
-          renderStatusIcon={(status, size = 11) => <StatusIcon status={status} size={size} />}
-        />
+      <div className="relative flex flex-1 flex-col min-h-0 min-w-0">
+        {/* 조직도: 모바일 셸 안에서 오버레이 드로어 */}
+        {sidebarOpen && (
+          <button
+            type="button"
+            className="absolute inset-0 z-30 border-none bg-black/40 cursor-default"
+            aria-label="조직도 닫기"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        <div
+          className={cn(
+            'absolute inset-y-0 left-0 z-40 flex flex-col transition-transform duration-200 ease-out',
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none',
+          )}
+          style={{ width: 'var(--app-sidebar-width)' }}
+          aria-hidden={!sidebarOpen}
+        >
+          <LeftSidebar
+            isDark={isDark}
+            user={user}
+            statusInput={statusInput}
+            statusLabel={statusLabel}
+            showStatusBadge={showStatusBadge}
+            statusBadge={<StatusIcon status={statusInput} size={13} />}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onNavigateHome={handleNavigateHome}
+            onClose={() => setSidebarOpen(false)}
+            showOnlineOnly={showOnlineOnly}
+            onToggleOnlineOnly={handleToggleOnlineOnly}
+            orgLoading={orgLoading}
+            orgError={orgError}
+            orgTree={orgTree}
+            treeOpen={treeOpen}
+            orgStarred={orgStarred}
+            onToggleOrgStar={toggleOrgStar}
+            onlineUserIds={onlineUserIds}
+            myId={myId}
+            myEmail={myEmail}
+            socketConnected={!!socket?.connected}
+            onRetryOrg={() => { void refetchOrg(); }}
+            onToggleTree={toggleTree}
+            onOpenDirectMessage={handleOpenDirectMessage}
+            onUserContextMenu={handleUserContextMenu}
+            hasStatusIcon={hasStatusIcon}
+            renderStatusIcon={(status, size = 11) => <StatusIcon status={status} size={size} />}
+          />
+        </div>
 
-        {/* ===== RIGHT SIDE ===== */}
-        <div className={cn('flex-1 min-w-0 flex flex-col', isDark ? 'bg-slate-900' : 'bg-white')}>
+        {/* ===== MAIN CONTENT ===== */}
+        <div className={cn('flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
           <TopMenuBar
             isDark={isDark}
             activePanel={activePanel}
@@ -579,10 +597,11 @@ export default function Main() {
             unreadMentionCount={unreadMentionCount?.count ?? 0}
             totalUnreadCount={totalUnreadCount}
             notificationsSnoozedUntil={notificationsSnoozedUntil}
+            onOpenSidebar={() => setSidebarOpen(true)}
           />
 
-          {/* Content Area */}
-          <div className="flex-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto flex flex-col">
+          {/* Content Area: 헤더 아래에서만 스크롤 (크롬은 고정) */}
+          <div className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col">
             <RightContentRouter
               isDark={isDark}
               isNarrowLayout={isNarrowLayout}

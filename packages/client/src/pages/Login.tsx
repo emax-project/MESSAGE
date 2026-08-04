@@ -5,6 +5,7 @@ import { useAuthStore } from '../store';
 import TitleBar from '../components/TitleBar';
 import { AuthCard } from '../components/AuthCard';
 import UITextInput from '../components/ui/UITextInput';
+import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -31,7 +32,7 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    window.electronAPI?.windowResize?.(1000, 640);
+    window.electronAPI?.windowResize?.(APP_MAX_WIDTH, APP_WINDOW_HEIGHT);
   }, []);
   useEffect(() => {
     setServerUrl(getBaseUrl() || '');
@@ -59,9 +60,9 @@ export default function Login() {
   const isElectron = !!window.electronAPI;
 
   return (
-    <div className="w-full min-h-screen flex flex-col bg-black">
+    <div className="w-full h-full min-h-0 flex flex-col bg-black">
       {isElectron && <TitleBar title="EMAX" isDark />}
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
         <AuthCard
           title="로그인"
           subtext={

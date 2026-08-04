@@ -8,7 +8,7 @@ export function dashboardStyles(isDark: boolean) {
       isDark ? 'bg-slate-800/60 border-slate-600' : 'bg-white border-slate-200 shadow-sm'
     ),
     statCard: cn(
-      'rounded-xl border p-3 flex flex-col gap-2 min-h-[96px] justify-center transition-colors',
+      'rounded-xl border p-3 flex flex-col gap-2 min-h-[88px] min-w-0 justify-center transition-colors',
       isDark ? 'bg-slate-800/60 border-slate-600' : 'bg-white border-slate-200 shadow-sm'
     ),
     statCardValue: (highlight = false) =>

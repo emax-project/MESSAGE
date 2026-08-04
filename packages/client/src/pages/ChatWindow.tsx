@@ -78,7 +78,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   }, [roomId]);
   const [boardCommentInputs, setBoardCommentInputs] = useState<Record<string, string>>({});
   const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
-  const isCompactHeader = viewportWidth < 980;
+  // 임베디드(모바일 셸)이거나 좁은 창에서는 컴팩트 헤더 + 사이드 패널 오버레이
+  const isCompactHeader = embedded || viewportWidth < 980;
   const socketRef = useRef<Socket | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -602,10 +603,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         }
       `}</style>
       {!embedded && hasElectron && <TitleBar title={room.name} isDark={isDark} />}
-      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
+      <div className="relative flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <div
           className={cn(
             'flex flex-col flex-1 min-w-0 relative',
+            isCompactHeader && 'pr-12',
             isDark ? 'bg-slate-900' : 'bg-white',
           )}
           onDragOver={handleDragOver}
@@ -621,7 +623,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         )}
         <header
           className={cn(
-            'flex items-center justify-between shrink-0 border-b',
+            'sticky top-0 z-10 flex items-center justify-between shrink-0 border-b',
             isCompactHeader ? 'px-3 py-2 gap-2 flex-wrap' : 'px-5 min-h-[56px] gap-3',
             isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm',
           )}
@@ -1151,6 +1153,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           members={members}
           panelWidth={RIGHT_SIDEBAR_PANEL_WIDTH}
           iconWidth={RIGHT_SIDEBAR_ICON_WIDTH}
+          overlay={isCompactHeader}
         />
       </div>
     </div>

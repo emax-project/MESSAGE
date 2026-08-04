@@ -5,6 +5,7 @@ import { useAuthStore } from '../store';
 import TitleBar from '../components/TitleBar';
 import { AuthCard } from '../components/AuthCard';
 import UITextInput from '../components/ui/UITextInput';
+import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -31,7 +32,7 @@ export default function Register() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    window.electronAPI?.windowResize?.(1000, 640);
+    window.electronAPI?.windowResize?.(APP_MAX_WIDTH, APP_WINDOW_HEIGHT);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,9 +51,9 @@ export default function Register() {
   };
 
   return (
-    <div className="w-full min-h-screen flex flex-col bg-black">
+    <div className="w-full h-full min-h-0 flex flex-col bg-black">
       {!!window.electronAPI && <TitleBar title="EMAX" isDark />}
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
         <AuthCard
           title="계정 만들기"
           subtext={

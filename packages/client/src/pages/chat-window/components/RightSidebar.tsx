@@ -17,6 +17,8 @@ type RightSidebarProps = {
   members: User[];
   panelWidth: number;
   iconWidth: number;
+  /** 모바일 셸: 패널을 오버레이로 열어 본문 폭을 유지 */
+  overlay?: boolean;
 };
 
 export default function RightSidebar({
@@ -31,16 +33,33 @@ export default function RightSidebar({
   members,
   panelWidth,
   iconWidth,
+  overlay = false,
 }: RightSidebarProps) {
+  const panelOpen = rightPanel !== 'none';
+  const totalWidth = panelOpen ? iconWidth + panelWidth : iconWidth;
+
   return (
     <div
       style={{
         display: 'flex',
         flexShrink: 0,
-        width: rightPanel !== 'none' ? iconWidth + panelWidth : iconWidth,
+        width: overlay ? (panelOpen ? totalWidth : iconWidth) : totalWidth,
         borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
         background: isDark ? '#1e293b' : '#fff',
         transition: 'width 0.2s ease',
+        ...(overlay
+          ? {
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 20,
+              maxWidth: '100%',
+              boxShadow: panelOpen
+                ? (isDark ? '-8px 0 24px rgba(0,0,0,0.35)' : '-8px 0 24px rgba(0,0,0,0.12)')
+                : undefined,
+            }
+          : {}),
       }}
     >
       <div style={{ width: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 12, gap: 4 }}>
@@ -108,8 +127,19 @@ export default function RightSidebar({
           </svg>
         </button>
       </div>
-      {rightPanel !== 'none' && (
-        <div style={{ width: panelWidth, display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', overflow: 'hidden' }}>
+      {panelOpen && (
+        <div
+          style={{
+            width: panelWidth,
+            maxWidth: overlay ? `calc(100% - ${iconWidth}px)` : undefined,
+            flex: overlay ? '1 1 auto' : undefined,
+            display: 'flex',
+            flexDirection: 'column',
+            borderLeft: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+            background: isDark ? '#1e293b' : '#fff',
+            overflow: 'hidden',
+          }}
+        >
           <div style={{ padding: '12px 16px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <span style={{ fontSize: 15, fontWeight: 600, color: isDark ? '#f1f5f9' : '#1e293b' }}>
               {rightPanel === 'file' && '파일함'}

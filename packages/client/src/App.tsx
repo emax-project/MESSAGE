@@ -11,6 +11,11 @@ const ChatWindow = lazy(() => import('./pages/ChatWindow'));
 const KanbanPage = lazy(() => import('./pages/KanbanPage'));
 const GanttPage = lazy(() => import('./pages/GanttPage'));
 
+/** 메인/인증 화면: PC에서도 모바일 maxWidth로 중앙 정렬. 칸반·간트·독립 채팅 창은 전체 폭. */
+function MobileShell({ children }: { children: ReactNode }) {
+  return <div className="app-mobile-shell">{children}</div>;
+}
+
 // Electron: MemoryRouter 사용 (URL을 전혀 건드리지 않음 → file://C:/login ERR_FILE_NOT_FOUND 근본 차단)
 // HashRouter/BrowserRouter는 file:// 에서 History API 제한으로 전체 페이지 이동 발생
 const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron');
@@ -121,17 +126,17 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', width: '100%', overflow: 'hidden' }}>
         <RouterWrapper {...routerProps}>
           <Suspense fallback={fallback}>
           <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<MobileShell><Login /></MobileShell>} />
+        <Route path="/register" element={<MobileShell><Register /></MobileShell>} />
         <Route
           path="/"
           element={
             <PrivateRoute>
-              <Main />
+              <MobileShell><Main /></MobileShell>
             </PrivateRoute>
           }
         />
@@ -139,7 +144,7 @@ export default function App() {
           path="/room/:roomId"
           element={
             <PrivateRoute>
-              <Main />
+              <MobileShell><Main /></MobileShell>
             </PrivateRoute>
           }
         />

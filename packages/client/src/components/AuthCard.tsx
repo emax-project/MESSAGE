@@ -14,21 +14,11 @@ export function AuthCard({ children, title, subtext, className }: Props) {
   return (
     <div
       className={cn(
-        'flex overflow-hidden rounded-[32px] w-full max-w-[880px] min-h-[520px] shadow-2xl',
+        'flex flex-col overflow-hidden rounded-[24px] w-full max-w-full shadow-2xl bg-white',
         className,
       )}
     >
-      {/* Left: visual area */}
-      <div className="hidden sm:flex flex-[1.2] min-w-0 items-center justify-center bg-gradient-to-br from-[#1e3a5f] via-[#1a365d] to-[#0f2744] p-12">
-        <img
-          src={LOGO_SRC}
-          alt=""
-          className="w-[220px] h-[220px] object-contain opacity-95"
-          aria-hidden
-        />
-      </div>
-      {/* Right: form */}
-      <div className="flex-1 min-w-[340px] flex flex-col justify-center bg-white px-10 sm:px-14 py-12">
+      <div className="flex flex-col justify-center px-6 py-10 sm:px-8">
         <div className="flex flex-col items-center text-center mb-8">
           <div className="w-14 h-14 mb-4 rounded-lg bg-brand-light/20 flex items-center justify-center">
             <img src={LOGO_SRC} alt="" className="w-10 h-10 object-contain" aria-hidden />

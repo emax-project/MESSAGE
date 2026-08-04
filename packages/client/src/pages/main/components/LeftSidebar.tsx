@@ -23,6 +23,7 @@ type LeftSidebarProps = {
   searchQuery: string;
   setSearchQuery: Dispatch<SetStateAction<string>>;
   onNavigateHome: () => void;
+  onClose?: () => void;
   showOnlineOnly: boolean;
   onToggleOnlineOnly: () => void;
   orgLoading: boolean;
@@ -53,6 +54,7 @@ function LeftSidebar({
   searchQuery,
   setSearchQuery,
   onNavigateHome,
+  onClose,
   showOnlineOnly,
   onToggleOnlineOnly,
   orgLoading,
@@ -74,7 +76,7 @@ function LeftSidebar({
 }: LeftSidebarProps) {
   return (
     <div className={cn(
-      'w-[260px] shrink-0 flex flex-col border-r',
+      'w-full h-full flex flex-col border-r',
       isDark ? 'bg-slate-800 border-r-slate-600' : 'bg-white border-r-slate-200',
     )}>
       <div className={cn(
@@ -89,6 +91,15 @@ function LeftSidebar({
         >
           <EmaxLogo variant={isDark ? 'light' : 'accent'} size="lg" />
         </button>
+        {onClose && (
+          <UICloseButton
+            size="sm"
+            variant="subtle"
+            onClick={onClose}
+            aria-label="조직도 닫기"
+            title="닫기"
+          />
+        )}
       </div>
 
       <div className={cn(
