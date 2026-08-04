@@ -4,7 +4,6 @@ import { getDashboardMessages } from '../../../i18n';
 import { cn } from '../../../utils/cn';
 import { formatEventTime } from '../utils/date';
 import { dashboardStyles } from '../utils/dashboardStyles';
-import { RoomDonutChart, UnreadDonutChart } from './DonutChart';
 import { WeekBarChart } from './WeekBarChart';
 import type { WeekEventItem } from './WeekBarChart';
 
@@ -15,8 +14,6 @@ type DashboardHomeProps = {
   userName?: string | null;
   topicCount: number;
   chatCount: number;
-  topicUnreadCount: number;
-  chatUnreadCount: number;
   totalUnread: number;
   unreadMentionCount: number;
   todayEvents: Event[];
@@ -30,8 +27,6 @@ function DashboardHome({
   userName,
   topicCount,
   chatCount,
-  topicUnreadCount,
-  chatUnreadCount,
   totalUnread,
   unreadMentionCount,
   todayEvents,
@@ -49,7 +44,6 @@ function DashboardHome({
 
   return (
     <div className="flex-1 min-h-0 overflow-auto p-3">
-      {/* 모바일 셸(maxWidth) 기준: viewport breakpoint 대신 항상 1열 스택 */}
       <div className="flex flex-col gap-3 w-full min-w-0">
         <div className={cn(s.card, 'py-4 shrink-0')}>
           <h1 className={cn(s.headingLg, 'm-0 mb-0.5')}>
@@ -60,7 +54,7 @@ function DashboardHome({
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 shrink-0">
+        <div className="grid grid-cols-3 gap-2.5 shrink-0">
           <div className={s.statCard}>
             <span className={s.statLabel}>{t.statAgenda}</span>
             <span className={s.statCardValue()}>{topicCount}</span>
@@ -88,7 +82,7 @@ function DashboardHome({
               }
             }}
           >
-            <div className="flex items-start justify-between gap-2 min-w-0">
+            <div className="flex items-start justify-between gap-1 min-w-0">
               <span className={cn(s.statLabel, 'truncate')}>{t.statUnread}</span>
               {unreadMentionCount > 0 && (
                 <span className="shrink-0 min-w-[16px] h-4 px-1 rounded-full bg-brand text-white text-[9px] font-bold flex items-center justify-center">
@@ -97,54 +91,6 @@ function DashboardHome({
               )}
             </div>
             <span className={s.statCardValue(totalUnread > 0)}>{totalUnread}</span>
-          </div>
-          <div className={s.statCard}>
-            <span className={s.statLabel}>{t.statTodayEvents}</span>
-            <span className={s.statCardValue()}>{sortedTodayEvents.length}</span>
-          </div>
-        </div>
-
-        <div className={cn(s.card, 'flex flex-col min-w-0')}>
-          <h2 className={cn(s.heading, 'm-0 mb-2 shrink-0')}>{t.chartRoomDistribution}</h2>
-          <div className="flex items-center gap-3 min-w-0" role="img" aria-label={t.ariaRoomDistribution(topicCount, chatCount)}>
-            <RoomDonutChart isDark={isDark} topicCount={topicCount} chatCount={chatCount} />
-            <div className="flex flex-col gap-1 min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-brand-dark shrink-0" />
-                <span className={cn(s.subtitle, 'truncate')}>{t.legendAgendaRooms(topicCount)}</span>
-              </div>
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-brand-light shrink-0" />
-                <span className={cn(s.subtitle, 'truncate')}>{t.legendChatRooms(chatCount)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className={cn(s.card, 'flex flex-col min-w-0')}>
-          <h2 className={cn(s.heading, 'm-0 mb-2 shrink-0')}>{t.chartUnreadTitle}</h2>
-          <div className="flex items-center gap-3 min-w-0" role="img" aria-label={t.ariaUnreadChart(topicUnreadCount, chatUnreadCount)}>
-            <UnreadDonutChart isDark={isDark} topicUnread={topicUnreadCount} chatUnread={chatUnreadCount} />
-            <div className="flex flex-col gap-1 min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-brand-dark shrink-0" />
-                <span className={cn(s.subtitle, 'truncate')}>{t.legendAgendaUnread(topicUnreadCount)}</span>
-              </div>
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-brand-light shrink-0" />
-                <span className={cn(s.subtitle, 'truncate')}>{t.legendChatUnread(chatUnreadCount)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className={cn(s.card, 'min-w-0')}>
-          <h2 className={cn(s.heading, 'm-0 mb-2')}>{t.chartWeek}</h2>
-          <div
-            role="img"
-            aria-label={t.ariaWeekBar(weekEvents.map((d) => `${d.label} ${d.count}건`).join(', '))}
-          >
-            <WeekBarChart isDark={isDark} data={weekEvents} />
           </div>
         </div>
 
@@ -210,10 +156,14 @@ function DashboardHome({
           )}
         </div>
 
-        <div className={s.ctaCard}>
-          <p className={cn(s.body, 'm-0')}>
-            {t.ctaStartChat}
-          </p>
+        <div className={cn(s.card, 'min-w-0')}>
+          <h2 className={cn(s.heading, 'm-0 mb-2')}>{t.chartWeek}</h2>
+          <div
+            role="img"
+            aria-label={t.ariaWeekBar(weekEvents.map((d) => `${d.label} ${d.count}건`).join(', '))}
+          >
+            <WeekBarChart isDark={isDark} data={weekEvents} />
+          </div>
         </div>
       </div>
     </div>

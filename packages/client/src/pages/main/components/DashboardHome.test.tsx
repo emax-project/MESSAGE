@@ -6,11 +6,6 @@ import userEvent from '@testing-library/user-event';
 import type { Event } from '../../../api';
 import DashboardHome from './DashboardHome';
 
-vi.mock('./DonutChart', () => ({
-  RoomDonutChart: () => <div data-testid="room-donut" />,
-  UnreadDonutChart: () => <div data-testid="unread-donut" />,
-}));
-
 afterEach(() => {
   cleanup();
 });
@@ -30,8 +25,6 @@ const baseProps = () => ({
   userName: '홍길동' as string | null,
   topicCount: 2,
   chatCount: 3,
-  topicUnreadCount: 1,
-  chatUnreadCount: 0,
   totalUnread: 5,
   unreadMentionCount: 2,
   todayEvents: [] as Event[],
@@ -114,10 +107,13 @@ describe('DashboardHome', () => {
     expect(props.setActivePanel).toHaveBeenCalledWith('schedule');
   });
 
-  it('exposes chart summaries for screen readers', () => {
-    const props = baseProps();
-    render(<DashboardHome {...props} />);
-    expect(screen.getByRole('img', { name: '방 분포: 아젠다 2개, 채팅 3개' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: '읽지 않음: 아젠다 1건, 채팅 0건' })).toBeInTheDocument();
+  it('renders core stats and week chart without donut sections', () => {
+    render(<DashboardHome {...baseProps()} />);
+    expect(screen.getByText('아젠다')).toBeInTheDocument();
+    expect(screen.getByText('채팅')).toBeInTheDocument();
+    expect(screen.getByText('읽지 않음')).toBeInTheDocument();
+    expect(screen.getByText('이번 주 일정')).toBeInTheDocument();
+    expect(screen.queryByText('방 분포')).not.toBeInTheDocument();
+    expect(screen.queryByText('상단 메뉴의 대화에서')).not.toBeInTheDocument();
   });
 });

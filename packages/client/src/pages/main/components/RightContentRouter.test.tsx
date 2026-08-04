@@ -88,8 +88,6 @@ const baseProps = () => ({
     userName: 'Test User',
     topicCount: 0,
     chatCount: 0,
-    topicUnreadCount: 0,
-    chatUnreadCount: 0,
     totalUnread: 0,
     unreadMentionCount: 0,
     todayEvents: [],

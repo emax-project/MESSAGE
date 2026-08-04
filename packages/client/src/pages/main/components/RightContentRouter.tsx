@@ -63,8 +63,6 @@ type RightContentRouterProps = {
     userName?: string | null;
     topicCount: number;
     chatCount: number;
-    topicUnreadCount: number;
-    chatUnreadCount: number;
     totalUnread: number;
     unreadMentionCount: number;
     todayEvents: Event[];
@@ -131,8 +129,6 @@ function RightContentRouter({
           userName={dashboardProps.userName}
           topicCount={dashboardProps.topicCount}
           chatCount={dashboardProps.chatCount}
-          topicUnreadCount={dashboardProps.topicUnreadCount}
-          chatUnreadCount={dashboardProps.chatUnreadCount}
           totalUnread={dashboardProps.totalUnread}
           unreadMentionCount={dashboardProps.unreadMentionCount}
           todayEvents={dashboardProps.todayEvents}

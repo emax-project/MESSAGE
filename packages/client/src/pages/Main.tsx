@@ -641,8 +641,6 @@ export default function Main() {
                 userName: user?.name,
                 topicCount: topicRooms.length,
                 chatCount: chatRooms.length,
-                topicUnreadCount: topicUnreadCount,
-                chatUnreadCount: chatUnreadCount,
                 totalUnread: totalUnreadCount,
                 unreadMentionCount: unreadMentionCount?.count ?? 0,
                 todayEvents,
