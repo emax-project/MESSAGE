@@ -39,8 +39,8 @@ test.describe('smoke chat flow', () => {
     }
 
     await page.waitForURL(/\/room\/.+/, { timeout: 10_000 });
-    await expect(page.getByPlaceholder('메시지를 입력하세요')).toBeVisible({ timeout: 15_000 });
-    await page.getByPlaceholder('메시지를 입력하세요').fill(MESSAGE);
+    await expect(page.getByPlaceholder('메시지 입력')).toBeVisible({ timeout: 15_000 });
+    await page.getByPlaceholder('메시지 입력').fill(MESSAGE);
     await page.getByRole('button', { name: '전송' }).click();
 
     const sentMessageCandidates = page.getByText(MESSAGE);

@@ -353,16 +353,9 @@ export default function ChatBubbleList({
                   </div>
                 </div>
                 {(isHovered || alwaysShowActions) && !m.deletedAt && (
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    ...(isMine
-                      ? { right: '100%', marginRight: 6 }
-                      : { left: '100%', marginLeft: 6 }),
-                    display: 'flex',
-                    gap: 2,
-                    alignItems: 'center',
-                  }}>
+                  <div
+                    className="absolute bottom-0 right-full mr-1.5 flex items-center gap-0.5"
+                  >
                     <MessageActionButton
                       isDark={isDark}
                       isActive={false}

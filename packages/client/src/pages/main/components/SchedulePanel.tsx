@@ -44,9 +44,30 @@ const actionBtn = 'rounded-xl px-4 py-2 text-sm font-semibold transition-colors'
 const dateKeyOf = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-const formatDateLabel = (dateKey: string) => {
+const addDaysToDateKey = (dateKey: string, days: number) => {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return dateKeyOf(date);
+};
+
+const minDateKey = (a: string, b: string) => (a <= b ? a : b);
+
+const daysInclusiveBetween = (startKey: string, endKey: string) => {
+  const [sy, sm, sd] = startKey.split('-').map(Number);
+  const [ey, em, ed] = endKey.split('-').map(Number);
+  const start = new Date(sy, sm - 1, sd);
+  const end = new Date(ey, em - 1, ed);
+  return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+};
+
+const getMultiDaySegmentEnd = (rangeEnd: string, cellDateKey: string, cellWeekday: number) =>
+  minDateKey(rangeEnd, addDaysToDateKey(cellDateKey, 6 - cellWeekday));
+
+const formatDateLabel = (dateKey: string, compact?: boolean) => {
   const [year, month, day] = dateKey.split('-').map(Number);
   if (!year || !month || !day) return dateKey;
+  if (compact) return `${year}.${month}.${day}`;
   return `${year}년 ${month}월 ${day}일`;
 };
 
@@ -175,6 +196,28 @@ function SchedulePanel({
   }, [selectedDate, editingEventId]);
 
   const dayCellHeight = isNarrowLayout ? 'h-16' : 'h-[72px]';
+  const dateRangeGridClass = isNarrowLayout
+    ? 'mb-2 grid grid-cols-1 gap-2'
+    : 'mb-2 grid grid-cols-1 gap-2 md:grid-cols-2';
+  const pickerFieldClass = cn(
+    'flex w-full min-w-0 cursor-pointer items-center justify-between gap-1.5 rounded-xl border px-3 py-2 text-sm outline-none focus:outline-none',
+    isDark
+      ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
+      : 'border-brand-dark/25 bg-white text-slate-700',
+  );
+  const dateTimeTextClass = 'min-w-0 flex-1 truncate whitespace-nowrap text-left';
+  const pickerIconSlotClass = 'flex h-[14px] w-[14px] shrink-0 items-center justify-center';
+  const pickerIconColorClass = isDark ? 'text-brand-light' : 'text-brand-dark';
+  const modalOverlayClass = cn(
+    'inset-0 flex items-center justify-center bg-black/40',
+    isNarrowLayout ? 'absolute z-[2000] p-2' : 'fixed z-[2000] p-4',
+  );
+  const modalSurfaceClass = (wide = true) =>
+    cn(
+      'w-full rounded-2xl border',
+      isNarrowLayout ? 'max-w-full p-3' : wide ? 'max-w-[760px] p-4' : 'max-w-[540px] p-4',
+      isDark ? 'border-brand-dark/30 bg-slate-900' : 'border-brand-dark/20 bg-white shadow-soft',
+    );
   const startTime = eventForm.startAt.slice(11, 16) || '09:00';
   const endTime = eventForm.endAt.slice(11, 16) || '18:00';
   const startDatePart = eventForm.startAt.slice(0, 10) || selectedDate;
@@ -514,7 +557,7 @@ function SchedulePanel({
 
   const wrap = panelWrapStyle(900);
   return (
-    <section className={wrap.className} style={wrap.style}>
+    <section className={cn(wrap.className, 'relative')} style={wrap.style}>
       <header
         className={cn(
           'shrink-0 flex items-center justify-between border-b flex-wrap gap-2',
@@ -607,6 +650,18 @@ function SchedulePanel({
               const hiddenCount = dayLayout.hiddenCount;
               const [year, month, day] = (cell.dateKey || '').split('-').map(Number);
               const cellWeekday = new Date(year, (month || 1) - 1, day || 1).getDay();
+              const hasSpanningSegmentStart = visible.some((event) => {
+                if (!event) return false;
+                const startKey = toLocalDateKey(event.startAt);
+                const endKey = toLocalDateKey(event.endAt);
+                if (!startKey || !endKey) return false;
+                const rangeStart = startKey <= endKey ? startKey : endKey;
+                const rangeEnd = startKey <= endKey ? endKey : startKey;
+                const isMultiDay = rangeStart < rangeEnd;
+                if (!isMultiDay) return false;
+                const isRangeStart = rangeStart === cell.dateKey;
+                return isRangeStart || cellWeekday === 0;
+              });
               return (
                 <button
                   key={cell.key}
@@ -615,6 +670,7 @@ function SchedulePanel({
                   className={cn(
                     dayCellHeight,
                     'relative overflow-visible rounded-xl p-1.5 text-left transition-colors',
+                    hasSpanningSegmentStart && 'z-[2]',
                     cell.isSelected
                       ? isDark
                         ? 'bg-brand-dark/20'
@@ -657,29 +713,64 @@ function SchedulePanel({
                       const isRangeEnd = isMultiDay && rangeEnd === cell.dateKey;
                       const startsSegmentThisWeek = isMultiDay && (isRangeStart || cellWeekday === 0);
                       const endsSegmentThisWeek = isMultiDay && (isRangeEnd || cellWeekday === 6);
-                      const showTitle = !isMultiDay || isRangeStart;
+                      const showTitle = !isMultiDay || startsSegmentThisWeek;
+                      const segmentEndKey =
+                        isMultiDay && rangeEnd && showTitle
+                          ? getMultiDaySegmentEnd(rangeEnd, cell.dateKey!, cellWeekday)
+                          : null;
+                      const spanInSegment =
+                        segmentEndKey && cell.dateKey
+                          ? daysInclusiveBetween(cell.dateKey, segmentEndKey)
+                          : 1;
+                      const barTone = isDark
+                        ? 'bg-brand-dark/20 text-blue-200'
+                        : 'bg-brand-dark/15 text-brand-dark';
+
+                      if (isMultiDay) {
+                        const barShape =
+                          startsSegmentThisWeek && endsSegmentThisWeek
+                            ? 'rounded-md'
+                            : startsSegmentThisWeek
+                              ? '-mr-1.5 rounded-l-md rounded-r-none'
+                              : endsSegmentThisWeek
+                                ? '-ml-1.5 rounded-l-none rounded-r-md'
+                                : '-mx-1.5 rounded-none';
+
+                        return (
+                          <div key={event.id} className="relative h-[17px]">
+                            <div
+                              className={cn(
+                                'h-full px-1.5 py-[1px] text-[10px] font-medium',
+                                barShape,
+                                barTone,
+                              )}
+                              aria-hidden
+                            >
+                              {'\u00A0'}
+                            </div>
+                            {showTitle && (
+                              <div
+                                className="pointer-events-none absolute top-0 left-0 z-[1] flex h-full items-center px-1.5 text-[10px] font-medium whitespace-nowrap"
+                                style={{ width: `${spanInSegment * 100}%` }}
+                                title={event.title}
+                              >
+                                {event.title}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
 
                       return (
                         <div
                           key={event.id}
                           className={cn(
-                            'truncate px-1.5 py-[1px] text-[10px] font-medium',
-                            isMultiDay
-                              ? startsSegmentThisWeek && endsSegmentThisWeek
-                                ? 'rounded-md'
-                                : startsSegmentThisWeek
-                                  ? '-mr-1.5 rounded-l-md rounded-r-none'
-                                  : endsSegmentThisWeek
-                                    ? '-ml-1.5 rounded-l-none rounded-r-md'
-                                    : '-mx-1.5 rounded-none'
-                              : 'rounded-md',
-                            isDark
-                              ? 'bg-brand-dark/20 text-blue-200'
-                              : 'bg-brand-dark/15 text-brand-dark'
+                            'truncate rounded-md px-1.5 py-[1px] text-[10px] font-medium',
+                            barTone,
                           )}
                           title={event.title}
                         >
-                          {showTitle ? event.title : '\u00A0'}
+                          {event.title}
                         </div>
                       );
                     })}
@@ -790,33 +881,28 @@ function SchedulePanel({
           />
 
           {(editingEventId || createTab === 'normal') && (
-            <div className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+            <div className={dateRangeGridClass}>
               <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-brand-dark/20 bg-white')}>
                 <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>시작</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('start')}
-                  className={cn(
-                    'mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none focus:outline-none',
-                    isDark ? 'border-brand-dark/30 bg-slate-800 text-slate-100' : 'border-brand-dark/25 bg-brand-dark/5 text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-2')}
                 >
-                  <span>{formatDateLabel(startDatePart)}</span>
-                  <CalendarIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatDateLabel(startDatePart, isNarrowLayout)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <CalendarIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => openTimeModal('start', 'event')}
-                  className={cn(
-                    inputBase,
-                    'mb-0 flex cursor-pointer items-center justify-between text-left',
-                    isDark
-                      ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
-                      : 'border-brand-dark/25 bg-white text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-0')}
                 >
-                  <span>{formatTimeLabel(startTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatTimeLabel(startTime)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <ClockIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
               </div>
 
@@ -825,60 +911,50 @@ function SchedulePanel({
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('end')}
-                  className={cn(
-                    'mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none focus:outline-none',
-                    isDark ? 'border-brand-dark/30 bg-slate-800 text-slate-100' : 'border-brand-dark/25 bg-brand-dark/5 text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-2')}
                 >
-                  <span>{formatDateLabel(endDatePart)}</span>
-                  <CalendarIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatDateLabel(endDatePart, isNarrowLayout)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <CalendarIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => openTimeModal('end', 'event')}
-                  className={cn(
-                    inputBase,
-                    'mb-0 flex cursor-pointer items-center justify-between text-left',
-                    isDark
-                      ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
-                      : 'border-brand-dark/25 bg-white text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-0')}
                 >
-                  <span>{formatTimeLabel(endTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatTimeLabel(endTime)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <ClockIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
               </div>
             </div>
           )}
 
           {!editingEventId && createTab === 'repeat' && (
-            <div className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+            <div className={dateRangeGridClass}>
               <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-brand-dark/20 bg-white')}>
                 <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>반복 시작</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('start')}
-                  className={cn(
-                    'mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none focus:outline-none',
-                    isDark ? 'border-brand-dark/30 bg-slate-800 text-slate-100' : 'border-brand-dark/25 bg-brand-dark/5 text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-2')}
                 >
-                  <span>{formatDateLabel(startDatePart)}</span>
-                  <CalendarIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatDateLabel(startDatePart, isNarrowLayout)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <CalendarIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => openTimeModal('start', 'event')}
-                  className={cn(
-                    inputBase,
-                    'mb-0 flex cursor-pointer items-center justify-between text-left',
-                    isDark
-                      ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
-                      : 'border-brand-dark/25 bg-white text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-0')}
                 >
-                  <span>{formatTimeLabel(startTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatTimeLabel(startTime)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <ClockIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
               </div>
 
@@ -887,27 +963,22 @@ function SchedulePanel({
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('end')}
-                  className={cn(
-                    'mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none focus:outline-none',
-                    isDark ? 'border-brand-dark/30 bg-slate-800 text-slate-100' : 'border-brand-dark/25 bg-brand-dark/5 text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-2')}
                 >
-                  <span>{formatDateLabel(endDatePart)}</span>
-                  <CalendarIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatDateLabel(endDatePart, isNarrowLayout)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <CalendarIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => openTimeModal('end', 'event')}
-                  className={cn(
-                    inputBase,
-                    'mb-0 flex cursor-pointer items-center justify-between text-left',
-                    isDark
-                      ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
-                      : 'border-brand-dark/25 bg-white text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-0')}
                 >
-                  <span>{formatTimeLabel(endTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatTimeLabel(endTime)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <ClockIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
               </div>
             </div>
@@ -915,16 +986,16 @@ function SchedulePanel({
 
           {!editingEventId && createTab === 'period' && (
             <>
-              <div className="mb-2 rounded-xl border border-brand-dark/25 bg-white/70 p-2 dark:border-brand-dark/20 dark:bg-slate-900/50">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className={cn('text-xs font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>
-                    선택 기간: {periodRange.startDate} ~ {periodRange.endDate}
+              <div className={cn('mb-2 rounded-xl border p-2', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-brand-dark/25 bg-white/70')}>
+                <div className={cn('flex gap-2', isNarrowLayout ? 'flex-col items-stretch' : 'flex-row items-center justify-between')}>
+                  <div className={cn('min-w-0 text-xs font-semibold leading-snug', isDark ? 'text-blue-200' : 'text-brand-dark')}>
+                    선택 기간: {formatDateLabel(periodRange.startDate, isNarrowLayout)} ~ {formatDateLabel(periodRange.endDate, isNarrowLayout)}
                   </div>
                   <button
                     type="button"
                     onClick={openRangeModal}
                     className={cn(
-                      'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold outline-none focus:outline-none',
+                      'inline-flex shrink-0 items-center gap-1 self-start whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs font-semibold outline-none focus:outline-none',
                       isDark
                         ? 'border-brand-dark/35 bg-brand-dark/10 text-blue-200 hover:bg-brand-dark/20'
                         : 'border-brand-dark/30 bg-white text-brand-dark hover:bg-brand-dark/10'
@@ -945,31 +1016,23 @@ function SchedulePanel({
                 <button
                   type="button"
                   onClick={() => openTimeModal('start', 'period')}
-                  className={cn(
-                    inputBase,
-                    'mb-0 flex flex-1 basis-28 cursor-pointer items-center justify-between text-left',
-                    isDark
-                      ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
-                      : 'border-brand-dark/25 bg-white text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-0 min-w-0 flex-1 basis-28')}
                 >
-                  <span>{formatTimeLabel(startTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatTimeLabel(startTime)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <ClockIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
                 <span className={cn('text-sm font-medium', isDark ? 'text-brand-light' : 'text-brand-dark')}>~</span>
                 <button
                   type="button"
                   onClick={() => openTimeModal('end', 'period')}
-                  className={cn(
-                    inputBase,
-                    'mb-0 flex flex-1 basis-28 cursor-pointer items-center justify-between text-left',
-                    isDark
-                      ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
-                      : 'border-brand-dark/25 bg-white text-slate-700'
-                  )}
+                  className={cn(pickerFieldClass, 'mb-0 min-w-0 flex-1 basis-28')}
                 >
-                  <span>{formatTimeLabel(endTime)}</span>
-                  <ClockIcon className={cn(isDark ? 'text-brand-light' : 'text-brand-dark')} />
+                  <span className={dateTimeTextClass}>{formatTimeLabel(endTime)}</span>
+                  <span className={pickerIconSlotClass}>
+                    <ClockIcon className={pickerIconColorClass} />
+                  </span>
                 </button>
               </div>
               <div className="mb-2 flex flex-wrap gap-1.5">
@@ -1180,7 +1243,7 @@ function SchedulePanel({
                   </strong>
                   <span
                     className={cn(
-                      'mb-1 block text-xs leading-relaxed',
+                      'mb-1 block text-xs leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis',
                       isDark ? 'text-brand-light' : 'text-brand-dark'
                     )}
                   >
@@ -1233,14 +1296,11 @@ function SchedulePanel({
 
       {singleDateModal.isOpen && (editingEventId || createTab === 'normal' || createTab === 'repeat') && (
         <div
-          className="fixed inset-0 z-[1995] flex items-center justify-center bg-black/35 p-4"
+          className={cn(modalOverlayClass, 'z-[1995] bg-black/35')}
           onClick={() => setSingleDateModal((prev) => ({ ...prev, isOpen: false, target: null }))}
         >
           <div
-            className={cn(
-              'w-full max-w-[760px] rounded-2xl border p-4',
-              isDark ? 'border-brand-dark/30 bg-slate-900' : 'border-brand-dark/20 bg-white shadow-soft'
-            )}
+            className={modalSurfaceClass(true)}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -1276,9 +1336,9 @@ function SchedulePanel({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+            <div className={cn('grid gap-2', isNarrowLayout ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2')}>
               {renderSingleDateMonth(singleDateModal.baseMonth, 0)}
-              {renderSingleDateMonth(addMonths(singleDateModal.baseMonth, 1), 1)}
+              {!isNarrowLayout && renderSingleDateMonth(addMonths(singleDateModal.baseMonth, 1), 1)}
             </div>
           </div>
         </div>
@@ -1286,14 +1346,11 @@ function SchedulePanel({
 
       {timeModal.isOpen && (
         <div
-          className="fixed inset-0 z-[1998] flex items-center justify-center bg-black/35 p-4"
+          className={cn(modalOverlayClass, 'z-[1998] bg-black/35')}
           onClick={closeTimeModal}
         >
           <div
-            className={cn(
-              'w-full max-w-[540px] rounded-2xl border p-4',
-              isDark ? 'border-brand-dark/30 bg-slate-900' : 'border-brand-dark/20 bg-white shadow-soft'
-            )}
+            className={modalSurfaceClass(false)}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -1457,14 +1514,11 @@ function SchedulePanel({
 
       {isRangeModalOpen && !editingEventId && createTab === 'period' && (
         <div
-          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 p-4"
+          className={modalOverlayClass}
           onClick={() => setIsRangeModalOpen(false)}
         >
           <div
-            className={cn(
-              'w-full max-w-[760px] rounded-2xl border p-4',
-              isDark ? 'border-brand-dark/30 bg-slate-900' : 'border-brand-dark/20 bg-white shadow-soft'
-            )}
+            className={modalSurfaceClass(true)}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -1505,14 +1559,14 @@ function SchedulePanel({
               </button>
             </div>
 
-            <div className="mb-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
+            <div className={cn('mb-3 grid gap-2', isNarrowLayout ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2')}>
               {renderRangeMonth(draftRangeBaseMonth, 0, draftPeriodRange, selectDraftRangeDate)}
-              {renderRangeMonth(addMonths(draftRangeBaseMonth, 1), 1, draftPeriodRange, selectDraftRangeDate)}
+              {!isNarrowLayout && renderRangeMonth(addMonths(draftRangeBaseMonth, 1), 1, draftPeriodRange, selectDraftRangeDate)}
             </div>
 
             <div className="mb-3 flex items-center justify-between gap-2">
-              <span className={cn('text-xs font-medium', isDark ? 'text-blue-200' : 'text-brand-dark')}>
-                선택 기간: {draftPeriodRange.startDate} ~ {draftPeriodRange.endDate}
+              <span className={cn('min-w-0 text-xs font-medium leading-snug', isDark ? 'text-blue-200' : 'text-brand-dark')}>
+                선택 기간: {formatDateLabel(draftPeriodRange.startDate, isNarrowLayout)} ~ {formatDateLabel(draftPeriodRange.endDate, isNarrowLayout)}
               </span>
             </div>
 

@@ -193,6 +193,18 @@ export function useMainSocket({
         return next;
       });
     });
+    s.on('memo', (payload: { memoId?: string; subject?: string; senderName?: string }) => {
+      queryClient.invalidateQueries({ queryKey: ['memos'] });
+      if (notificationsSnoozedUntilRef.current > Date.now()) return;
+      const title = payload.senderName ? `쪽지: ${payload.senderName}` : '새 쪽지';
+      const body = payload.subject || '';
+      const electronAPI = window.electronAPI;
+      if (electronAPI?.showNotification) {
+        electronAPI.showNotification(title, body);
+      } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+        new Notification(title, { body });
+      }
+    });
     s.on('connect', () => {
       s.emit('get_online_list');
     });

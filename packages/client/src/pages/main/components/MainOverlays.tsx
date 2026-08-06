@@ -12,6 +12,7 @@ type CtxRoomMenu = { x: number; y: number; room: Room } | null;
 type MainOverlaysProps = {
   isDark: boolean;
   showAnnouncementModal: boolean;
+  announcementTitle?: string | null;
   announcementContent?: string | null;
   setShowAnnouncementModal: Dispatch<SetStateAction<boolean>>;
   showCreateGroupModal: boolean;
@@ -36,11 +37,13 @@ type MainOverlaysProps = {
   onLeaveRoom: (roomId: string) => void | Promise<void>;
   profileModalUser: OrgUser | null;
   onlineUserIds: Set<string>;
+  onSendMemoToUser: (userId: string) => void;
 };
 
 export default function MainOverlays({
   isDark,
   showAnnouncementModal,
+  announcementTitle,
   announcementContent,
   setShowAnnouncementModal,
   showCreateGroupModal,
@@ -65,6 +68,7 @@ export default function MainOverlays({
   onLeaveRoom,
   profileModalUser,
   onlineUserIds,
+  onSendMemoToUser,
 }: MainOverlaysProps) {
   const overlayCls = 'fixed inset-0 z-[10002] bg-black/40 flex items-center justify-center';
   const modalCls = cn(
@@ -85,7 +89,9 @@ export default function MainOverlays({
       {showAnnouncementModal && announcementContent?.trim() && (
         <div className={overlayCls} onClick={() => setShowAnnouncementModal(false)}>
           <div className={modalCls} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>공지</h3>
+            <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>
+              {announcementTitle?.trim() || '공지'}
+            </h3>
             <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 14, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 16 }}>{announcementContent}</div>
             <button
               type="button"
@@ -124,6 +130,7 @@ export default function MainOverlays({
         return (
           <div className={ctxMenuCls} style={{ left, top }} onClick={(e) => e.stopPropagation()}>
             <button type="button" className={ctxMenuItemCls} onClick={() => { setProfileModalUser(contextMenu.user); setContextMenu(null); }}>프로필 보기</button>
+            <button type="button" className={ctxMenuItemCls} onClick={() => onSendMemoToUser(contextMenu.user.id)}>쪽지 보내기</button>
           </div>
         );
       })()}

@@ -77,10 +77,6 @@ type SettingsPanelProps = {
   renderStatusIcon: (status: string, size?: number) => ReactNode;
   handleSetStatus: (msg: string) => Promise<void> | void;
   notificationStatus: string;
-  announcementEdit: string;
-  setAnnouncementEdit: (value: string) => void;
-  announcementSaving: boolean;
-  onSaveAnnouncement: () => Promise<void>;
   onSelectAvatarFile: (file: File) => void;
   onDeleteAvatar: () => Promise<void>;
   onTestNotification: () => void;
@@ -109,10 +105,6 @@ function SettingsPanel({
   renderStatusIcon,
   handleSetStatus,
   notificationStatus,
-  announcementEdit,
-  setAnnouncementEdit,
-  announcementSaving,
-  onSaveAnnouncement,
   onSelectAvatarFile,
   onDeleteAvatar,
   onTestNotification,
@@ -228,13 +220,6 @@ function SettingsPanel({
         </div>
 
         <div style={{ padding: '10px 12px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', color: isDark ? '#94a3b8' : '#334155', fontSize: 13 }}>알림 상태: {notificationStatus}</div>
-        {user?.isAdmin && (
-          <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>공지 등록</h4>
-            <textarea value={announcementEdit} onChange={(e) => setAnnouncementEdit(e.target.value)} placeholder="공지 내용을 입력하세요." style={{ width: '100%', padding: 12, border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, borderRadius: 8, fontSize: 14, lineHeight: 1.5, resize: 'vertical' as const, marginBottom: 10, boxSizing: 'border-box' as const, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#0f172a' }} rows={3} />
-            <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" disabled={announcementSaving} onClick={() => void onSaveAnnouncement()}>{announcementSaving ? '저장 중...' : '저장'}</button>
-          </div>
-        )}
 
         {hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-800')} onClick={onTestNotification}>알림 테스트</button>}
         {!hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-800')} onClick={() => void onRequestNotificationPermission()}>알림 권한 요청</button>}

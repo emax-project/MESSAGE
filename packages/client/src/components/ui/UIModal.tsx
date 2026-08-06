@@ -24,7 +24,7 @@ export default function UIModal({
   return (
     <div
       className={cn(
-        'inset-0 flex items-center justify-center bg-black/50',
+        'inset-0 flex items-center justify-center bg-black/50 p-2',
         overlayPosition === 'fixed' ? 'fixed' : 'absolute',
       )}
       style={{ zIndex }}
@@ -32,12 +32,12 @@ export default function UIModal({
     >
       <div
         className={cn(
-          'flex max-h-[80vh] max-w-[95vw] flex-col rounded-xl border',
+          'flex w-full min-w-0 max-w-[calc(100%-1rem)] max-h-[80vh] flex-col rounded-xl border',
           isDark
             ? 'border-slate-700 bg-slate-800 shadow-[0_8px_32px_rgba(0,0,0,0.4)]'
             : 'border-slate-200 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.15)]',
         )}
-        style={{ width }}
+        style={{ maxWidth: `min(${width}px, calc(var(--app-max-width) - 2rem))` }}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (

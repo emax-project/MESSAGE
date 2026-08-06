@@ -16,12 +16,8 @@ vi.mock('../../ChatWindow', () => ({
   ),
 }));
 
-vi.mock('./MentionPanel', () => ({
-  default: () => <div data-testid="mention-panel">mention-panel</div>,
-}));
-
-vi.mock('./BookmarkPanel', () => ({
-  default: () => <div data-testid="bookmark-panel">bookmark-panel</div>,
+vi.mock('./NotificationPanel', () => ({
+  default: () => <div data-testid="notification-panel">notification-panel</div>,
 }));
 
 vi.mock('./RoomsPanel', () => ({
@@ -36,8 +32,13 @@ vi.mock('./SettingsPanel', () => ({
   default: () => <div data-testid="settings-panel">settings-panel</div>,
 }));
 
-vi.mock('./DashboardHome', () => ({
-  default: () => <div data-testid="dashboard-home">dashboard-home</div>,
+
+vi.mock('./MemoPanel', () => ({
+  default: () => <div data-testid="memo-panel">memo-panel</div>,
+}));
+
+vi.mock('./OrgPanel', () => ({
+  default: () => <div data-testid="org-panel">org-panel</div>,
 }));
 
 const makeEvent = (): Event => ({
@@ -52,15 +53,34 @@ const makeEvent = (): Event => ({
 const baseProps = () => ({
   isDark: false,
   isNarrowLayout: false,
-  activePanel: 'none' as 'none' | 'mention' | 'bookmark' | 'rooms' | 'schedule' | 'settings',
+  activePanel: 'none' as 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings',
   selectedRoomId: undefined as string | undefined,
   panelWrapStyle: () => ({ className: '', style: {} }),
   onOpenInNewWindow: vi.fn<(roomId: string) => void>(),
   mentions: [],
   onSelectMention: vi.fn(),
-  bookmarks: [],
-  onSelectBookmark: vi.fn(),
-  onRemoveBookmark: vi.fn(),
+  unreadMentionCount: 0,
+  notificationProps: {
+    items: [] as import('../../../api').AnnouncementItem[],
+    isAdmin: false,
+    announcementEdit: '',
+    announcementTitle: '',
+    editingAnnouncementId: null as string | null,
+    announcementSaving: false,
+    onAnnouncementEditChange: vi.fn(),
+    onAnnouncementTitleChange: vi.fn(),
+    onStartCreateAnnouncement: vi.fn(),
+    onStartEditAnnouncement: vi.fn(),
+    onCancelEditAnnouncement: vi.fn(),
+    onSaveAnnouncement: vi.fn(async () => {}),
+  },
+  memoProps: {
+    inbox: [],
+    sent: [],
+    onOpenCompose: vi.fn(),
+    onMarkRead: vi.fn(),
+    onDelete: vi.fn(),
+  },
   roomsProps: {
     isDark: false,
     roomsError: false,
@@ -84,15 +104,27 @@ const baseProps = () => ({
     roomSearchQuery: '',
     onRoomSearchQueryChange: vi.fn(),
   },
-  dashboardProps: {
-    userName: 'Test User',
-    topicCount: 0,
-    chatCount: 0,
-    totalUnread: 0,
-    unreadMentionCount: 0,
-    todayEvents: [],
-    weekEvents: [],
-    setActivePanel: vi.fn(),
+  orgProps: {
+    searchQuery: '',
+    onSearchQueryChange: vi.fn(),
+    showOnlineOnly: false,
+    onToggleOnlineOnly: vi.fn(),
+    orgLoading: false,
+    orgError: false,
+    orgTree: [],
+    treeOpen: {},
+    orgStarred: new Set<string>(),
+    onToggleOrgStar: vi.fn(),
+    onlineUserIds: new Set<string>(),
+    myId: 'me',
+    myEmail: 'me@emax.com',
+    socketConnected: true,
+    onRetryOrg: vi.fn(),
+    onToggleTree: vi.fn(),
+    onOpenDirectMessage: vi.fn(),
+    onUserContextMenu: vi.fn(),
+    hasStatusIcon: vi.fn(() => false),
+    renderStatusIcon: vi.fn(() => null),
   },
   scheduleProps: {
     calendarMonth: new Date('2026-03-01T00:00:00'),
@@ -126,10 +158,6 @@ const baseProps = () => ({
     renderStatusIcon: vi.fn(() => null),
     handleSetStatus: vi.fn(),
     notificationStatus: '지원되지 않음',
-    announcementEdit: '',
-    setAnnouncementEdit: vi.fn(),
-    announcementSaving: false,
-    onSaveAnnouncement: vi.fn(async () => {}),
     onSelectAvatarFile: vi.fn(),
     onDeleteAvatar: vi.fn(async () => {}),
     onTestNotification: vi.fn(),
@@ -151,9 +179,11 @@ describe('RightContentRouter', () => {
     expect(props.onOpenInNewWindow).toHaveBeenCalledWith('room-1');
   });
 
-  it('renders dashboard when no active panel and no selected room', () => {
+  it('renders org panel when no active panel and no selected room', async () => {
     render(<RightContentRouter {...baseProps()} />);
-    expect(screen.getByTestId('dashboard-home')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('org-panel')).toBeInTheDocument();
+    });
   });
 
   it('routes schedule panel when active panel is schedule', async () => {
@@ -174,6 +204,16 @@ describe('RightContentRouter', () => {
     render(<RightContentRouter {...props} />);
     await waitFor(() => {
       expect(screen.getByTestId('rooms-panel')).toBeInTheDocument();
+    });
+  });
+
+  it('routes notification panel when active panel is notifications', async () => {
+    const props = baseProps();
+    props.activePanel = 'notifications';
+
+    render(<RightContentRouter {...props} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('notification-panel')).toBeInTheDocument();
     });
   });
 

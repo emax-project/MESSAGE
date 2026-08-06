@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, bookmarksApi, type Room, type Message, type FileInfo } from '../api';
+import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, type Room, type Message, type FileInfo } from '../api';
 import FileUploadButton from '../components/FileUploadButton';
 import InviteModal from '../components/InviteModal';
 import RoomSettingsModal from '../components/RoomSettingsModal';
@@ -63,7 +63,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const [hoveredMsg, setHoveredMsg] = useState<string | null>(null);
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const [taskFromMessage, setTaskFromMessage] = useState<{ title: string; messageId: string } | null>(null);
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [threadOpen, setThreadOpen] = useState<{ parentId: string; parent: Message; replies: Message[] } | null>(null);
   const [fileDrawerData, setFileDrawerData] = useState<FileInfo[]>([]);
   const [rightPanel, setRightPanel] = useState<'none' | 'file' | 'members' | 'pins'>('none');
@@ -488,29 +487,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     }
   };
 
-  // Load bookmarks
-  useEffect(() => {
-    bookmarksApi.list().then((list) => {
-      setBookmarkedIds(new Set(list.map((b) => b.messageId)));
-    }).catch((err) => {
-      console.warn('[bookmarks] 북마크 목록 로드 실패:', err.message);
-    });
-  }, []);
-
-  const handleToggleBookmark = async (messageId: string) => {
-    try {
-      if (bookmarkedIds.has(messageId)) {
-        await bookmarksApi.remove(messageId);
-        setBookmarkedIds((prev) => { const s = new Set(prev); s.delete(messageId); return s; });
-      } else {
-        await bookmarksApi.add(messageId);
-        setBookmarkedIds((prev) => new Set(prev).add(messageId));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleOpenThread = async (messageId: string) => {
     if (!roomId) return;
     try {
@@ -832,9 +808,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { setForwardOpen(contextMenu.message.id); setContextMenu(null); }}>
               전달
             </button>
-            <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { handleToggleBookmark(contextMenu.message.id); setContextMenu(null); }}>
-              {bookmarkedIds.has(contextMenu.message.id) ? '북마크 해제' : '북마크'}
-            </button>
             <button type="button" className={cn('block w-full py-2 px-3 border-none bg-transparent rounded-md text-[13px] text-left cursor-pointer', isDark ? 'text-slate-200' : 'text-slate-800')} onClick={() => { handlePin(contextMenu.message.id); setContextMenu(null); }}>
               고정
             </button>
@@ -1034,7 +1007,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             </span>
           </div>
         )}
-        <div className={cn('py-2.5 px-4 pb-3.5 flex gap-2.5 items-center', isDark ? 'bg-slate-800 border-t border-slate-700' : 'bg-slate-50 border-t border-slate-200')}>
+        <div className={cn(
+          'py-2.5 px-4 pb-3.5 flex gap-2.5 items-end',
+          isCompactHeader && 'px-2 gap-1.5',
+          isDark ? 'bg-slate-800 border-t border-slate-700' : 'bg-slate-50 border-t border-slate-200',
+        )}>
           <div className="flex items-center gap-2 shrink-0">
             <div className="relative shrink-0">
               <button
@@ -1108,14 +1085,15 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             ) : (
               <textarea
                 ref={inputRef}
-                placeholder="메시지를 입력하세요"
+                placeholder="메시지 입력"
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 rows={1}
                 className={cn(
-                  'w-full py-2.5 px-4 border rounded-full text-sm leading-snug min-h-[42px] max-h-[120px] resize-none outline-none transition-colors font-inherit',
+                  'w-full py-2.5 px-4 border rounded-full text-sm leading-normal min-h-[42px] max-h-[120px] resize-none outline-none transition-colors font-inherit overflow-hidden placeholder:whitespace-nowrap placeholder:overflow-hidden placeholder:text-ellipsis',
+                  isCompactHeader && 'px-3 py-2 min-h-[38px] text-[13px]',
                   isDark ? 'border-slate-600 bg-slate-950 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-800',
                 )}
               />
@@ -1127,6 +1105,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               onClick={sendMessage}
               className={cn(
                 'py-2.5 px-5 rounded-full font-bold text-sm cursor-pointer whitespace-nowrap transition-colors',
+                isCompactHeader && 'px-3.5 py-2',
                 !input.trim() || !socket || fileUploading
                   ? (isDark ? 'bg-slate-700 text-slate-400 opacity-90' : 'bg-slate-300 text-white opacity-90')
                   : 'bg-brand-dark text-white',

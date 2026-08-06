@@ -38,6 +38,7 @@ import { pollsRouter } from './routes/polls.js';
 import { projectsRouter } from './routes/projects.js';
 import { bookmarksRouter } from './routes/bookmarks.js';
 import { mentionsRouter } from './routes/mentions.js';
+import { memosRouter } from './routes/memos.js';
 import { linkPreviewRouter } from './routes/linkPreview.js';
 import { foldersRouter } from './routes/folders.js';
 import { prisma } from './db.js';
@@ -86,6 +87,7 @@ app.use('/api/polls', pollsRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/bookmarks', bookmarksRouter);
 app.use('/api/mentions', mentionsRouter);
+app.use('/api/memos', memosRouter);
 app.use('/api/link-preview', linkPreviewRouter());
 app.use('/api/folders', foldersRouter);
 // 기존 경로도 유지 (하위 호환)
@@ -100,6 +102,7 @@ app.use('/polls', pollsRouter);
 app.use('/projects', projectsRouter);
 app.use('/bookmarks', bookmarksRouter);
 app.use('/mentions', mentionsRouter);
+app.use('/memos', memosRouter);
 app.use('/link-preview', linkPreviewRouter());
 app.use('/folders', foldersRouter);
 // Disable public uploads to enforce auth/expiry checks via /files/download
@@ -140,7 +143,7 @@ app.get('/debug-client', (_, res) => {
 });
 
 // API 404: 매칭되지 않은 API 경로는 JSON으로 응답 (클라이언트가 에러 메시지 파싱 가능)
-const API_PREFIXES = ['/auth', '/users', '/rooms', '/org', '/files', '/announcement', '/events', '/polls', '/projects', '/bookmarks', '/mentions', '/link-preview', '/folders', '/api'];
+const API_PREFIXES = ['/auth', '/users', '/rooms', '/org', '/files', '/announcement', '/events', '/polls', '/projects', '/bookmarks', '/mentions', '/memos', '/link-preview', '/folders', '/api'];
 app.use((req, res, next) => {
   if (API_PREFIXES.some((p) => req.path.startsWith(p))) {
     return res.status(404).json({ error: '요청한 API 경로를 찾을 수 없습니다. 서버를 최신 버전으로 업데이트해 주세요.' });

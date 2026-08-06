@@ -7,8 +7,13 @@ const API_URL_KEY = 'emax_api_url';
 /** 런타임에 설정한 서버 주소가 있으면 사용, 없으면 빌드 시 기본값 */
 export function getBaseUrl(): string {
   if (typeof window === 'undefined') return DEFAULT_BASE;
-  const saved = localStorage.getItem(API_URL_KEY);
-  const base = saved || DEFAULT_BASE;
+  const envBase =
+    import.meta.env.VITE_API_URL === ''
+      ? ''
+      : (import.meta.env.VITE_API_URL || DEFAULT_BASE);
+  // dev: .env의 API 주소 우선 (localStorage 원격 주소 → 신규 API 404 방지)
+  const saved = import.meta.env.DEV ? null : localStorage.getItem(API_URL_KEY);
+  const base = saved || envBase;
   // Vite dev(5173)에서 로컬 서버(3001) 사용 시: 프록시 경유로 CORS 회피
   const origin = window.location?.origin || '';
   if (origin.includes('5173') && (base === 'http://localhost:3001' || base === 'http://127.0.0.1:3001')) {
@@ -262,22 +267,6 @@ export type Event = {
   updatedAt?: string;
 };
 
-export type Bookmark = {
-  id: string;
-  messageId: string;
-  createdAt: string;
-  message: {
-    id: string;
-    content: string;
-    createdAt: string;
-    sender: { id: string; name: string };
-    fileUrl?: string | null;
-    fileName?: string | null;
-    fileSize?: number | null;
-    room: { id: string; name: string };
-  };
-};
-
 export type MentionItem = {
   id: string;
   messageId: string;
@@ -366,8 +355,24 @@ export const orgApi = {
   online: () => api.get('/org/online') as Promise<{ userIds: string[] }>,
 };
 
+export type AnnouncementItem = {
+  id: string;
+  title?: string | null;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export const announcementApi = {
-  get: () => api.get('/announcement') as Promise<{ content: string | null }>,
+  get: () => api.get('/announcement') as Promise<{
+    items: AnnouncementItem[];
+    content: string | null;
+    updatedAt?: string | null;
+  }>,
+  create: (data: { title?: string; content: string }) =>
+    api.post('/announcement', data) as Promise<AnnouncementItem>,
+  update: (id: string, data: { title?: string; content: string }) =>
+    api.put(`/announcement/${id}`, data) as Promise<AnnouncementItem>,
   put: (content: string) => api.put('/announcement', { content }) as Promise<{ ok: boolean }>,
 };
 
@@ -564,16 +569,34 @@ export const projectsApi = {
     api.post(`/projects/${id}/tasks/${taskId}/comments`, { content }) as Promise<TaskComment>,
 };
 
-export const bookmarksApi = {
-  list: () => api.get('/bookmarks') as Promise<Bookmark[]>,
-  add: (messageId: string) => api.post('/bookmarks', { messageId }) as Promise<{ id: string }>,
-  remove: (messageId: string) => api.delete(`/bookmarks/${messageId}`) as Promise<{ ok: boolean }>,
-};
-
 export const mentionsApi = {
   list: () => api.get('/mentions') as Promise<MentionItem[]>,
   markRead: (id: string) => api.post(`/mentions/${id}/read`, {}) as Promise<{ ok: boolean }>,
   unreadCount: () => api.get('/mentions/unread-count') as Promise<{ count: number }>,
+};
+
+export type MemoUser = { id: string; name: string; email?: string | null };
+export type MemoRecipient = { id: string; userId: string; readAt?: string | null; user: MemoUser };
+export type MemoItem = {
+  id: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+  sender: MemoUser;
+  recipients: MemoRecipient[];
+  readAt?: string | null;
+  recipientId?: string | null;
+};
+
+export const memosApi = {
+  inbox: () => api.get('/memos/inbox') as Promise<MemoItem[]>,
+  sent: () => api.get('/memos/sent') as Promise<MemoItem[]>,
+  get: (id: string) => api.get(`/memos/${id}`) as Promise<MemoItem>,
+  send: (data: { recipientIds: string[]; subject: string; body: string }) =>
+    api.post('/memos', data) as Promise<MemoItem>,
+  markRead: (id: string) => api.post(`/memos/${id}/read`, {}) as Promise<{ ok: boolean }>,
+  remove: (id: string) => api.delete(`/memos/${id}`) as Promise<{ ok: boolean }>,
+  unreadCount: () => api.get('/memos/unread-count') as Promise<{ count: number }>,
 };
 
 export type LinkPreviewData = { url: string; title: string | null; description: string | null; imageUrl: string | null };

@@ -1,19 +1,19 @@
 import { lazy, memo, Suspense } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { Event } from '../../../api';
+import type { AnnouncementItem, Event, OrgCompany, OrgUser } from '../../../api';
 import { getCommonMessages } from '../../../i18n';
 import type { UpdateStatus } from '../hooks/useUpdateManager';
 import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
 import ChatWindow from '../../ChatWindow';
 import type { MentionItem } from './MentionPanel';
-import type { BookmarkItem } from './BookmarkPanel';
+import type { MemoItem } from './MemoPanel';
 import type { RoomSectionsProps } from './RoomSections';
-import DashboardHome from './DashboardHome';
 
-const MentionPanel = lazy(() => import('./MentionPanel'));
-const BookmarkPanel = lazy(() => import('./BookmarkPanel'));
+const NotificationPanel = lazy(() => import('./NotificationPanel'));
 const RoomsPanel = lazy(() => import('./RoomsPanel'));
+const OrgPanel = lazy(() => import('./OrgPanel'));
 const SchedulePanel = lazy(() => import('./SchedulePanel'));
+const MemoPanel = lazy(() => import('./MemoPanel'));
 const SettingsPanel = lazy(() => import('./SettingsPanel'));
 
 function PanelLoadingFallback() {
@@ -25,7 +25,7 @@ function PanelLoadingFallback() {
   );
 }
 
-type ActivePanel = 'none' | 'mention' | 'bookmark' | 'rooms' | 'schedule' | 'settings';
+type ActivePanel = 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings';
 type EventFormState = { title: string; startAt: string; endAt: string; description: string };
 
 type RightContentRouterProps = {
@@ -37,12 +37,54 @@ type RightContentRouterProps = {
   onOpenInNewWindow: (roomId: string) => void;
   mentions: MentionItem[];
   onSelectMention: (mention: MentionItem) => void | Promise<void>;
-  bookmarks: BookmarkItem[];
-  onSelectBookmark: (bookmark: BookmarkItem) => void;
-  onRemoveBookmark: (bookmark: BookmarkItem) => void | Promise<void>;
+  unreadMentionCount: number;
+  notificationProps: {
+    items: AnnouncementItem[];
+    isAdmin?: boolean;
+    announcementEdit: string;
+    announcementTitle: string;
+    editingAnnouncementId: string | null;
+    announcementSaving: boolean;
+    onAnnouncementEditChange: (value: string) => void;
+    onAnnouncementTitleChange: (value: string) => void;
+    onStartCreateAnnouncement: () => void;
+    onStartEditAnnouncement: (item: AnnouncementItem) => void;
+    onCancelEditAnnouncement: () => void;
+    onSaveAnnouncement: () => void | Promise<void>;
+  };
+  memoProps: {
+    inbox: MemoItem[];
+    sent: MemoItem[];
+    onOpenCompose: () => void;
+    onMarkRead: (memo: MemoItem) => void | Promise<void>;
+    onDelete: (memo: MemoItem) => void | Promise<void>;
+  };
   roomsProps: RoomSectionsProps & {
     roomSearchQuery: string;
     onRoomSearchQueryChange: (value: string) => void;
+  };
+  orgProps: {
+    searchQuery: string;
+    onSearchQueryChange: (value: string) => void;
+    showOnlineOnly: boolean;
+    onToggleOnlineOnly: () => void;
+    orgLoading: boolean;
+    orgError: boolean;
+    orgTree: OrgCompany[];
+    companyMemberCounts?: Record<string, number>;
+    treeOpen: Record<string, boolean>;
+    orgStarred: Set<string>;
+    onToggleOrgStar: (id: string) => void;
+    onlineUserIds: Set<string>;
+    myId?: string;
+    myEmail?: string;
+    socketConnected: boolean;
+    onRetryOrg: () => void;
+    onToggleTree: (key: string) => void;
+    onOpenDirectMessage: (userId: string) => void | Promise<void>;
+    onUserContextMenu: (e: React.MouseEvent<HTMLButtonElement>, user: OrgUser) => void;
+    hasStatusIcon: (status?: string | null) => boolean;
+    renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
   };
   scheduleProps: {
     calendarMonth: Date;
@@ -58,17 +100,6 @@ type RightContentRouterProps = {
     onCancelEdit: () => void;
     onEditEvent: (ev: Event) => void;
     onDeleteEvent: (eventId: string) => void | Promise<void>;
-  };
-  dashboardProps: {
-    userName?: string | null;
-    topicCount: number;
-    chatCount: number;
-    totalUnread: number;
-    unreadMentionCount: number;
-    todayEvents: Event[];
-    weekEvents: { dateKey: string; label: string; count: number }[];
-    setActivePanel: (panel: ActivePanel) => void;
-    onEventClick?: (event: Event) => void;
   };
   settingsProps: {
     notificationsSnoozedUntil: number;
@@ -87,10 +118,6 @@ type RightContentRouterProps = {
     renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
     handleSetStatus: (msg: string) => void | Promise<void>;
     notificationStatus: string;
-    announcementEdit: string;
-    setAnnouncementEdit: Dispatch<SetStateAction<string>>;
-    announcementSaving: boolean;
-    onSaveAnnouncement: () => Promise<void>;
     onSelectAvatarFile: (file: File) => void;
     onDeleteAvatar: () => Promise<void>;
     onTestNotification: () => void;
@@ -109,12 +136,12 @@ function RightContentRouter({
   onOpenInNewWindow,
   mentions,
   onSelectMention,
-  bookmarks,
-  onSelectBookmark,
-  onRemoveBookmark,
+  unreadMentionCount,
+  notificationProps,
+  memoProps,
   roomsProps,
+  orgProps,
   scheduleProps,
-  dashboardProps,
   settingsProps,
 }: RightContentRouterProps) {
   if (selectedRoomId && activePanel === 'none') {
@@ -124,29 +151,70 @@ function RightContentRouter({
   return (
     <>
       {activePanel === 'none' && (
-        <DashboardHome
-          isDark={isDark}
-          userName={dashboardProps.userName}
-          topicCount={dashboardProps.topicCount}
-          chatCount={dashboardProps.chatCount}
-          totalUnread={dashboardProps.totalUnread}
-          unreadMentionCount={dashboardProps.unreadMentionCount}
-          todayEvents={dashboardProps.todayEvents}
-          weekEvents={dashboardProps.weekEvents}
-          setActivePanel={dashboardProps.setActivePanel}
-          onEventClick={dashboardProps.onEventClick}
-        />
-      )}
-
-      {activePanel === 'mention' && (
         <Suspense fallback={<PanelLoadingFallback />}>
-          <MentionPanel isDark={isDark} mentions={mentions} panelWrapStyle={panelWrapStyle} onSelectMention={onSelectMention} />
+          <OrgPanel
+            isDark={isDark}
+            panelWrapStyle={panelWrapStyle}
+            searchQuery={orgProps.searchQuery}
+            onSearchQueryChange={orgProps.onSearchQueryChange}
+            showOnlineOnly={orgProps.showOnlineOnly}
+            onToggleOnlineOnly={orgProps.onToggleOnlineOnly}
+            orgLoading={orgProps.orgLoading}
+            orgError={orgProps.orgError}
+            orgTree={orgProps.orgTree}
+            companyMemberCounts={orgProps.companyMemberCounts}
+            treeOpen={orgProps.treeOpen}
+            orgStarred={orgProps.orgStarred}
+            onToggleOrgStar={orgProps.onToggleOrgStar}
+            onlineUserIds={orgProps.onlineUserIds}
+            myId={orgProps.myId}
+            myEmail={orgProps.myEmail}
+            socketConnected={orgProps.socketConnected}
+            onRetryOrg={orgProps.onRetryOrg}
+            onToggleTree={orgProps.onToggleTree}
+            onOpenDirectMessage={orgProps.onOpenDirectMessage}
+            onUserContextMenu={orgProps.onUserContextMenu}
+            hasStatusIcon={orgProps.hasStatusIcon}
+            renderStatusIcon={orgProps.renderStatusIcon}
+          />
         </Suspense>
       )}
 
-      {activePanel === 'bookmark' && (
+      {activePanel === 'notifications' && (
         <Suspense fallback={<PanelLoadingFallback />}>
-          <BookmarkPanel isDark={isDark} bookmarks={bookmarks} panelWrapStyle={panelWrapStyle} onSelectBookmark={onSelectBookmark} onRemoveBookmark={onRemoveBookmark} />
+          <NotificationPanel
+            isDark={isDark}
+            mentions={mentions}
+            unreadMentionCount={unreadMentionCount}
+            items={notificationProps.items}
+            isAdmin={notificationProps.isAdmin}
+            announcementEdit={notificationProps.announcementEdit}
+            announcementTitle={notificationProps.announcementTitle}
+            editingAnnouncementId={notificationProps.editingAnnouncementId}
+            announcementSaving={notificationProps.announcementSaving}
+            onAnnouncementEditChange={notificationProps.onAnnouncementEditChange}
+            onAnnouncementTitleChange={notificationProps.onAnnouncementTitleChange}
+            onStartCreateAnnouncement={notificationProps.onStartCreateAnnouncement}
+            onStartEditAnnouncement={notificationProps.onStartEditAnnouncement}
+            onCancelEditAnnouncement={notificationProps.onCancelEditAnnouncement}
+            onSaveAnnouncement={notificationProps.onSaveAnnouncement}
+            panelWrapStyle={panelWrapStyle}
+            onSelectMention={onSelectMention}
+          />
+        </Suspense>
+      )}
+
+      {activePanel === 'memo' && (
+        <Suspense fallback={<PanelLoadingFallback />}>
+          <MemoPanel
+            isDark={isDark}
+            inbox={memoProps.inbox}
+            sent={memoProps.sent}
+            panelWrapStyle={panelWrapStyle}
+            onOpenCompose={memoProps.onOpenCompose}
+            onMarkRead={memoProps.onMarkRead}
+            onDelete={memoProps.onDelete}
+          />
         </Suspense>
       )}
 
@@ -205,10 +273,6 @@ function RightContentRouter({
             renderStatusIcon={settingsProps.renderStatusIcon}
             handleSetStatus={settingsProps.handleSetStatus}
             notificationStatus={settingsProps.notificationStatus}
-            announcementEdit={settingsProps.announcementEdit}
-            setAnnouncementEdit={settingsProps.setAnnouncementEdit}
-            announcementSaving={settingsProps.announcementSaving}
-            onSaveAnnouncement={settingsProps.onSaveAnnouncement}
             onSelectAvatarFile={settingsProps.onSelectAvatarFile}
             onDeleteAvatar={settingsProps.onDeleteAvatar}
             onTestNotification={settingsProps.onTestNotification}

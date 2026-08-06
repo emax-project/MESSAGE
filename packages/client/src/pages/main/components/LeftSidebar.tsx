@@ -1,224 +1,128 @@
 import { memo } from 'react';
-import type { Dispatch, MouseEvent, ReactNode, SetStateAction } from 'react';
-import type { OrgCompany, OrgUser } from '../../../api';
-import UserAvatar from '../../../components/UserAvatar';
+import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import { EmaxLogo } from '../../../components/EmaxLogo';
-import UICloseButton from '../../../components/ui/UICloseButton';
-import OrgTree from './OrgTree';
 import { cn } from '../../../utils/cn';
 
-type LeftSidebarUser = {
-  id: string;
-  name?: string | null;
-  avatarUrl?: string | null;
-} | null | undefined;
+type ActivePanel = 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings';
 
 type LeftSidebarProps = {
   isDark: boolean;
-  user: LeftSidebarUser;
-  statusInput: string;
-  statusLabel: string;
-  showStatusBadge: boolean;
-  statusBadge: ReactNode;
-  searchQuery: string;
-  setSearchQuery: Dispatch<SetStateAction<string>>;
+  activePanel: ActivePanel;
+  setActivePanel: Dispatch<SetStateAction<ActivePanel>>;
+  unreadNotificationCount: number;
+  unreadMemoCount: number;
+  totalUnreadCount: number;
+  notificationsSnoozedUntil: number;
   onNavigateHome: () => void;
-  onClose?: () => void;
-  showOnlineOnly: boolean;
-  onToggleOnlineOnly: () => void;
-  orgLoading: boolean;
-  orgError: boolean;
-  orgTree: OrgCompany[];
-  treeOpen: Record<string, boolean>;
-  orgStarred: Set<string>;
-  onToggleOrgStar: (id: string) => void;
-  onlineUserIds: Set<string>;
-  myId?: string;
-  myEmail?: string;
-  socketConnected: boolean;
-  onRetryOrg: () => void;
-  onToggleTree: (key: string) => void;
-  onOpenDirectMessage: (userId: string) => void | Promise<void>;
-  onUserContextMenu: (e: MouseEvent<HTMLButtonElement>, user: OrgUser) => void;
-  hasStatusIcon: (status?: string | null) => boolean;
-  renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
 };
 
 function LeftSidebar({
   isDark,
-  user,
-  statusInput,
-  statusLabel,
-  showStatusBadge,
-  statusBadge,
-  searchQuery,
-  setSearchQuery,
+  activePanel,
+  setActivePanel,
+  unreadNotificationCount,
+  unreadMemoCount,
+  totalUnreadCount,
+  notificationsSnoozedUntil,
   onNavigateHome,
-  onClose,
-  showOnlineOnly,
-  onToggleOnlineOnly,
-  orgLoading,
-  orgError,
-  orgTree,
-  treeOpen,
-  orgStarred,
-  onToggleOrgStar,
-  onlineUserIds,
-  myId,
-  myEmail,
-  socketConnected,
-  onRetryOrg,
-  onToggleTree,
-  onOpenDirectMessage,
-  onUserContextMenu,
-  hasStatusIcon,
-  renderStatusIcon,
 }: LeftSidebarProps) {
-  return (
-    <div className={cn(
-      'w-full h-full flex flex-col border-r',
-      isDark ? 'bg-slate-800 border-r-slate-600' : 'bg-white border-r-slate-200',
-    )}>
-      <div className={cn(
-        'shrink-0 h-[46px] flex items-center justify-between px-4 border-b',
-        isDark ? 'bg-slate-800 border-b-slate-600' : 'bg-white border-b-slate-200',
-      )}>
-        <button
-          type="button"
-          onClick={onNavigateHome}
-          className="flex items-center gap-2 border-none bg-transparent p-0 m-0 cursor-pointer"
-          title="대시보드로 이동"
-        >
-          <EmaxLogo variant={isDark ? 'light' : 'accent'} size="lg" />
-        </button>
-        {onClose && (
-          <UICloseButton
-            size="sm"
-            variant="subtle"
-            onClick={onClose}
-            aria-label="조직도 닫기"
-            title="닫기"
-          />
-        )}
-      </div>
+  const togglePanel = (panel: Exclude<ActivePanel, 'none'>) => {
+    setActivePanel((prev) => (prev === panel ? 'none' : panel));
+  };
 
-      <div className={cn(
-        'shrink-0 flex items-center gap-2.5 px-4 py-2.5 border-b',
-        isDark ? 'border-b-slate-600' : 'border-b-slate-200',
-      )}>
-        <div className="relative shrink-0">
-          <div className={cn(
-            'w-[34px] h-[34px] rounded-[10px] shrink-0 flex items-center justify-center overflow-hidden',
-            isDark ? 'bg-[#475569]' : 'bg-[#e2e8f0]',
-          )}>
-            {user?.avatarUrl ? (
-              <UserAvatar
-                userId={user.id}
-                name={user.name || ''}
-                avatarUrlPath={user.avatarUrl}
-                imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
-                initialStyle={{ fontSize: 13, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}
-              />
-            ) : (
-              <span className={cn(
-                'text-[13px] font-bold',
-                isDark ? 'text-[#e2e8f0]' : 'text-[#3c1e1ed9]',
-              )}>
-                {user?.name?.trim()[0]?.toUpperCase() || '?'}
-              </span>
-            )}
-          </div>
-          {showStatusBadge && (
-            <span
-              className="absolute -top-0.5 -right-0.5 block rounded-full leading-[0]"
-              style={{ border: `1.5px solid ${isDark ? '#1e293b' : '#f1f5f9'}` }}
-            >
-              {statusBadge}
+  const btnStyle = (active: boolean): CSSProperties => ({
+    width: 40,
+    height: 40,
+    padding: 0,
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: active ? (isDark ? '#334155' : '#f1f5f9') : 'transparent',
+    color: active ? (isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)') : (isDark ? '#94a3b8' : '#64748b'),
+  });
+
+  return (
+    <aside
+      className={cn(
+        'w-[56px] shrink-0 flex flex-col items-center py-2 gap-1 border-r',
+        isDark ? 'bg-slate-800 border-r-slate-600' : 'bg-white border-r-slate-200',
+      )}
+      aria-label="메인 메뉴"
+    >
+      <button
+        type="button"
+        onClick={onNavigateHome}
+        className={cn(
+          'flex items-center justify-center w-10 h-10 border-none bg-transparent p-0 m-0 cursor-pointer rounded-[10px]',
+          activePanel === 'none' && (isDark ? 'bg-slate-700 ring-1 ring-brand/40' : 'bg-slate-100 ring-1 ring-brand/30'),
+        )}
+        title="조직도"
+      >
+        <EmaxLogo variant={isDark ? 'light' : 'accent'} size="md" />
+      </button>
+
+      <div className={cn('w-8 h-px my-1', isDark ? 'bg-slate-600' : 'bg-slate-200')} />
+
+      <nav className="flex flex-col items-center gap-1">
+        <button type="button" style={btnStyle(activePanel === 'rooms')} onClick={() => togglePanel('rooms')} title="대화" className="relative">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          {totalUnreadCount > 0 && (
+            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center">
+              {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
             </span>
           )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className={cn(
-            'text-[13px] font-semibold overflow-hidden text-ellipsis whitespace-nowrap',
-            isDark ? 'text-slate-200' : 'text-slate-900',
-          )}>
-            {user?.name || '사용자'}
-          </div>
-          {statusInput && (
-            <div className={cn(
-              'text-[11px] overflow-hidden text-ellipsis whitespace-nowrap',
-              isDark ? 'text-slate-400' : 'text-slate-500',
-            )}>
-              {statusLabel}
-            </div>
-          )}
-        </div>
-      </div>
+        </button>
 
-      <div className={cn(
-        'shrink-0 flex items-center gap-2 px-3 py-2 border-b',
-        isDark ? 'border-b-slate-600' : 'border-b-slate-200',
-      )}>
-        <input
-          type="text"
-          placeholder="이름 검색"
-          aria-label="멤버 이름 검색"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className={cn(
-            'flex-1 px-2 py-1.5 border-none rounded-[6px] text-[13px] outline-none min-w-0',
-            isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-900',
+        <button type="button" style={btnStyle(activePanel === 'schedule')} onClick={() => togglePanel('schedule')} title="일정">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+        </button>
+
+        <button type="button" style={btnStyle(activePanel === 'memo')} onClick={() => togglePanel('memo')} title="쪽지" className="relative">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22,6 12,13 2,6" />
+          </svg>
+          {unreadMemoCount > 0 && (
+            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center">
+              {unreadMemoCount > 9 ? '9+' : unreadMemoCount}
+            </span>
           )}
-        />
-        {searchQuery.trim().length > 0 && (
-          <UICloseButton
-            size="sm"
-            variant="subtle"
-            onClick={() => setSearchQuery('')}
-            aria-label="검색어 지우기"
-            title="검색어 지우기"
-          />
-        )}
+        </button>
+
         <button
           type="button"
-          role="switch"
-          aria-checked={showOnlineOnly}
-          onClick={onToggleOnlineOnly}
-          title="온라인만 보기"
-          className={cn(
-            'shrink-0 flex items-center gap-1 px-2 py-1 border rounded-2xl text-[11px] whitespace-nowrap',
-            showOnlineOnly
-              ? 'border-brand bg-brand text-white'
-              : isDark ? 'border-slate-600 bg-transparent text-slate-300' : 'border-slate-200 bg-transparent text-slate-500',
-          )}
+          style={btnStyle(activePanel === 'notifications')}
+          onClick={() => togglePanel('notifications')}
+          title="알림"
+          className="relative"
         >
-          <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />
-          온라인
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          {unreadNotificationCount > 0 && (
+            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center">
+              {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+            </span>
+          )}
         </button>
-      </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        <OrgTree
-          isDark={isDark}
-          orgLoading={orgLoading}
-          orgError={orgError}
-          orgTree={orgTree}
-          treeOpen={treeOpen}
-          orgStarred={orgStarred}
-          onToggleOrgStar={onToggleOrgStar}
-          onlineUserIds={onlineUserIds}
-          myId={myId}
-          myEmail={myEmail}
-          socketConnected={socketConnected}
-          onRetryOrg={onRetryOrg}
-          onToggleTree={onToggleTree}
-          onOpenDirectMessage={onOpenDirectMessage}
-          onUserContextMenu={onUserContextMenu}
-          hasStatusIcon={hasStatusIcon}
-          renderStatusIcon={renderStatusIcon}
-        />
-      </div>
-    </div>
+        <button type="button" style={btnStyle(activePanel === 'settings')} onClick={() => togglePanel('settings')} title="설정" className="relative">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.7.1 1.41.1 2.11 0H21a2 2 0 0 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z" />
+          </svg>
+          {notificationsSnoozedUntil > Date.now() && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500" />}
+        </button>
+      </nav>
+    </aside>
   );
 }
 

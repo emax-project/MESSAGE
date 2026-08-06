@@ -15,6 +15,10 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "node scripts/seed.js",
+    "db:seed:mentions": "node scripts/seed-mentions.js",
+    "db:seed:memos": "node scripts/seed-memos.js",
+    "db:seed:agendas": "node scripts/seed-agendas.js",
+    "db:seed:announcement": "node scripts/seed-announcement.js",
     "check:avatar": "node scripts/check-avatar.js"
   },
   "dependencies": {

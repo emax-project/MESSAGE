@@ -5,6 +5,15 @@ import UIChevron from '../../../components/ui/UIChevron';
 import UserAvatar from '../../../components/UserAvatar';
 import { cn } from '../../../utils/cn';
 
+function PersonIcon({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
 function StarIcon({ filled, size = 16, color }: { filled: boolean; size?: number; color: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0 }} fill={filled ? color : 'none'} stroke={color} strokeWidth={filled ? 0 : 1.5} strokeLinecap="round" strokeLinejoin="round">
@@ -18,6 +27,7 @@ export type OrgTreeProps = {
   orgLoading: boolean;
   orgError: boolean;
   orgTree: OrgCompany[];
+  companyMemberCounts?: Record<string, number>;
   treeOpen: Record<string, boolean>;
   orgStarred: Set<string>;
   onToggleOrgStar: (id: string) => void;
@@ -33,11 +43,15 @@ export type OrgTreeProps = {
   renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
 };
 
+const countCompanyUsers = (company: OrgCompany) =>
+  company.departments.reduce((sum, dept) => sum + dept.users.length, 0);
+
 function OrgTree({
   isDark,
   orgLoading,
   orgError,
   orgTree,
+  companyMemberCounts,
   treeOpen,
   orgStarred,
   onToggleOrgStar,
@@ -73,13 +87,28 @@ function OrgTree({
       {orgTree.map((company) => {
         const companyKey = `company-${company.id}`;
         const companyOpen = treeOpen[companyKey] !== false;
+        const memberCount = companyMemberCounts?.[company.id] ?? countCompanyUsers(company);
         return (
           <div key={company.id} style={{ marginBottom: 6 }}>
             <button type="button" className="flex items-center gap-1.5 px-2 py-[5px] rounded-md bg-transparent text-[13px] w-full" onClick={() => onToggleTree(companyKey)}>
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <UIChevron open={companyOpen} size={9} color={companyOpen ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
               </span>
-              <span style={{ fontWeight: 600, fontSize: 13, color: companyOpen ? '#007aff' : (isDark ? '#f1f5f9' : '#111827'), flex: 1, textAlign: 'left' }}>{company.name}</span>
+              <span style={{ fontWeight: 600, fontSize: 13, color: companyOpen ? '#007aff' : (isDark ? '#f1f5f9' : '#111827'), flex: 1, minWidth: 0, textAlign: 'left', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="truncate">{company.name}</span>
+                <span
+                  className={cn(
+                    'shrink-0 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium tabular-nums',
+                    companyOpen
+                      ? (isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-50 text-blue-600')
+                      : (isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'),
+                  )}
+                  title={`총 ${memberCount}명`}
+                >
+                  <PersonIcon size={11} />
+                  {memberCount}
+                </span>
+              </span>
               <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggleOrgStar(company.id); }} onMouseDown={(e) => e.stopPropagation()} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                 <StarIcon filled={orgStarred.has(company.id)} size={16} color={orgStarred.has(company.id) ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
               </span>

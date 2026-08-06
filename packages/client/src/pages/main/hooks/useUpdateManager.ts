@@ -4,7 +4,7 @@ export type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | '
 
 type UseUpdateManagerParams = {
   hasElectron: boolean;
-  activePanel: 'none' | 'mention' | 'bookmark' | 'rooms' | 'schedule' | 'ai' | 'settings';
+  activePanel: 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'ai' | 'settings';
 };
 
 export function useUpdateManager({ hasElectron, activePanel }: UseUpdateManagerParams) {

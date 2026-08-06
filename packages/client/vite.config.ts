@@ -23,7 +23,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '^/(auth|users|rooms|org|files|announcement|events|polls|projects|bookmarks|mentions|link-preview|folders)': {
+      '^/(auth|users|rooms|org|files|announcement|events|polls|projects|bookmarks|mentions|memos|link-preview|folders)': {
         target: 'http://localhost:3001',
         changeOrigin: true,
       },

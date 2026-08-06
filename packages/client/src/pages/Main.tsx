@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, bookmarksApi, mentionsApi, foldersApi, authApi, type Room, type OrgCompany, type OrgUser, type Event, type Folder } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, authApi, type Room, type OrgCompany, type OrgUser, type Event, type Folder } from '../api';
+import MemoComposeModal from '../components/MemoComposeModal';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar from '../components/TitleBar';
 import {
@@ -17,10 +18,10 @@ import { useMainSocket } from './main/hooks/useMainSocket';
 import { useMainContentActions } from './main/hooks/useMainContentActions';
 import LeftSidebar from './main/components/LeftSidebar';
 import RoomListItem from './main/components/RoomListItem';
-import TopMenuBar from './main/components/TopMenuBar';
 import { type MentionItem } from './main/components/MentionPanel';
-import { type BookmarkItem } from './main/components/BookmarkPanel';
+import { type MemoItem } from './main/components/MemoPanel';
 import RightContentRouter from './main/components/RightContentRouter';
+import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/components/AnnouncementPanel';
 import MainOverlays from './main/components/MainOverlays';
 import { cn } from '../utils/cn';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
@@ -116,8 +117,7 @@ export default function Main() {
   const toggleDark = useThemeStore((s) => s.toggleDark);
 
   // --- Layout state ---
-  const [activePanel, setActivePanel] = useState<'none' | 'mention' | 'bookmark' | 'rooms' | 'schedule' | 'settings'>('none');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings'>('none');
   const [searchQuery, setSearchQuery] = useState('');
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -128,6 +128,8 @@ export default function Main() {
   const [createGroupFor, setCreateGroupFor] = useState<'topic' | 'chat'>('topic');
   const recentTopicRoomRef = useRef<{ id: string; at: number } | null>(null);
   const [announcementEdit, setAnnouncementEdit] = useState('');
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null);
   const [announcementSaving, setAnnouncementSaving] = useState(false);
   const [eventForm, setEventForm] = useState({ title: '', startAt: '', endAt: '', description: '' });
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -144,6 +146,8 @@ export default function Main() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const [showMemoCompose, setShowMemoCompose] = useState(false);
+  const [memoComposeRecipients, setMemoComposeRecipients] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; user: OrgUser } | null>(null);
   const [profileModalUser, setProfileModalUser] = useState<OrgUser | null>(null);
   const [roomContextMenu, setRoomContextMenu] = useState<{ x: number; y: number; room: Room } | null>(null);
@@ -252,12 +256,22 @@ export default function Main() {
       .sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0));
   }, [orgTreeRaw, q, showOnlineOnly, onlineUserIds, orgStarred]);
 
+  const companyMemberCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const company of orgTreeRaw ?? []) {
+      counts[company.id] = company.departments.reduce((sum, dept) => sum + (dept.users?.length ?? 0), 0);
+    }
+    return counts;
+  }, [orgTreeRaw]);
+
   const { data: onlineData } = useQuery({ queryKey: ['org', 'online'], queryFn: orgApi.online, enabled: !!token });
   const { data: announcementData } = useQuery({ queryKey: ['announcement'], queryFn: announcementApi.get, enabled: !!token });
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ['events'], queryFn: eventsApi.list, enabled: !!token });
-  const { data: bookmarks = [] } = useQuery({ queryKey: ['bookmarks'], queryFn: bookmarksApi.list, enabled: !!token && activePanel === 'bookmark' });
-  const { data: mentions = [] } = useQuery({ queryKey: ['mentions'], queryFn: mentionsApi.list, enabled: !!token && activePanel === 'mention' });
+  const { data: mentions = [] } = useQuery({ queryKey: ['mentions'], queryFn: mentionsApi.list, enabled: !!token && activePanel === 'notifications' });
   const { data: unreadMentionCount } = useQuery({ queryKey: ['mentions', 'unread-count'], queryFn: mentionsApi.unreadCount, enabled: !!token, refetchInterval: 30000 });
+  const { data: memoInbox = [] } = useQuery({ queryKey: ['memos', 'inbox'], queryFn: memosApi.inbox, enabled: !!token && activePanel === 'memo' });
+  const { data: memoSent = [] } = useQuery({ queryKey: ['memos', 'sent'], queryFn: memosApi.sent, enabled: !!token && activePanel === 'memo' });
+  const { data: unreadMemoCount } = useQuery({ queryKey: ['memos', 'unread-count'], queryFn: memosApi.unreadCount, enabled: !!token, refetchInterval: 30000 });
   const { data: publicRooms = [] } = useQuery({ queryKey: ['rooms', 'public'], queryFn: roomsApi.listPublic, enabled: !!token && activePanel === 'rooms' && sectionOpen.topic });
 
   const eventsByDate = useMemo(() => {
@@ -288,32 +302,20 @@ export default function Main() {
     return map;
   }, [events]);
 
-  const todayEvents = useMemo(() => {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    return eventsByDate.get(key) ?? [];
-  }, [eventsByDate]);
-
-  const weekEvents = useMemo(() => {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const result: { dateKey: string; label: string; count: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      const count = eventsByDate.get(key)?.length ?? 0;
-      const label = i === 0 ? '오늘' : i === 1 ? '어제' : `${d.getMonth() + 1}/${d.getDate()}`;
-      result.push({ dateKey: key, label, count });
-    }
-    return result;
-  }, [eventsByDate]);
+  const announcementItems = useMemo(
+    () => (Array.isArray(announcementData?.items) ? announcementData.items : []),
+    [announcementData?.items],
+  );
 
   // --- Effects ---
   useEffect(() => { if (!selectedDate) return; setEventForm((prev) => { const n = normalizeTimeRange(selectedDate, prev.startAt, prev.endAt); return { ...prev, startAt: n.startAt, endAt: n.endAt }; }); }, [selectedDate]);
   useEffect(() => { if (onlineData?.userIds) setOnlineUserIds(new Set(onlineData.userIds.map((id) => String(id)))); }, [onlineData?.userIds]);
-  useEffect(() => { if (announcementData?.content?.trim()) setShowAnnouncementModal(true); }, [announcementData?.content]);
-  useEffect(() => { if (announcementData?.content !== undefined) setAnnouncementEdit(announcementData.content ?? ''); }, [announcementData?.content]);
+  useEffect(() => {
+    const unread = getNewestUnreadAnnouncement(announcementItems);
+    if (unread?.content?.trim()) {
+      setShowAnnouncementModal(true);
+    }
+  }, [announcementItems]);
   useEffect(() => { if (!contextMenu) return; const close = () => setContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [contextMenu]);
   useEffect(() => { if (!roomContextMenu) return; const close = () => setRoomContextMenu(null); const t = setTimeout(() => document.addEventListener('click', close), 100); return () => { clearTimeout(t); document.removeEventListener('click', close); }; }, [roomContextMenu]);
   useEffect(() => {
@@ -352,7 +354,6 @@ export default function Main() {
     if (!window.electronAPI?.onNavigateToRoom) return;
     const unsubscribe = window.electronAPI.onNavigateToRoom((roomId: string) => {
       setActivePanel('none');
-      setSidebarOpen(false);
       navigate(`/room/${roomId}`);
     });
     return () => { if (unsubscribe) unsubscribe(); };
@@ -387,16 +388,46 @@ export default function Main() {
     }
   }, [queryClient]);
   const handleSaveAnnouncement = useCallback(async () => {
+    const trimmedContent = announcementEdit.trim();
+    if (!trimmedContent) return;
     setAnnouncementSaving(true);
     try {
-      await announcementApi.put(announcementEdit);
+      if (editingAnnouncementId && editingAnnouncementId !== 'new') {
+        await announcementApi.update(editingAnnouncementId, {
+          title: announcementTitle.trim(),
+          content: trimmedContent,
+        });
+      } else {
+        await announcementApi.create({
+          title: announcementTitle.trim(),
+          content: trimmedContent,
+        });
+      }
+      setEditingAnnouncementId(null);
+      setAnnouncementEdit('');
+      setAnnouncementTitle('');
       queryClient.invalidateQueries({ queryKey: ['announcement'] });
     } catch (err) {
       console.error(err);
     } finally {
       setAnnouncementSaving(false);
     }
-  }, [announcementEdit, queryClient]);
+  }, [announcementEdit, announcementTitle, editingAnnouncementId, queryClient]);
+  const handleStartCreateAnnouncement = useCallback(() => {
+    setEditingAnnouncementId('new');
+    setAnnouncementTitle('');
+    setAnnouncementEdit('');
+  }, []);
+  const handleStartEditAnnouncement = useCallback((item: { id: string; title?: string | null; content: string }) => {
+    setEditingAnnouncementId(item.id);
+    setAnnouncementTitle(item.title ?? '');
+    setAnnouncementEdit(item.content);
+  }, []);
+  const handleCancelEditAnnouncement = useCallback(() => {
+    setEditingAnnouncementId(null);
+    setAnnouncementEdit('');
+    setAnnouncementTitle('');
+  }, []);
   const handleTestNotification = useCallback(() => {
     window.electronAPI?.showNotification('EMAX', '알림 테스트입니다.');
   }, []);
@@ -405,11 +436,8 @@ export default function Main() {
     queryClient.removeQueries({ queryKey: ['org'] });
     logout();
   }, [logout, queryClient]);
-  const statusLabel = useMemo(() => STATUS_OPTIONS.find((o) => o.id === statusInput)?.label || statusInput, [statusInput]);
-  const showStatusBadge = useMemo(() => !!statusInput && STATUS_OPTIONS.some((o) => o.id === statusInput), [statusInput]);
   const handleOpenRoom = useCallback((room: Room) => {
     setActivePanel('none');
-    setSidebarOpen(false);
     navigate(`/room/${room.id}`, room.viewMode ? { state: { viewMode: room.viewMode } } : undefined);
   }, [navigate]);
   const handleRoomContextMenu = useCallback((e: React.MouseEvent<HTMLLIElement>, room: Room) => {
@@ -422,7 +450,6 @@ export default function Main() {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['rooms', 'public'] });
       setActivePanel('none');
-      setSidebarOpen(false);
       navigate(`/room/${publicRoomId}`);
     } catch (err) {
       console.error(err);
@@ -430,7 +457,6 @@ export default function Main() {
   }, [navigate, queryClient]);
   const handleNavigateHome = useCallback(() => {
     setActivePanel('none');
-    setSidebarOpen(false);
     navigate('/');
   }, [navigate]);
   const handleSelectMention = useCallback(async (m: MentionItem) => {
@@ -445,24 +471,38 @@ export default function Main() {
     }
     if (m.message?.room?.id) {
       setActivePanel('none');
-      setSidebarOpen(false);
       navigate(`/room/${m.message.room.id}`);
     }
   }, [navigate, queryClient]);
-  const handleSelectBookmark = useCallback((b: BookmarkItem) => {
-    if (!b.message?.room?.id) return;
-    setActivePanel('none');
-    setSidebarOpen(false);
-    navigate(`/room/${b.message.room.id}`);
-  }, [navigate]);
-  const handleRemoveBookmark = useCallback(async (b: BookmarkItem) => {
+  const handleOpenMemoCompose = useCallback((recipientIds: string[] = []) => {
+    setMemoComposeRecipients(recipientIds);
+    setShowMemoCompose(true);
+  }, []);
+  const handleMemoSent = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['memos'] });
+  }, [queryClient]);
+  const handleMarkMemoRead = useCallback(async (memo: MemoItem) => {
+    if (memo.readAt) return;
     try {
-      await bookmarksApi.remove(b.messageId);
-      queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+      await memosApi.markRead(memo.id);
+      queryClient.invalidateQueries({ queryKey: ['memos'] });
     } catch (err) {
       console.error(err);
     }
   }, [queryClient]);
+  const handleDeleteMemo = useCallback(async (memo: MemoItem) => {
+    try {
+      await memosApi.remove(memo.id);
+      queryClient.invalidateQueries({ queryKey: ['memos'] });
+    } catch (err) {
+      console.error(err);
+    }
+  }, [queryClient]);
+  const handleSendMemoToUser = useCallback((userId: string) => {
+    setContextMenu(null);
+    setActivePanel('memo');
+    handleOpenMemoCompose([userId]);
+  }, [handleOpenMemoCompose]);
   const hasStatusIcon = useCallback((status?: string | null) => !!status && STATUS_OPTIONS.some((o) => o.id === status), []);
   const handleToggleOnlineOnly = useCallback(() => {
     setShowOnlineOnly((v) => !v);
@@ -472,7 +512,6 @@ export default function Main() {
       const room = await roomsApi.create(userId);
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       setActivePanel('none');
-      setSidebarOpen(false);
       navigate(`/room/${room.id}`);
     } catch (err) {
       console.error(err);
@@ -515,15 +554,20 @@ export default function Main() {
     openChatWindow,
   });
 
-  const handleDashboardEventClick = useCallback(
-    (ev: Event) => {
-      handleEditEvent(ev);
-      setSelectedDate(toLocalDateKey(ev.startAt));
-      setCalendarMonth(new Date(ev.startAt));
-      setActivePanel('schedule');
-    },
-    [handleEditEvent, setSelectedDate, setCalendarMonth, setActivePanel]
+  const hasNewAnnouncement = useMemo(() => {
+    if (activePanel === 'notifications') return false;
+    return hasUnreadAnnouncements(announcementItems);
+  }, [announcementItems, activePanel]);
+
+  const modalAnnouncement = useMemo(
+    () => getNewestUnreadAnnouncement(announcementItems),
+    [announcementItems],
   );
+
+  const unreadNotificationCount = useMemo(() => {
+    const mentionCount = unreadMentionCount?.count ?? 0;
+    return mentionCount + (hasNewAnnouncement ? 1 : 0);
+  }, [unreadMentionCount?.count, hasNewAnnouncement]);
 
   const renderRoomItem = useCallback((r: Room) => (
     <RoomListItem
@@ -536,71 +580,21 @@ export default function Main() {
   ), [mutedRoomIds, handleOpenRoom, handleRoomContextMenu]);
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0 w-full min-w-0 overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
+    <div className={cn('relative flex flex-col h-full min-h-0 w-full min-w-0 overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
       {hasElectron && <TitleBar title="EMAX" isDark={isDark} />}
-      <div className="relative flex flex-1 flex-col min-h-0 min-w-0">
-        {/* 조직도: 모바일 셸 안에서 오버레이 드로어 */}
-        {sidebarOpen && (
-          <button
-            type="button"
-            className="absolute inset-0 z-30 border-none bg-black/40 cursor-default"
-            aria-label="조직도 닫기"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-        <div
-          className={cn(
-            'absolute inset-y-0 left-0 z-40 flex flex-col transition-transform duration-200 ease-out',
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none',
-          )}
-          style={{ width: 'var(--app-sidebar-width)' }}
-          aria-hidden={!sidebarOpen}
-        >
-          <LeftSidebar
-            isDark={isDark}
-            user={user}
-            statusInput={statusInput}
-            statusLabel={statusLabel}
-            showStatusBadge={showStatusBadge}
-            statusBadge={<StatusIcon status={statusInput} size={13} />}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            onNavigateHome={handleNavigateHome}
-            onClose={() => setSidebarOpen(false)}
-            showOnlineOnly={showOnlineOnly}
-            onToggleOnlineOnly={handleToggleOnlineOnly}
-            orgLoading={orgLoading}
-            orgError={orgError}
-            orgTree={orgTree}
-            treeOpen={treeOpen}
-            orgStarred={orgStarred}
-            onToggleOrgStar={toggleOrgStar}
-            onlineUserIds={onlineUserIds}
-            myId={myId}
-            myEmail={myEmail}
-            socketConnected={!!socket?.connected}
-            onRetryOrg={() => { void refetchOrg(); }}
-            onToggleTree={toggleTree}
-            onOpenDirectMessage={handleOpenDirectMessage}
-            onUserContextMenu={handleUserContextMenu}
-            hasStatusIcon={hasStatusIcon}
-            renderStatusIcon={(status, size = 11) => <StatusIcon status={status} size={size} />}
-          />
-        </div>
+      <div className="flex flex-1 flex-row min-h-0 min-w-0">
+        <LeftSidebar
+          isDark={isDark}
+          activePanel={activePanel}
+          setActivePanel={setActivePanel}
+          unreadNotificationCount={unreadNotificationCount}
+          unreadMemoCount={unreadMemoCount?.count ?? 0}
+          totalUnreadCount={totalUnreadCount}
+          notificationsSnoozedUntil={notificationsSnoozedUntil}
+          onNavigateHome={handleNavigateHome}
+        />
 
-        {/* ===== MAIN CONTENT ===== */}
         <div className={cn('flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
-          <TopMenuBar
-            isDark={isDark}
-            activePanel={activePanel}
-            setActivePanel={setActivePanel}
-            unreadMentionCount={unreadMentionCount?.count ?? 0}
-            totalUnreadCount={totalUnreadCount}
-            notificationsSnoozedUntil={notificationsSnoozedUntil}
-            onOpenSidebar={() => setSidebarOpen(true)}
-          />
-
-          {/* Content Area: 헤더 아래에서만 스크롤 (크롬은 고정) */}
           <div className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col">
             <RightContentRouter
               isDark={isDark}
@@ -611,9 +605,28 @@ export default function Main() {
               onOpenInNewWindow={handleOpenChatInNewWindow}
               mentions={Array.isArray(mentions) ? mentions : []}
               onSelectMention={handleSelectMention}
-              bookmarks={Array.isArray(bookmarks) ? bookmarks : []}
-              onSelectBookmark={handleSelectBookmark}
-              onRemoveBookmark={handleRemoveBookmark}
+              unreadMentionCount={unreadMentionCount?.count ?? 0}
+              notificationProps={{
+                items: announcementItems,
+                isAdmin: user?.isAdmin,
+                announcementEdit,
+                announcementTitle,
+                editingAnnouncementId,
+                announcementSaving,
+                onAnnouncementEditChange: setAnnouncementEdit,
+                onAnnouncementTitleChange: setAnnouncementTitle,
+                onStartCreateAnnouncement: handleStartCreateAnnouncement,
+                onStartEditAnnouncement: handleStartEditAnnouncement,
+                onCancelEditAnnouncement: handleCancelEditAnnouncement,
+                onSaveAnnouncement: handleSaveAnnouncement,
+              }}
+              memoProps={{
+                inbox: Array.isArray(memoInbox) ? memoInbox : [],
+                sent: Array.isArray(memoSent) ? memoSent : [],
+                onOpenCompose: () => handleOpenMemoCompose(),
+                onMarkRead: handleMarkMemoRead,
+                onDelete: handleDeleteMemo,
+              }}
               roomsProps={{
                 isDark,
                 roomsError,
@@ -637,16 +650,28 @@ export default function Main() {
                 roomSearchQuery,
                 onRoomSearchQueryChange: setRoomSearchQuery,
               }}
-              dashboardProps={{
-                userName: user?.name,
-                topicCount: topicRooms.length,
-                chatCount: chatRooms.length,
-                totalUnread: totalUnreadCount,
-                unreadMentionCount: unreadMentionCount?.count ?? 0,
-                todayEvents,
-                weekEvents,
-                setActivePanel,
-                onEventClick: handleDashboardEventClick,
+              orgProps={{
+                searchQuery,
+                onSearchQueryChange: setSearchQuery,
+                showOnlineOnly,
+                onToggleOnlineOnly: handleToggleOnlineOnly,
+                orgLoading,
+                orgError,
+                orgTree,
+                companyMemberCounts,
+                treeOpen,
+                orgStarred,
+                onToggleOrgStar: toggleOrgStar,
+                onlineUserIds,
+                myId,
+                myEmail,
+                socketConnected: !!socket?.connected,
+                onRetryOrg: () => { void refetchOrg(); },
+                onToggleTree: toggleTree,
+                onOpenDirectMessage: handleOpenDirectMessage,
+                onUserContextMenu: handleUserContextMenu,
+                hasStatusIcon,
+                renderStatusIcon: (status, size = 11) => <StatusIcon status={status} size={size} />,
               }}
               scheduleProps={{
                 calendarMonth,
@@ -680,10 +705,6 @@ export default function Main() {
                 renderStatusIcon: (status, size = 18) => <StatusIcon status={status} size={size} />,
                 handleSetStatus,
                 notificationStatus,
-                announcementEdit,
-                setAnnouncementEdit,
-                announcementSaving,
-                onSaveAnnouncement: handleSaveAnnouncement,
                 onSelectAvatarFile: handleSelectAvatarFile,
                 onDeleteAvatar: handleDeleteAvatar,
                 onTestNotification: handleTestNotification,
@@ -700,7 +721,8 @@ export default function Main() {
       <MainOverlays
         isDark={isDark}
         showAnnouncementModal={showAnnouncementModal}
-        announcementContent={announcementData?.content ?? undefined}
+        announcementTitle={modalAnnouncement?.title ?? undefined}
+        announcementContent={modalAnnouncement?.content ?? undefined}
         setShowAnnouncementModal={setShowAnnouncementModal}
         showCreateGroupModal={showCreateGroupModal}
         createGroupFor={createGroupFor}
@@ -724,7 +746,16 @@ export default function Main() {
         onLeaveRoom={handleLeaveRoom}
         profileModalUser={profileModalUser}
         onlineUserIds={onlineUserIds}
+        onSendMemoToUser={handleSendMemoToUser}
       />
+
+      {showMemoCompose && (
+        <MemoComposeModal
+          initialRecipientIds={memoComposeRecipients}
+          onClose={() => setShowMemoCompose(false)}
+          onSent={handleMemoSent}
+        />
+      )}
 
       <ToastProvider />
     </div>
