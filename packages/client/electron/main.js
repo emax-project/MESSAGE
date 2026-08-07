@@ -285,6 +285,21 @@ let tray = null;
 let mainWindow = null;
 let isQuitting = false;
 let updateDownloadedPending = false;
+let pendingUpdateVersion = null;
+const RELEASE_DOWNLOAD_BASE = 'https://github.com/emax-project/MESSAGE/releases/download';
+
+function getReleaseDownloadUrl(version) {
+  const v = String(version || '').replace(/^v/, '');
+  if (!v) return 'https://github.com/emax-project/MESSAGE/releases/latest';
+  if (process.platform === 'darwin') {
+    const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+    return `${RELEASE_DOWNLOAD_BASE}/v${v}/EMAX-${v}-${arch}.dmg`;
+  }
+  if (process.platform === 'win32') {
+    return `${RELEASE_DOWNLOAD_BASE}/v${v}/EMAX-Setup-${v}.exe`;
+  }
+  return `https://github.com/emax-project/MESSAGE/releases/tag/v${v}`;
+}
 
 // 창별 show 핸들러 (Map으로 관리, win 객체에 프로퍼티 직접 부착보다 안전)
 const windowReadyHandlers = new Map();
@@ -620,8 +635,19 @@ ipcMain.handle('check-for-updates', async () => {
     const result = await autoUpdater.checkForUpdates();
     const v = result?.updateInfo?.version;
     const current = app.getVersion();
-    const hasUpdate = v && v !== current;
-    return { success: true, hasUpdate: !!hasUpdate, version: v || null, currentVersion: current };
+    const hasUpdate = Boolean(v && v !== current);
+    const downloaded = hasUpdate && pendingUpdateVersion === v;
+    if (downloaded && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-downloaded');
+    }
+    return {
+      success: true,
+      hasUpdate,
+      version: v || null,
+      currentVersion: current,
+      downloaded,
+      requiresManualInstall: process.platform === 'darwin',
+    };
   } catch (err) {
     const msg = err?.message || String(err);
     return { success: false, error: msg || '업데이트 확인에 실패했습니다.' };
@@ -629,8 +655,27 @@ ipcMain.handle('check-for-updates', async () => {
 });
 
 ipcMain.handle('quit-and-install', () => {
-  if (isDev || !app.isPackaged) return;
-  autoUpdater.quitAndInstall(false, true);
+  if (isDev || !app.isPackaged) return { success: false, error: '개발 모드에서는 업데이트를 설치할 수 없습니다.' };
+  if (process.platform === 'darwin') {
+    const url = getReleaseDownloadUrl(pendingUpdateVersion || app.getVersion());
+    shell.openExternal(url);
+    return {
+      success: false,
+      requiresManualInstall: true,
+      error: 'macOS에서는 DMG를 다운로드해 Applications 폴더에 다시 설치해 주세요.',
+    };
+  }
+  try {
+    autoUpdater.quitAndInstall(false, true);
+    return { success: true };
+  } catch (err) {
+    const msg = err?.message || String(err);
+    return { success: false, error: msg || '업데이트 설치에 실패했습니다.' };
+  }
+});
+
+ipcMain.handle('open-update-download', (_, version) => {
+  shell.openExternal(getReleaseDownloadUrl(version));
 });
 
 ipcMain.handle('get-app-version', () => app.getVersion());
@@ -665,20 +710,27 @@ function setupAutoUpdate() {
   autoUpdater.on('download-progress', (progress) => {
     updateNotificationProgress(progress.percent);
   });
-  autoUpdater.on('update-downloaded', () => {
+  autoUpdater.on('update-downloaded', (info) => {
+    pendingUpdateVersion = info?.version || null;
     updateDownloadedPending = true;
-    showCustomNotification('EMAX 업데이트 준비됨', '3초 후 앱이 자동으로 재시작됩니다.');
-    // 설정 화면에 "지금 재시작" 버튼 표시를 위해 렌더러에 알림
+    const isMac = process.platform === 'darwin';
+    showCustomNotification(
+      'EMAX 업데이트 준비됨',
+      isMac
+        ? '설정에서 DMG를 다운로드해 Applications에 다시 설치해 주세요.'
+        : '3초 후 앱이 자동으로 재시작됩니다.',
+    );
     if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
       mainWindow.webContents.send('update-downloaded');
     }
-    // 3초 후 자동 재시작 (사용자가 알림을 볼 시간 확보)
-    setTimeout(() => {
-      if (updateDownloadedPending && app.isPackaged && !isDev) {
-        updateDownloadedPending = false;
-        autoUpdater.quitAndInstall(false, true);
-      }
-    }, 3000);
+    if (!isMac) {
+      setTimeout(() => {
+        if (updateDownloadedPending && app.isPackaged && !isDev) {
+          updateDownloadedPending = false;
+          autoUpdater.quitAndInstall(false, true);
+        }
+      }, 3000);
+    }
   });
   autoUpdater.on('error', (err) => {
     console.error('Auto-updater error:', err);

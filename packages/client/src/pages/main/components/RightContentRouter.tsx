@@ -113,8 +113,10 @@ type RightContentRouterProps = {
     updateStatus: UpdateStatus;
     updateVersion: string | null;
     updateError: string | null;
+    requiresManualInstall: boolean;
     handleCheckForUpdates: () => void;
-    handleQuitAndInstall: () => void;
+    handleQuitAndInstall: () => void | Promise<void>;
+    handleOpenUpdateDownload: () => void | Promise<void>;
     statusInput: string;
     statusOptions: { id: string; label: string }[];
     renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
@@ -270,8 +272,10 @@ function RightContentRouter({
             updateStatus={settingsProps.updateStatus}
             updateVersion={settingsProps.updateVersion}
             updateError={settingsProps.updateError}
+            requiresManualInstall={settingsProps.requiresManualInstall}
             handleCheckForUpdates={settingsProps.handleCheckForUpdates}
             handleQuitAndInstall={settingsProps.handleQuitAndInstall}
+            handleOpenUpdateDownload={settingsProps.handleOpenUpdateDownload}
             statusInput={settingsProps.statusInput}
             statusOptions={settingsProps.statusOptions}
             renderStatusIcon={settingsProps.renderStatusIcon}

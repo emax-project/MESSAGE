@@ -172,9 +172,16 @@ export default function Main() {
     updateStatus,
     updateVersion,
     updateError,
+    requiresManualInstall,
     handleCheckForUpdates,
     handleQuitAndInstall,
-  } = useUpdateManager({ hasElectron: !!window.electronAPI, activePanel });
+    handleOpenUpdateDownload,
+  } = useUpdateManager({
+    hasElectron: !!window.electronAPI,
+    electronPlatform: window.electronAPI?.platform,
+    activePanel,
+    showToast,
+  });
   const socketRef = useRef<Socket | null>(null);
   const myIdRef = useRef<string | undefined>(myId);
   const statusSyncedRef = useRef(false);
@@ -704,8 +711,10 @@ export default function Main() {
                 updateStatus,
                 updateVersion,
                 updateError,
+                requiresManualInstall,
                 handleCheckForUpdates,
                 handleQuitAndInstall,
+                handleOpenUpdateDownload,
                 statusInput,
                 statusOptions: STATUS_OPTIONS,
                 renderStatusIcon: (status, size = 18) => <StatusIcon status={status} size={size} />,

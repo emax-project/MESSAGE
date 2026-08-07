@@ -72,8 +72,10 @@ type SettingsPanelProps = {
   updateStatus: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'latest';
   updateVersion: string | null;
   updateError: string | null;
-  handleCheckForUpdates: () => Promise<void> | void;
-  handleQuitAndInstall: () => Promise<void> | void;
+  requiresManualInstall: boolean;
+  handleCheckForUpdates: () => void | Promise<void>;
+  handleQuitAndInstall: () => void | Promise<void>;
+  handleOpenUpdateDownload: () => void | Promise<void>;
   statusInput: string;
   statusOptions: StatusOption[];
   renderStatusIcon: (status: string, size?: number) => ReactNode;
@@ -102,8 +104,10 @@ function SettingsPanel({
   updateStatus,
   updateVersion,
   updateError,
+  requiresManualInstall,
   handleCheckForUpdates,
   handleQuitAndInstall,
+  handleOpenUpdateDownload,
   statusInput,
   statusOptions,
   renderStatusIcon,
@@ -176,21 +180,33 @@ function SettingsPanel({
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
           <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>업데이트</h4>
           {hasElectron ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
-              <span style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' }}>
-                {appVersion ? `현재 버전 v${appVersion}` : '버전 확인 중...'}
-                {updateStatus === 'downloading' && updateVersion && ` · 새 버전 v${updateVersion} 다운로드 중`}
-                {updateStatus === 'latest' && ' · 최신 버전입니다'}
-                {updateStatus === 'error' && updateError && ` · ${updateError}`}
-              </span>
-              {updateStatus !== 'ready' ? (
-                <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" disabled={updateStatus === 'checking'} onClick={() => void handleCheckForUpdates()}>
-                  {updateStatus === 'checking' ? '확인 중...' : '업데이트 확인'}
-                </button>
-              ) : (
-                <button type="button" className="px-4 py-2 border-none rounded-lg bg-[#16a34a] text-white text-[13px] font-semibold cursor-pointer" onClick={() => void handleQuitAndInstall()}>
-                  지금 재시작하여 업데이트
-                </button>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
+                <span style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' }}>
+                  {appVersion ? `현재 버전 v${appVersion}` : '버전 확인 중...'}
+                  {updateStatus === 'downloading' && updateVersion && ` · 새 버전 v${updateVersion} 다운로드 중`}
+                  {updateStatus === 'ready' && updateVersion && ` · v${updateVersion} 설치 가능`}
+                  {updateStatus === 'latest' && ' · 최신 버전입니다'}
+                  {updateStatus === 'error' && updateError && ` · ${updateError}`}
+                </span>
+                {updateStatus !== 'ready' ? (
+                  <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" disabled={updateStatus === 'checking'} onClick={() => void handleCheckForUpdates()}>
+                    {updateStatus === 'checking' ? '확인 중...' : '업데이트 확인'}
+                  </button>
+                ) : requiresManualInstall ? (
+                  <button type="button" className="px-4 py-2 border-none rounded-lg bg-[#16a34a] text-white text-[13px] font-semibold cursor-pointer" onClick={() => void handleOpenUpdateDownload()}>
+                    DMG 다운로드
+                  </button>
+                ) : (
+                  <button type="button" className="px-4 py-2 border-none rounded-lg bg-[#16a34a] text-white text-[13px] font-semibold cursor-pointer" onClick={() => void handleQuitAndInstall()}>
+                    지금 재시작하여 업데이트
+                  </button>
+                )}
+              </div>
+              {updateStatus === 'ready' && requiresManualInstall && (
+                <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b' }}>
+                  macOS는 코드 서명이 없어 자동 설치가 되지 않습니다. DMG를 받아 Applications 폴더의 EMAX를 교체해 설치해 주세요.
+                </p>
               )}
             </div>
           ) : (

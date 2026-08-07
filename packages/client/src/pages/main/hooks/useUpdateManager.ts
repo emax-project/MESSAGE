@@ -4,14 +4,17 @@ export type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | '
 
 type UseUpdateManagerParams = {
   hasElectron: boolean;
+  electronPlatform?: string;
   activePanel: 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'ai' | 'settings';
+  showToast?: (message: string, type?: 'info' | 'success' | 'error') => void;
 };
 
-export function useUpdateManager({ hasElectron, activePanel }: UseUpdateManagerParams) {
+export function useUpdateManager({ hasElectron, electronPlatform, activePanel, showToast }: UseUpdateManagerParams) {
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const requiresManualInstall = electronPlatform === 'darwin';
 
   // 앱 버전 조회 (Electron 패키징된 앱)
   useEffect(() => {
@@ -39,9 +42,9 @@ export function useUpdateManager({ hasElectron, activePanel }: UseUpdateManagerP
         return;
       }
       if (r.hasUpdate && r.version) {
-        setUpdateStatus('downloading');
         setUpdateVersion(r.version);
         setAppVersion(r.currentVersion ?? appVersion);
+        setUpdateStatus(r.downloaded ? 'ready' : 'downloading');
       } else {
         setUpdateStatus('latest');
         setAppVersion(r.currentVersion ?? appVersion);
@@ -52,8 +55,24 @@ export function useUpdateManager({ hasElectron, activePanel }: UseUpdateManagerP
     }
   };
 
-  const handleQuitAndInstall = () => {
-    window.electronAPI?.quitAndInstall?.();
+  const handleOpenUpdateDownload = async () => {
+    if (!hasElectron || !window.electronAPI?.openUpdateDownload) return;
+    await window.electronAPI.openUpdateDownload(updateVersion);
+    showToast?.('브라우저에서 설치 파일 다운로드를 시작합니다.', 'info');
+  };
+
+  const handleQuitAndInstall = async () => {
+    if (!hasElectron || !window.electronAPI?.quitAndInstall) return;
+    if (requiresManualInstall) {
+      await handleOpenUpdateDownload();
+      showToast?.('DMG를 다운로드한 뒤 Applications 폴더에 EMAX를 다시 설치해 주세요.', 'info');
+      return;
+    }
+    const result = await window.electronAPI.quitAndInstall();
+    if (result?.requiresManualInstall || result?.success === false) {
+      showToast?.(result?.error || '자동 설치에 실패했습니다. 설치 파일을 직접 받아 주세요.', 'error');
+      await handleOpenUpdateDownload();
+    }
   };
 
   return {
@@ -61,7 +80,9 @@ export function useUpdateManager({ hasElectron, activePanel }: UseUpdateManagerP
     updateStatus,
     updateVersion,
     updateError,
+    requiresManualInstall,
     handleCheckForUpdates,
     handleQuitAndInstall,
+    handleOpenUpdateDownload,
   };
 }

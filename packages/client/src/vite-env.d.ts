@@ -29,8 +29,17 @@ interface Window {
     onLogout: (handler: () => void) => () => void;
     onNavigateToRoom: (handler: (roomId: string) => void) => () => void;
     getAppVersion: () => Promise<string>;
-    checkForUpdates: () => Promise<{ success: boolean; hasUpdate?: boolean; version?: string | null; currentVersion?: string; error?: string }>;
-    quitAndInstall: () => Promise<void>;
+    checkForUpdates: () => Promise<{
+      success: boolean;
+      hasUpdate?: boolean;
+      version?: string | null;
+      currentVersion?: string;
+      downloaded?: boolean;
+      requiresManualInstall?: boolean;
+      error?: string;
+    }>;
+    quitAndInstall: () => Promise<{ success?: boolean; requiresManualInstall?: boolean; error?: string }>;
+    openUpdateDownload: (version?: string | null) => Promise<void>;
     onUpdateDownloaded: (handler: () => void) => () => void;
     fetchUserAvatar: (userId: string, baseUrl: string, token: string) => Promise<string | null>;
     fetchRoomAvatar?: (roomId: string, baseUrl: string, token: string) => Promise<string | null>;
