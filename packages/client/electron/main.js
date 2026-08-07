@@ -326,7 +326,7 @@ function createWindow(options = {}) {
     minHeight: 560,
     frame: false,
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
-    ...(isMac ? { trafficLightPosition: { x: 16, y: 13 } } : {}),
+    ...(isMac ? { trafficLightPosition: { x: 16, y: 14 } } : {}),
     ...(isWin ? {
       titleBarOverlay: {
         color: '#1e293b',

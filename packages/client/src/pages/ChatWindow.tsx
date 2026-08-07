@@ -13,6 +13,8 @@ import MentionPopup from '../components/MentionPopup';
 import PinnedMessages from '../components/PinnedMessages';
 import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
+import { electronNoDragClass } from '../components/MacElectronDragBar';
+import { electronDragStyle, electronNoDragStyle, isMacElectron, isWinElectron } from '../utils/electronChrome';
 import ContextAttachModal, { type MessageContext } from '../components/ContextAttachModal';
 import BoardEditor from '../components/BoardEditor';
 import UICloseButton from '../components/ui/UICloseButton';
@@ -561,7 +563,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   return (
     <div
       className={cn(
-        'flex flex-col overflow-hidden',
+        'relative flex flex-col overflow-hidden',
         embedded ? 'flex-1 min-h-0 min-w-0' : 'h-screen w-full min-w-0',
         isDark ? 'bg-slate-900' : embedded ? 'bg-slate-50' : 'bg-white',
       )}
@@ -581,7 +583,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
           50% { opacity: 0.7; }
         }
       `}</style>
-      {!embedded && hasElectron && <TitleBar title={room.name} isDark={isDark} />}
+      {!embedded && hasElectron && isWinElectron() && <TitleBar title={room.name} isDark={isDark} />}
       <div className="relative flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <div
           className={cn(
@@ -603,11 +605,13 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         <header
           className={cn(
             'sticky top-0 z-10 flex items-center justify-between shrink-0 border-b',
+            !embedded && isMacElectron() && 'electron-drag',
             isCompactHeader ? 'px-3 py-2 gap-2 flex-wrap' : 'px-5 min-h-[56px] gap-3',
             isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm',
           )}
+          style={!embedded && isMacElectron() ? electronDragStyle : undefined}
         >
-          <span className="flex items-center gap-2 overflow-hidden min-w-0">
+          <span className="flex items-center gap-2 overflow-hidden min-w-0 pointer-events-none">
             <span className={cn('text-base font-bold truncate', isDark ? 'text-slate-100' : 'text-slate-800')}>
               {room.name}
             </span>
@@ -617,7 +621,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               </span>
             )}
           </span>
-          <div className={cn('flex gap-1.5 items-center ml-auto justify-end', isCompactHeader ? 'flex-wrap' : 'flex-nowrap')}>
+          <div className={cn(electronNoDragClass, 'flex gap-1.5 items-center ml-auto justify-end', isCompactHeader ? 'flex-wrap' : 'flex-nowrap')} style={isMacElectron() ? electronNoDragStyle : undefined}>
             {embedded && onOpenInNewWindow && (
               <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={onOpenInNewWindow} title="새 창으로 열기">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

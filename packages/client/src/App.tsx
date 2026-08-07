@@ -102,8 +102,15 @@ export default function App() {
     }
   }, []);
 
+  // Electron: overflow 제약 해제용 body 클래스
+  useEffect(() => {
+    if (isElectron) {
+      document.body.classList.add('electron-app');
+      return () => document.body.classList.remove('electron-app');
+    }
+  }, []);
+
   // Electron: React 마운트 완료 후 main process에 창 표시 신호 전송
-  // requestAnimationFrame은 숨겨진 창에서 throttle되므로 setTimeout 사용
   useEffect(() => {
     if (!window.electronAPI?.notifyAppReady) return;
     const t = setTimeout(() => {

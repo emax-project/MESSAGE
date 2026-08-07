@@ -7,6 +7,7 @@ import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, me
 import MemoComposeModal from '../components/MemoComposeModal';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar from '../components/TitleBar';
+import { isWinElectron } from '../utils/electronChrome';
 import {
   normalizeTimeRange,
   startOfMonth,
@@ -595,8 +596,8 @@ export default function Main() {
   ), [mutedRoomIds, handleOpenRoom, handleRoomContextMenu]);
 
   return (
-    <div className={cn('relative flex flex-col h-full min-h-0 w-full min-w-0 overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
-      {hasElectron && <TitleBar title="EMAX" isDark={isDark} />}
+    <div className={cn('relative flex flex-col h-full min-h-0 w-full min-w-0', isDark ? 'bg-slate-900' : 'bg-white')}>
+      {hasElectron && isWinElectron() && <TitleBar title="EMAX" isDark={isDark} />}
       <div className="flex flex-1 flex-row min-h-0 min-w-0">
         <LeftSidebar
           isDark={isDark}
@@ -609,8 +610,8 @@ export default function Main() {
           onNavigateHome={handleNavigateHome}
         />
 
-        <div className={cn('flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
-          <div className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col">
+        <div className={cn('flex-1 min-h-0 min-w-0 flex flex-col', isDark ? 'bg-slate-900' : 'bg-white')}>
+          <div className="flex-1 min-h-0 min-w-0 flex flex-col">
             <RightContentRouter
               isDark={isDark}
               isNarrowLayout={isNarrowLayout}

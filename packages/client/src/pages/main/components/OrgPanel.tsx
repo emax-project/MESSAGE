@@ -3,6 +3,12 @@ import type { MouseEvent } from 'react';
 import type { OrgCompany, OrgUser } from '../../../api';
 import UICloseButton from '../../../components/ui/UICloseButton';
 import OrgTree from './OrgTree';
+import { electronNoDragClass } from '../../../components/MacElectronDragBar';
+import {
+  electronDragStyle,
+  electronNoDragStyle,
+  isMacElectron,
+} from '../../../utils/electronChrome';
 import { cn } from '../../../utils/cn';
 
 type OrgPanelProps = {
@@ -56,17 +62,27 @@ function OrgPanel({
   hasStatusIcon,
   renderStatusIcon,
 }: OrgPanelProps) {
+  const macDrag = isMacElectron();
   const wrap = panelWrapStyle(820);
   return (
     <div className={wrap.className} style={wrap.style}>
-      <div className={cn('shrink-0 flex items-center justify-between px-5 py-3.5 border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
-        <h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-slate-900')}>조직도</h3>
+      <div
+        className={cn(
+          'shrink-0 flex items-center justify-between px-5 py-3.5 border-b electron-drag',
+          isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]',
+        )}
+        style={macDrag ? electronDragStyle : undefined}
+      >
+        <h3 className={cn('m-0 text-base font-bold pointer-events-none', isDark ? 'text-white' : 'text-slate-900')}>조직도</h3>
       </div>
 
-      <div className={cn(
-        'shrink-0 flex items-center gap-2 px-5 py-2.5 border-b',
-        isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]',
-      )}>
+      <div
+        className={cn(
+          'shrink-0 flex items-center gap-2 px-5 py-2.5 border-b electron-drag',
+          isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]',
+        )}
+        style={macDrag ? electronDragStyle : undefined}
+      >
         <input
           type="text"
           placeholder="이름 검색"
@@ -74,9 +90,11 @@ function OrgPanel({
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           className={cn(
+            electronNoDragClass,
             'flex-1 px-2.5 py-1.5 border rounded-[6px] text-[13px] outline-none min-w-0',
             isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-slate-100 text-slate-900',
           )}
+          style={macDrag ? electronNoDragStyle : undefined}
         />
         {searchQuery.trim().length > 0 && (
           <UICloseButton
@@ -85,6 +103,8 @@ function OrgPanel({
             onClick={() => onSearchQueryChange('')}
             aria-label="검색어 지우기"
             title="검색어 지우기"
+            className={electronNoDragClass}
+            style={macDrag ? electronNoDragStyle : undefined}
           />
         )}
         <button
@@ -93,7 +113,9 @@ function OrgPanel({
           aria-checked={showOnlineOnly}
           onClick={onToggleOnlineOnly}
           title="온라인만 보기"
+          style={macDrag ? electronNoDragStyle : undefined}
           className={cn(
+            electronNoDragClass,
             'shrink-0 flex items-center gap-1 px-2 py-1 border rounded-2xl text-[11px] whitespace-nowrap',
             showOnlineOnly
               ? 'border-brand bg-brand text-white'

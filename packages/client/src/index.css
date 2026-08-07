@@ -34,6 +34,13 @@ html, body {
   height: 100dvh;
   overflow: hidden;
 }
+/* Electron: overflow:hidden 이 -webkit-app-region: drag 를 무력화함 */
+body.electron-app {
+  overflow: visible;
+}
+body.electron-app #root {
+  overflow: visible;
+}
 body {
   font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -54,7 +61,6 @@ body {
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  overflow: hidden;
 }
 
 /* PC/웹: 모바일 폭으로 중앙 정렬되는 앱 셸 (뷰포트 높이 고정 → 헤더/사이드바 sticky) */
@@ -72,7 +78,7 @@ body {
   min-width: 0;
   min-height: 0;
   position: relative;
-  overflow: hidden;
+  /* overflow:hidden 은 macOS -webkit-app-region: drag 를 막음 → 내부 패널에서 처리 */
   background: #0f172a;
   box-shadow:
     0 0 0 1px rgba(148, 163, 184, 0.12),
@@ -84,7 +90,7 @@ body {
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  overflow: hidden;
+  /* overflow:hidden 은 -webkit-app-region: drag 를 막으므로 내부 스크롤 영역에만 적용 */
 }
 
 ::-webkit-scrollbar {
@@ -99,6 +105,14 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.5);
+}
+
+/* Electron frameless 창: 타이틀바 드래그 */
+.electron-drag {
+  -webkit-app-region: drag !important;
+}
+.electron-no-drag {
+  -webkit-app-region: no-drag !important;
 }
 
 @keyframes toast-slide {

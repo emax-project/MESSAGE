@@ -1,12 +1,13 @@
 /**
- * Electron 창용 타이틀/드래그 영역.
- * - Mac: hiddenInset + 좌측 no-drag(트래픽 라이트) + 드래그 영역 분리
- * - Windows: titleBarOverlay + 우측 시스템 버튼 여백
+ * Electron 창용 타이틀/드래그 영역 (Windows·Linux).
+ * Mac은 OrgPanel/LeftSidebar 등에 직접 drag 적용.
  */
 import { cn } from '../utils/cn';
-
-/** macOS 트래픽 라이트(●●●) 클릭·표시 safe area */
-const MAC_TRAFFIC_LIGHTS_WIDTH = 80;
+import {
+  electronDragStyle,
+  electronNoDragStyle,
+  MAC_TRAFFIC_LIGHTS_WIDTH,
+} from '../utils/electronChrome';
 
 export default function TitleBar({
   title,
@@ -21,12 +22,9 @@ export default function TitleBar({
   const isWin = platform === 'win32';
 
   const barClass = cn(
-    'relative shrink-0 h-[38px] min-h-[38px] flex items-center border-b select-none',
+    'relative shrink-0 h-[38px] min-h-[38px] flex items-stretch border-b select-none',
     isDark ? 'bg-slate-800 border-slate-600' : 'bg-white border-slate-200',
   );
-
-  const dragStyle = { WebkitAppRegion: 'drag' } as React.CSSProperties;
-  const noDragStyle = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
   const titleClass = cn(
     'text-[13px] font-semibold pointer-events-none truncate',
@@ -35,13 +33,13 @@ export default function TitleBar({
 
   if (isMac) {
     return (
-      <div className={cn(barClass, 'pr-3')}>
+      <div className={cn(barClass, 'pr-3 electron-drag')} style={electronDragStyle}>
         <div
-          className="h-full shrink-0"
-          style={{ ...noDragStyle, width: MAC_TRAFFIC_LIGHTS_WIDTH }}
+          className="electron-no-drag h-full shrink-0"
+          style={{ ...electronNoDragStyle, width: MAC_TRAFFIC_LIGHTS_WIDTH }}
           aria-hidden
         />
-        <div className="flex flex-1 items-center justify-center min-w-0" style={dragStyle}>
+        <div className="flex flex-1 items-center justify-center min-w-0">
           <span className={cn(titleClass, 'text-center max-w-full')}>{title}</span>
         </div>
       </div>
@@ -50,8 +48,8 @@ export default function TitleBar({
 
   if (isWin) {
     return (
-      <div className={cn(barClass, 'pl-3 pr-[136px]')} style={dragStyle}>
-        <span className={titleClass}>{title}</span>
+      <div className={cn(barClass, 'pl-3 pr-[136px] electron-drag')} style={electronDragStyle}>
+        <span className={cn(titleClass, 'self-center')}>{title}</span>
       </div>
     );
   }
@@ -63,12 +61,9 @@ export default function TitleBar({
   const closeBtnClass = cn(winBtnClass, 'hover:!bg-[#e81123] hover:!text-white');
 
   return (
-    <div className={cn(barClass, 'px-3 gap-2')} style={dragStyle}>
-      <span className={cn(titleClass, 'flex-1 text-left')}>{title}</span>
-      <div
-        className="flex items-center gap-0 rounded-md overflow-hidden"
-        style={noDragStyle}
-      >
+    <div className={cn(barClass, 'px-3 gap-2 electron-drag')} style={electronDragStyle}>
+      <span className={cn(titleClass, 'flex-1 self-center text-left')}>{title}</span>
+      <div className="electron-no-drag flex items-center gap-0 self-center rounded-md overflow-hidden" style={electronNoDragStyle}>
         <button type="button" className={winBtnClass} onClick={() => api?.windowMinimize?.()} aria-label="최소화">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <path d="M1 5h8" />
