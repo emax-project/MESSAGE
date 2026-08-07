@@ -174,6 +174,7 @@ export default function Main() {
   } = useNotificationPrefs(showToast);
   const {
     appVersion,
+    canCheckUpdates,
     updateStatus,
     updateVersion,
     updateError,
@@ -181,6 +182,7 @@ export default function Main() {
     handleCheckForUpdates,
     handleQuitAndInstall,
     handleOpenUpdateDownload,
+    handleOpenReleasesPage,
   } = useUpdateManager({
     hasElectron: !!window.electronAPI,
     electronPlatform: window.electronAPI?.platform,
@@ -712,6 +714,7 @@ export default function Main() {
                 toggleNotificationSound,
                 toggleDark,
                 hasElectron,
+                canCheckUpdates,
                 appVersion,
                 updateStatus,
                 updateVersion,
@@ -720,6 +723,7 @@ export default function Main() {
                 handleCheckForUpdates,
                 handleQuitAndInstall,
                 handleOpenUpdateDownload,
+                handleOpenReleasesPage,
                 statusInput,
                 statusOptions: STATUS_OPTIONS,
                 renderStatusIcon: (status, size = 18) => <StatusIcon status={status} size={size} />,

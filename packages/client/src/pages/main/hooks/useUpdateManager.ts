@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 export type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'latest';
 
+type AppInfo = { version: string; isPackaged: boolean; platform: string };
+
 type UseUpdateManagerParams = {
   hasElectron: boolean;
   electronPlatform?: string;
@@ -10,18 +12,24 @@ type UseUpdateManagerParams = {
 };
 
 export function useUpdateManager({ hasElectron, electronPlatform, activePanel, showToast }: UseUpdateManagerParams) {
-  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const requiresManualInstall = electronPlatform === 'darwin';
+  const canCheckUpdates = hasElectron && (appInfo?.isPackaged ?? false);
+  const appVersion = appInfo?.version ?? null;
 
-  // 앱 버전 조회 (Electron 패키징된 앱)
   useEffect(() => {
-    if (hasElectron && activePanel === 'settings') {
-      window.electronAPI?.getAppVersion?.().then((v) => setAppVersion(v)).catch(() => {});
-    }
-  }, [hasElectron, activePanel]);
+    if (!hasElectron || activePanel !== 'settings') return;
+    window.electronAPI?.getAppInfo?.()
+      .then((info) => setAppInfo(info))
+      .catch(() => {
+        window.electronAPI?.getAppVersion?.()
+          .then((version) => setAppInfo({ version, isPackaged: false, platform: electronPlatform ?? '' }))
+          .catch(() => {});
+      });
+  }, [hasElectron, activePanel, electronPlatform]);
 
   // 업데이트 다운로드 완료 시 "지금 재시작" 버튼 표시
   useEffect(() => {
@@ -31,7 +39,7 @@ export function useUpdateManager({ hasElectron, electronPlatform, activePanel, s
   }, [hasElectron]);
 
   const handleCheckForUpdates = async () => {
-    if (!hasElectron || !window.electronAPI?.checkForUpdates) return;
+    if (!canCheckUpdates || !window.electronAPI?.checkForUpdates) return;
     setUpdateStatus('checking');
     setUpdateError(null);
     try {
@@ -43,11 +51,15 @@ export function useUpdateManager({ hasElectron, electronPlatform, activePanel, s
       }
       if (r.hasUpdate && r.version) {
         setUpdateVersion(r.version);
-        setAppVersion(r.currentVersion ?? appVersion);
+        if (r.currentVersion) {
+          setAppInfo((prev) => (prev ? { ...prev, version: r.currentVersion! } : prev));
+        }
         setUpdateStatus(r.downloaded ? 'ready' : 'downloading');
       } else {
         setUpdateStatus('latest');
-        setAppVersion(r.currentVersion ?? appVersion);
+        if (r.currentVersion) {
+          setAppInfo((prev) => (prev ? { ...prev, version: r.currentVersion! } : prev));
+        }
       }
     } catch (err) {
       setUpdateStatus('error');
@@ -59,6 +71,10 @@ export function useUpdateManager({ hasElectron, electronPlatform, activePanel, s
     if (!hasElectron || !window.electronAPI?.openUpdateDownload) return;
     await window.electronAPI.openUpdateDownload(updateVersion);
     showToast?.('브라우저에서 설치 파일 다운로드를 시작합니다.', 'info');
+  };
+
+  const handleOpenReleasesPage = () => {
+    window.electronAPI?.openExternal?.('https://github.com/emax-project/MESSAGE/releases/latest');
   };
 
   const handleQuitAndInstall = async () => {
@@ -77,6 +93,8 @@ export function useUpdateManager({ hasElectron, electronPlatform, activePanel, s
 
   return {
     appVersion,
+    appInfo,
+    canCheckUpdates,
     updateStatus,
     updateVersion,
     updateError,
@@ -84,5 +102,6 @@ export function useUpdateManager({ hasElectron, electronPlatform, activePanel, s
     handleCheckForUpdates,
     handleQuitAndInstall,
     handleOpenUpdateDownload,
+    handleOpenReleasesPage,
   };
 }

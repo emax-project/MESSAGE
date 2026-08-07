@@ -2,6 +2,7 @@ import { memo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import UserAvatar from '../../../components/UserAvatar';
+import { PanelTitleRow } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
 import { useAuthStore } from '../../../store';
 import { usersApi, authApi } from '../../../api';
@@ -68,6 +69,7 @@ type SettingsPanelProps = {
   toggleNotificationSound: () => void;
   toggleDark: () => void;
   hasElectron: boolean;
+  canCheckUpdates: boolean;
   appVersion: string | null;
   updateStatus: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'latest';
   updateVersion: string | null;
@@ -76,6 +78,7 @@ type SettingsPanelProps = {
   handleCheckForUpdates: () => void | Promise<void>;
   handleQuitAndInstall: () => void | Promise<void>;
   handleOpenUpdateDownload: () => void | Promise<void>;
+  handleOpenReleasesPage: () => void;
   statusInput: string;
   statusOptions: StatusOption[];
   renderStatusIcon: (status: string, size?: number) => ReactNode;
@@ -100,6 +103,7 @@ function SettingsPanel({
   toggleNotificationSound,
   toggleDark,
   hasElectron,
+  canCheckUpdates,
   appVersion,
   updateStatus,
   updateVersion,
@@ -108,6 +112,7 @@ function SettingsPanel({
   handleCheckForUpdates,
   handleQuitAndInstall,
   handleOpenUpdateDownload,
+  handleOpenReleasesPage,
   statusInput,
   statusOptions,
   renderStatusIcon,
@@ -122,7 +127,7 @@ function SettingsPanel({
   const wrap = panelWrapStyle(760);
   return (
     <div className={wrap.className} style={wrap.style}>
-      <div className={cn('shrink-0 flex items-center justify-between px-5 py-3.5 border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}><h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-slate-900')}>설정</h3></div>
+      <PanelTitleRow isDark={isDark} title="설정" />
       <div className="flex-1 min-h-0 overflow-auto flex flex-col gap-3" style={{ padding: isNarrowLayout ? 14 : 24 }}>
         <div style={{ padding: '20px 16px', borderRadius: 12, background: isDark ? '#334155' : '#f0f4ff', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 16 }}>
           <div style={{ width: 96, height: 96, borderRadius: 16, background: isDark ? '#475569' : '#e2e8f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -179,7 +184,30 @@ function SettingsPanel({
 
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
           <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>업데이트</h4>
-          {hasElectron ? (
+          {!hasElectron ? (
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b' }}>
+              업데이트 확인은 .dmg / .exe로 설치한 EMAX 데스크톱 앱에서만 가능합니다.
+              브라우저(localhost)나 개발 서버 창에서는 표시되지 않습니다.
+            </p>
+          ) : !canCheckUpdates ? (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+              <span style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' }}>
+                {appVersion ? `현재 버전 v${appVersion} (개발 모드)` : '버전 확인 중...'}
+              </span>
+              <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b' }}>
+                npm run dev:app 개발 창에서는 업데이트 확인이 불가합니다.
+                Applications에 설치한 EMAX 앱을 실행하거나, 아래에서 릴리즈 페이지에서 .dmg를 받으세요.
+                (설치된 앱이 이미 실행 중이면 dev Electron 창이 열리지 않을 수 있습니다.)
+              </p>
+              <button
+                type="button"
+                className="self-start px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer"
+                onClick={handleOpenReleasesPage}
+              >
+                GitHub 릴리즈 페이지
+              </button>
+            </div>
+          ) : (
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
                 <span style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' }}>
@@ -209,8 +237,6 @@ function SettingsPanel({
                 </p>
               )}
             </div>
-          ) : (
-            <p style={{ margin: 0, fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' }}>업데이트 확인은 데스크톱 앱(.dmg / .exe)에서만 가능합니다.</p>
           )}
         </div>
 

@@ -13,6 +13,11 @@ import MentionPopup from '../components/MentionPopup';
 import PinnedMessages from '../components/PinnedMessages';
 import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
+import {
+  PANEL_TITLE_ROW,
+  panelHeaderBorder,
+  panelTitleClass,
+} from '../components/PanelDragHeader';
 import { electronNoDragClass } from '../components/MacElectronDragBar';
 import { electronDragStyle, electronNoDragStyle, isMacElectron, isWinElectron } from '../utils/electronChrome';
 import ContextAttachModal, { type MessageContext } from '../components/ContextAttachModal';
@@ -605,14 +610,19 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         <header
           className={cn(
             'sticky top-0 z-10 flex items-center justify-between shrink-0 border-b',
-            !embedded && isMacElectron() && 'electron-drag',
-            isCompactHeader ? 'px-3 py-2 gap-2 flex-wrap' : 'px-5 min-h-[56px] gap-3',
-            isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm',
+            embedded
+              ? cn(PANEL_TITLE_ROW, panelHeaderBorder(isDark), isMacElectron() && 'electron-drag')
+              : cn(
+                  isMacElectron() && 'electron-drag',
+                  isCompactHeader ? 'px-3 py-2 gap-2 flex-wrap' : 'px-5 min-h-[56px] gap-3',
+                  isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm',
+                ),
+            !embedded && (isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm'),
           )}
-          style={!embedded && isMacElectron() ? electronDragStyle : undefined}
+          style={isMacElectron() ? electronDragStyle : undefined}
         >
           <span className="flex items-center gap-2 overflow-hidden min-w-0 pointer-events-none">
-            <span className={cn('text-base font-bold truncate', isDark ? 'text-slate-100' : 'text-slate-800')}>
+            <span className={cn(embedded ? panelTitleClass(isDark) : cn('text-base font-bold truncate', isDark ? 'text-slate-100' : 'text-slate-800'))}>
               {room.name}
             </span>
             {isBoardView && (

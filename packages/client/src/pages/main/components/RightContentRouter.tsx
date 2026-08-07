@@ -109,6 +109,7 @@ type RightContentRouterProps = {
     toggleNotificationSound: () => void;
     toggleDark: () => void;
     hasElectron: boolean;
+    canCheckUpdates: boolean;
     appVersion: string | null;
     updateStatus: UpdateStatus;
     updateVersion: string | null;
@@ -117,6 +118,7 @@ type RightContentRouterProps = {
     handleCheckForUpdates: () => void;
     handleQuitAndInstall: () => void | Promise<void>;
     handleOpenUpdateDownload: () => void | Promise<void>;
+    handleOpenReleasesPage: () => void;
     statusInput: string;
     statusOptions: { id: string; label: string }[];
     renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
@@ -268,6 +270,7 @@ function RightContentRouter({
             toggleNotificationSound={settingsProps.toggleNotificationSound}
             toggleDark={settingsProps.toggleDark}
             hasElectron={settingsProps.hasElectron}
+            canCheckUpdates={settingsProps.canCheckUpdates}
             appVersion={settingsProps.appVersion}
             updateStatus={settingsProps.updateStatus}
             updateVersion={settingsProps.updateVersion}
@@ -276,6 +279,7 @@ function RightContentRouter({
             handleCheckForUpdates={settingsProps.handleCheckForUpdates}
             handleQuitAndInstall={settingsProps.handleQuitAndInstall}
             handleOpenUpdateDownload={settingsProps.handleOpenUpdateDownload}
+            handleOpenReleasesPage={settingsProps.handleOpenReleasesPage}
             statusInput={settingsProps.statusInput}
             statusOptions={settingsProps.statusOptions}
             renderStatusIcon={settingsProps.renderStatusIcon}

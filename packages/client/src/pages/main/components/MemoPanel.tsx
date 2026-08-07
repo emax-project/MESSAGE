@@ -1,5 +1,10 @@
 import { memo, useMemo, useState } from 'react';
 import type { MemoItem } from '../../../api';
+import {
+  PanelNoDragWrap,
+  PanelTitleRow,
+  PanelToolbarRow,
+} from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
 
 export type { MemoItem };
@@ -39,30 +44,33 @@ function MemoDetail({
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
-      <div className={cn('shrink-0 flex items-center gap-2 px-4 py-3 border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
-        <button
-          type="button"
-          onClick={onBack}
-          className={cn(
-            'border-none bg-transparent p-1 cursor-pointer rounded-md text-sm font-semibold',
-            isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-slate-100',
-          )}
-        >
-          ← 목록
-        </button>
-        {isInbox && (
+      <PanelTitleRow
+        isDark={isDark}
+        left={(
+          <button
+            type="button"
+            onClick={onBack}
+            className={cn(
+              'border-none bg-transparent p-1 cursor-pointer rounded-md text-sm font-semibold',
+              isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-slate-100',
+            )}
+          >
+            ← 목록
+          </button>
+        )}
+        right={isInbox ? (
           <button
             type="button"
             onClick={() => void onDelete(memo)}
             className={cn(
-              'ml-auto border-none bg-transparent px-2 py-1 cursor-pointer rounded-md text-xs font-semibold',
+              'border-none bg-transparent px-2 py-1 cursor-pointer rounded-md text-xs font-semibold',
               isDark ? 'text-red-400 hover:bg-slate-700' : 'text-red-600 hover:bg-red-50',
             )}
           >
             삭제
           </button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       <div className="flex-1 min-h-0 overflow-auto px-5 py-4">
         <h4 className={cn('m-0 mb-3 text-lg font-bold break-words', isDark ? 'text-white' : 'text-slate-900')}>
@@ -137,37 +145,41 @@ function MemoPanel({
 
   return (
     <div className={wrap.className} style={wrap.style}>
-      <div className={cn('shrink-0 flex items-center justify-between px-5 py-3.5 border-b gap-2', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
-        <h3 className={cn('m-0 text-base font-bold', isDark ? 'text-white' : 'text-slate-900')}>쪽지</h3>
-        <button
-          type="button"
-          onClick={onOpenCompose}
-          className={cn(
-            'shrink-0 border-none rounded-lg px-3 py-1.5 text-[13px] font-semibold cursor-pointer',
-            isDark ? 'bg-brand-dark text-white hover:bg-brand-light' : 'bg-brand-dark text-white hover:bg-brand-light',
-          )}
-        >
-          쓰기
-        </button>
-      </div>
-
-      <div className={cn('shrink-0 flex border-b', isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]')}>
-        {(['inbox', 'sent'] as MemoTab[]).map((key) => (
+      <PanelTitleRow
+        isDark={isDark}
+        title="쪽지"
+        right={(
           <button
-            key={key}
             type="button"
-            onClick={() => { setTab(key); setSelectedId(null); }}
+            onClick={onOpenCompose}
             className={cn(
-              'flex-1 py-2.5 text-sm font-semibold border-none cursor-pointer',
-              tab === key
-                ? (isDark ? 'text-brand-light border-b-2 border-brand-light bg-slate-800/50' : 'text-brand-dark border-b-2 border-brand-dark bg-brand-dark/5')
-                : (isDark ? 'text-slate-400 bg-transparent' : 'text-slate-500 bg-transparent'),
+              'shrink-0 border-none rounded-lg px-3 py-1.5 text-[13px] font-semibold cursor-pointer',
+              isDark ? 'bg-brand-dark text-white hover:bg-brand-light' : 'bg-brand-dark text-white hover:bg-brand-light',
             )}
           >
-            {key === 'inbox' ? '받은쪽지' : '보낸쪽지'}
+            쓰기
           </button>
+        )}
+      />
+
+      <PanelToolbarRow isDark={isDark} className="p-0">
+        {(['inbox', 'sent'] as MemoTab[]).map((key) => (
+          <PanelNoDragWrap key={key} className="flex-1 h-full">
+            <button
+              type="button"
+              onClick={() => { setTab(key); setSelectedId(null); }}
+              className={cn(
+                'w-full h-full text-sm font-semibold border-none cursor-pointer',
+                tab === key
+                  ? (isDark ? 'text-brand-light border-b-2 border-brand-light bg-slate-800/50' : 'text-brand-dark border-b-2 border-brand-dark bg-brand-dark/5')
+                  : (isDark ? 'text-slate-400 bg-transparent' : 'text-slate-500 bg-transparent'),
+              )}
+            >
+              {key === 'inbox' ? '받은쪽지' : '보낸쪽지'}
+            </button>
+          </PanelNoDragWrap>
         ))}
-      </div>
+      </PanelToolbarRow>
 
       <div className="flex-1 min-h-0 overflow-auto">
         {list.length === 0 ? (

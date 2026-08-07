@@ -692,6 +692,12 @@ ipcMain.handle('open-update-download', (_, version) => {
 
 ipcMain.handle('get-app-version', () => app.getVersion());
 
+ipcMain.handle('get-app-info', () => ({
+  version: app.getVersion(),
+  isPackaged: app.isPackaged,
+  platform: process.platform,
+}));
+
 ipcMain.handle('set-title-bar-theme', (_, { isDark }) => {
   if (process.platform !== 'win32') return;
   const win = BrowserWindow.getFocusedWindow() || mainWindow;

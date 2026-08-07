@@ -3,12 +3,12 @@ import type { MouseEvent } from 'react';
 import type { OrgCompany, OrgUser } from '../../../api';
 import UICloseButton from '../../../components/ui/UICloseButton';
 import OrgTree from './OrgTree';
-import { electronNoDragClass } from '../../../components/MacElectronDragBar';
 import {
-  electronDragStyle,
-  electronNoDragStyle,
-  isMacElectron,
-} from '../../../utils/electronChrome';
+  PanelNoDragWrap,
+  PanelTitleRow,
+  PanelToolbarRow,
+  usePanelNoDrag,
+} from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
 
 type OrgPanelProps = {
@@ -62,27 +62,13 @@ function OrgPanel({
   hasStatusIcon,
   renderStatusIcon,
 }: OrgPanelProps) {
-  const macDrag = isMacElectron();
+  const { noDragClass, noDragStyle } = usePanelNoDrag();
   const wrap = panelWrapStyle(820);
   return (
     <div className={wrap.className} style={wrap.style}>
-      <div
-        className={cn(
-          'shrink-0 flex items-center justify-between px-5 py-3.5 border-b electron-drag',
-          isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]',
-        )}
-        style={macDrag ? electronDragStyle : undefined}
-      >
-        <h3 className={cn('m-0 text-base font-bold pointer-events-none', isDark ? 'text-white' : 'text-slate-900')}>조직도</h3>
-      </div>
+      <PanelTitleRow isDark={isDark} title="조직도" />
 
-      <div
-        className={cn(
-          'shrink-0 flex items-center gap-2 px-5 py-2.5 border-b electron-drag',
-          isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]',
-        )}
-        style={macDrag ? electronDragStyle : undefined}
-      >
+      <PanelToolbarRow isDark={isDark}>
         <input
           type="text"
           placeholder="이름 검색"
@@ -90,42 +76,42 @@ function OrgPanel({
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           className={cn(
-            electronNoDragClass,
+            noDragClass,
             'flex-1 px-2.5 py-1.5 border rounded-[6px] text-[13px] outline-none min-w-0',
             isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-slate-100 text-slate-900',
           )}
-          style={macDrag ? electronNoDragStyle : undefined}
+          style={noDragStyle}
         />
         {searchQuery.trim().length > 0 && (
-          <UICloseButton
-            size="sm"
-            variant="subtle"
-            onClick={() => onSearchQueryChange('')}
-            aria-label="검색어 지우기"
-            title="검색어 지우기"
-            className={electronNoDragClass}
-            style={macDrag ? electronNoDragStyle : undefined}
-          />
+          <PanelNoDragWrap>
+            <UICloseButton
+              size="sm"
+              variant="subtle"
+              onClick={() => onSearchQueryChange('')}
+              aria-label="검색어 지우기"
+              title="검색어 지우기"
+            />
+          </PanelNoDragWrap>
         )}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showOnlineOnly}
-          onClick={onToggleOnlineOnly}
-          title="온라인만 보기"
-          style={macDrag ? electronNoDragStyle : undefined}
-          className={cn(
-            electronNoDragClass,
-            'shrink-0 flex items-center gap-1 px-2 py-1 border rounded-2xl text-[11px] whitespace-nowrap',
-            showOnlineOnly
-              ? 'border-brand bg-brand text-white'
-              : isDark ? 'border-slate-600 bg-transparent text-slate-300' : 'border-slate-200 bg-transparent text-slate-500',
-          )}
-        >
-          <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />
-          온라인
-        </button>
-      </div>
+        <PanelNoDragWrap>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showOnlineOnly}
+            onClick={onToggleOnlineOnly}
+            title="온라인만 보기"
+            className={cn(
+              'shrink-0 flex items-center gap-1 px-2 py-1 border rounded-2xl text-[11px] whitespace-nowrap',
+              showOnlineOnly
+                ? 'border-brand bg-brand text-white'
+                : isDark ? 'border-slate-600 bg-transparent text-slate-300' : 'border-slate-200 bg-transparent text-slate-500',
+            )}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />
+            온라인
+          </button>
+        </PanelNoDragWrap>
+      </PanelToolbarRow>
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <OrgTree
