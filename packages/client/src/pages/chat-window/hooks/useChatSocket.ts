@@ -11,6 +11,7 @@ import {
   type ReactionGroup,
   type Room,
 } from '../../../api';
+import { playNotificationSound } from '../../../utils/notificationSound';
 
 type MessagesPage = { messages: Message[]; nextCursor: string | null; hasMore: boolean };
 
@@ -110,6 +111,7 @@ export function useChatSocket({
             const body = isTopic && roomName
               ? `${senderName}: ${msg.fileUrl && msg.fileName ? msg.fileName : msg.content}`
               : (msg.fileUrl && msg.fileName ? msg.fileName : msg.content);
+            playNotificationSound();
             const electronAPI = window.electronAPI;
 
             if (electronAPI?.showNotification) {
@@ -267,6 +269,7 @@ export function useChatSocket({
     });
 
     s.on('mention', (payload: { roomId: string; senderName: string; content: string }) => {
+      playNotificationSound();
       window.electronAPI?.showNotification(
         `${payload.senderName}님이 회원님을 멘션했습니다`,
         payload.content

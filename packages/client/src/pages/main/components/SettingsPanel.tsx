@@ -62,8 +62,10 @@ type SettingsPanelProps = {
   isNarrowLayout: boolean;
   user: { id: string; name?: string | null; email?: string | null; avatarUrl?: string | null; isAdmin?: boolean } | null | undefined;
   notificationsSnoozedUntil: number;
+  notificationSoundEnabled: boolean;
   snoozeNotifications: (minutes: number) => void;
   clearSnooze: () => void;
+  toggleNotificationSound: () => void;
   toggleDark: () => void;
   hasElectron: boolean;
   appVersion: string | null;
@@ -90,8 +92,10 @@ function SettingsPanel({
   isNarrowLayout,
   user,
   notificationsSnoozedUntil,
+  notificationSoundEnabled,
   snoozeNotifications,
   clearSnooze,
+  toggleNotificationSound,
   toggleDark,
   hasElectron,
   appVersion,
@@ -153,6 +157,13 @@ function SettingsPanel({
               <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" onClick={() => snoozeNotifications(60)}>1시간</button>
             </div>
           )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10, padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
+          <span style={{ fontSize: 14, fontWeight: 500, color: isDark ? '#e2e8f0' : '#0f172a' }}>알림 소리</span>
+          <button type="button" onClick={toggleNotificationSound} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: notificationSoundEnabled ? '#171717' : (isDark ? '#475569' : '#e2e8f0'), cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
+            <span style={{ position: 'absolute' as const, top: 3, left: notificationSoundEnabled ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10, padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>

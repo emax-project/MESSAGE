@@ -3,6 +3,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { filesApi, getBaseUrl, getSocketUrl, navigateToLogin, type Message, type Room } from '../../../api';
+import { playNotificationSound } from '../../../utils/notificationSound';
 
 type MessagesPage = { messages: Message[]; nextCursor: string | null; hasMore: boolean };
 
@@ -103,6 +104,7 @@ export function useMainSocket({
         const roomName = room?.name ?? '';
         const title = isTopic && roomName ? `${roomName} 아젠다` : senderName;
         const body = isTopic && roomName ? `${senderName}: ${msg.fileUrl && msg.fileName ? msg.fileName : msg.content}` : (msg.fileUrl && msg.fileName ? msg.fileName : msg.content);
+        playNotificationSound();
         const electronAPI = window.electronAPI;
         if (electronAPI?.showNotification) {
           (async () => {
@@ -198,6 +200,7 @@ export function useMainSocket({
       if (notificationsSnoozedUntilRef.current > Date.now()) return;
       const title = payload.senderName ? `쪽지: ${payload.senderName}` : '새 쪽지';
       const body = payload.subject || '';
+      playNotificationSound();
       const electronAPI = window.electronAPI;
       if (electronAPI?.showNotification) {
         electronAPI.showNotification(title, body);

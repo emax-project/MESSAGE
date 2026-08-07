@@ -21,6 +21,13 @@ export function useNotificationPrefs(showToast: ShowToast) {
       return 0;
     }
   });
+  const [notificationSoundEnabled, setNotificationSoundEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('notificationSoundEnabled') !== '0';
+    } catch {
+      return true;
+    }
+  });
 
   const mutedRoomIdsRef = useRef<Set<string>>(mutedRoomIds);
   const notificationsSnoozedUntilRef = useRef<number>(notificationsSnoozedUntil);
@@ -88,13 +95,28 @@ export function useNotificationPrefs(showToast: ShowToast) {
     }
   };
 
+  const toggleNotificationSound = () => {
+    setNotificationSoundEnabled((prev) => {
+      const next = !prev;
+      try {
+        if (next) localStorage.removeItem('notificationSoundEnabled');
+        else localStorage.setItem('notificationSoundEnabled', '0');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
   return {
     mutedRoomIds,
     notificationsSnoozedUntil,
+    notificationSoundEnabled,
     mutedRoomIdsRef,
     notificationsSnoozedUntilRef,
     toggleMuteRoom,
     snoozeNotifications,
     clearSnooze,
+    toggleNotificationSound,
   };
 }

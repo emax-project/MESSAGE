@@ -143,8 +143,10 @@ const baseProps = () => ({
   },
   settingsProps: {
     notificationsSnoozedUntil: 0,
+    notificationSoundEnabled: true,
     snoozeNotifications: vi.fn(),
     clearSnooze: vi.fn(),
+    toggleNotificationSound: vi.fn(),
     toggleDark: vi.fn(),
     hasElectron: false,
     appVersion: null,

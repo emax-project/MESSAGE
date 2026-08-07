@@ -14,6 +14,7 @@ import {
 } from './main/utils/date';
 import { useUpdateManager } from './main/hooks/useUpdateManager';
 import { useNotificationPrefs } from './main/hooks/useNotificationPrefs';
+import { playNotificationSound } from '../utils/notificationSound';
 import { useMainSocket } from './main/hooks/useMainSocket';
 import { useMainContentActions } from './main/hooks/useMainContentActions';
 import LeftSidebar from './main/components/LeftSidebar';
@@ -158,11 +159,13 @@ export default function Main() {
   const {
     mutedRoomIds,
     notificationsSnoozedUntil,
+    notificationSoundEnabled,
     mutedRoomIdsRef,
     notificationsSnoozedUntilRef,
     toggleMuteRoom,
     snoozeNotifications,
     clearSnooze,
+    toggleNotificationSound,
   } = useNotificationPrefs(showToast);
   const {
     appVersion,
@@ -429,6 +432,7 @@ export default function Main() {
     setAnnouncementTitle('');
   }, []);
   const handleTestNotification = useCallback(() => {
+    playNotificationSound(true);
     window.electronAPI?.showNotification('EMAX', '알림 테스트입니다.');
   }, []);
   const handleLogout = useCallback(() => {
@@ -690,8 +694,10 @@ export default function Main() {
               }}
               settingsProps={{
                 notificationsSnoozedUntil,
+                notificationSoundEnabled,
                 snoozeNotifications,
                 clearSnooze,
+                toggleNotificationSound,
                 toggleDark,
                 hasElectron,
                 appVersion,

@@ -103,8 +103,10 @@ type RightContentRouterProps = {
   };
   settingsProps: {
     notificationsSnoozedUntil: number;
+    notificationSoundEnabled: boolean;
     snoozeNotifications: (minutes: number) => void;
     clearSnooze: () => void;
+    toggleNotificationSound: () => void;
     toggleDark: () => void;
     hasElectron: boolean;
     appVersion: string | null;
@@ -258,8 +260,10 @@ function RightContentRouter({
             isNarrowLayout={isNarrowLayout}
             user={settingsProps.user}
             notificationsSnoozedUntil={settingsProps.notificationsSnoozedUntil}
+            notificationSoundEnabled={settingsProps.notificationSoundEnabled}
             snoozeNotifications={settingsProps.snoozeNotifications}
             clearSnooze={settingsProps.clearSnooze}
+            toggleNotificationSound={settingsProps.toggleNotificationSound}
             toggleDark={settingsProps.toggleDark}
             hasElectron={settingsProps.hasElectron}
             appVersion={settingsProps.appVersion}
