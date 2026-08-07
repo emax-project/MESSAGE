@@ -41,6 +41,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const myId = useAuthStore((s) => s.user?.id);
   const isDark = useThemeStore((s) => s.isDark);
   const showToast = useToastStore((s) => s.show);
+  useEffect(() => {
+    if (!embedded) window.electronAPI?.setTitleBarTheme?.(isDark);
+  }, [embedded, isDark]);
   const [input, setInput] = useState('');
   const [socket, setSocket] = useState<Socket | null>(null);
   const [dragOver, setDragOver] = useState(false);

@@ -117,6 +117,10 @@ export default function Main() {
   const isDark = useThemeStore((s) => s.isDark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
 
+  useEffect(() => {
+    window.electronAPI?.setTitleBarTheme?.(isDark);
+  }, [isDark]);
+
   // --- Layout state ---
   const [activePanel, setActivePanel] = useState<'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings'>('none');
   const [searchQuery, setSearchQuery] = useState('');

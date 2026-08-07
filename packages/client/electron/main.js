@@ -315,13 +315,25 @@ function getLoadFile() {
 }
 
 function createWindow(options = {}) {
+  const isMac = process.platform === 'darwin';
+  const isWin = process.platform === 'win32';
+  const titleBarHeight = 38;
+
   const win = new BrowserWindow({
     width: 430,
     height: 900,
     minWidth: 360,
     minHeight: 560,
     frame: false,
-    titleBarStyle: 'hidden',
+    titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
+    ...(isMac ? { trafficLightPosition: { x: 16, y: 13 } } : {}),
+    ...(isWin ? {
+      titleBarOverlay: {
+        color: '#1e293b',
+        symbolColor: '#e2e8f0',
+        height: titleBarHeight,
+      },
+    } : {}),
     show: false,
     // 흰 화면 플래시 방지 (특히 Windows 첫 실행)
     backgroundColor: '#0f172a',
@@ -679,6 +691,21 @@ ipcMain.handle('open-update-download', (_, version) => {
 });
 
 ipcMain.handle('get-app-version', () => app.getVersion());
+
+ipcMain.handle('set-title-bar-theme', (_, { isDark }) => {
+  if (process.platform !== 'win32') return;
+  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+  if (!win || win.isDestroyed()) return;
+  try {
+    win.setTitleBarOverlay({
+      color: isDark ? '#1e293b' : '#ffffff',
+      symbolColor: isDark ? '#e2e8f0' : '#0f172a',
+      height: 38,
+    });
+  } catch (e) {
+    if (process.env.NODE_ENV !== 'production') console.warn('[set-title-bar-theme]', e?.message);
+  }
+});
 
 // CORS 우회: 메인 프로세스에서 사용자 아바타 fetch (Electron file:// 환경)
 ipcMain.handle('fetch-user-avatar', async (_, { userId, baseUrl, token }) => {

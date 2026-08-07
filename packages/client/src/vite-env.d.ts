@@ -29,6 +29,7 @@ interface Window {
     onLogout: (handler: () => void) => () => void;
     onNavigateToRoom: (handler: (roomId: string) => void) => () => void;
     getAppVersion: () => Promise<string>;
+    setTitleBarTheme?: (isDark: boolean) => Promise<void>;
     checkForUpdates: () => Promise<{
       success: boolean;
       hasUpdate?: boolean;
