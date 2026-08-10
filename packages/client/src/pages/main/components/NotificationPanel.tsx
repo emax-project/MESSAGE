@@ -1,7 +1,7 @@
 import { memo, useState } from 'react';
 import type { AnnouncementItem } from '../../../api';
 import { cn } from '../../../utils/cn';
-import { PanelNoDragWrap, PanelTitleRow, PanelToolbarRow } from '../../../components/PanelDragHeader';
+import { PanelTitleRow, PanelToolbarRow } from '../../../components/PanelDragHeader';
 import MentionPanel, { type MentionItem } from './MentionPanel';
 import AnnouncementPanel, { hasUnreadAnnouncements } from './AnnouncementPanel';
 
@@ -71,7 +71,7 @@ function NotificationPanel({
       <PanelTitleRow isDark={isDark} title="알림" />
 
       <PanelToolbarRow isDark={isDark}>
-        <PanelNoDragWrap className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <button type="button" className={tabClass(tab === 'mention')} onClick={() => setTab('mention')}>
             멘션
             {unreadMentionCount > 0 && (
@@ -95,7 +95,7 @@ function NotificationPanel({
               <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-400 align-middle" />
             )}
           </button>
-        </PanelNoDragWrap>
+        </div>
       </PanelToolbarRow>
 
       <div className="flex min-h-0 flex-1 flex-col">

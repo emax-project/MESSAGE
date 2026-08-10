@@ -91,12 +91,12 @@ type PanelToolbarRowProps = {
   className?: string;
 };
 
-/** 패널 2번째 줄 (검색·탭) */
+/** 패널 2번째 줄 (검색·탭) — 클릭 가능해야 하므로 drag 영역 사용 안 함 */
 export function PanelToolbarRow({ isDark, children, className }: PanelToolbarRowProps) {
   return (
-    <PanelDragHeader className={cn(PANEL_TOOLBAR_ROW, panelHeaderBorder(isDark), className)}>
+    <div className={cn(PANEL_TOOLBAR_ROW, panelHeaderBorder(isDark), className)}>
       {children}
-    </PanelDragHeader>
+    </div>
   );
 }
 
