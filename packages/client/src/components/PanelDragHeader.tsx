@@ -113,11 +113,18 @@ type PanelTitleRowProps = {
   title?: string;
   left?: ReactNode;
   right?: ReactNode;
+  compact?: boolean;
 };
 
-export function PanelTitleRow({ isDark, title, left, right }: PanelTitleRowProps) {
+export function PanelTitleRow({ isDark, title, left, right, compact }: PanelTitleRowProps) {
   return (
-    <div className={cn(PANEL_TITLE_ROW, panelHeaderBorder(isDark))}>
+    <div
+      className={cn(
+        PANEL_TITLE_ROW,
+        panelHeaderBorder(isDark),
+        compact && 'h-[44px] min-h-[44px]',
+      )}
+    >
       {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
       <PanelDragHeader className="flex min-h-0 min-w-0 flex-1 items-center gap-2 self-stretch">
         {title ? <h3 className={panelTitleClass(isDark)}>{title}</h3> : null}
@@ -132,13 +139,21 @@ type PanelToolbarRowProps = {
   isDark: boolean;
   children: ReactNode;
   className?: string;
+  compact?: boolean;
 };
 
 /** 패널 2번째 줄 (검색·탭) — 클릭 가능해야 하므로 drag 영역 사용 안 함 */
-export function PanelToolbarRow({ isDark, children, className }: PanelToolbarRowProps) {
+export function PanelToolbarRow({ isDark, children, className, compact }: PanelToolbarRowProps) {
   const { noDragClass, noDragStyle } = usePanelNoDrag();
   return (
-    <div className={cn(PANEL_TOOLBAR_ROW, panelHeaderBorder(isDark), className)}>
+    <div
+      className={cn(
+        PANEL_TOOLBAR_ROW,
+        panelHeaderBorder(isDark),
+        compact && 'h-[40px] min-h-[40px]',
+        className,
+      )}
+    >
       {applyNoDragToTree(children, noDragClass, noDragStyle)}
     </div>
   );

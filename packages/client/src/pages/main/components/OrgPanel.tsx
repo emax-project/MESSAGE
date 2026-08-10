@@ -66,9 +66,9 @@ function OrgPanel({
   const wrap = panelWrapStyle(820);
   return (
     <div className={wrap.className} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title="조직도" />
+      <PanelTitleRow isDark={isDark} title="조직도" compact />
 
-      <PanelToolbarRow isDark={isDark}>
+      <PanelToolbarRow isDark={isDark} compact>
         <input
           type="text"
           placeholder="이름 검색"
@@ -77,7 +77,7 @@ function OrgPanel({
           onChange={(e) => onSearchQueryChange(e.target.value)}
           className={cn(
             noDragClass,
-            'flex-1 px-2.5 py-1.5 border rounded-[6px] text-[13px] outline-none min-w-0',
+            'flex-1 px-2.5 py-1 border rounded-[6px] text-[13px] outline-none min-w-0',
             isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-slate-100 text-slate-900',
           )}
           style={noDragStyle}

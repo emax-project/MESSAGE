@@ -83,14 +83,14 @@ function OrgTree({
     return <p style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13, padding: 16 }}>표시할 조직이 없습니다.</p>;
   }
   return (
-    <div style={{ padding: '8px 12px' }}>
+    <div style={{ padding: '4px 10px' }}>
       {orgTree.map((company) => {
         const companyKey = `company-${company.id}`;
         const companyOpen = treeOpen[companyKey] !== false;
         const memberCount = companyMemberCounts?.[company.id] ?? countCompanyUsers(company);
         return (
-          <div key={company.id} style={{ marginBottom: 6 }}>
-            <button type="button" className="flex items-center gap-1.5 px-2 py-[5px] rounded-md bg-transparent text-[13px] w-full" onClick={() => onToggleTree(companyKey)}>
+          <div key={company.id} style={{ marginBottom: 3 }}>
+            <button type="button" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-transparent text-[13px] w-full" onClick={() => onToggleTree(companyKey)}>
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <UIChevron open={companyOpen} size={9} color={companyOpen ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
               </span>
@@ -117,8 +117,8 @@ function OrgTree({
               const deptKey = `dept-${dept.id}`;
               const deptOpen = treeOpen[deptKey] !== false;
               return (
-                <div key={dept.id} style={{ marginLeft: 14, marginTop: 2 }}>
-                  <button type="button" className="flex items-center gap-1.5 px-2 py-[5px] rounded-md bg-transparent text-[13px] w-full" onClick={() => onToggleTree(deptKey)}>
+                <div key={dept.id} style={{ marginLeft: 12, marginTop: 1 }}>
+                  <button type="button" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-transparent text-[13px] w-full" onClick={() => onToggleTree(deptKey)}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <UIChevron open={deptOpen} size={9} color={deptOpen ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
                     </span>
@@ -128,20 +128,20 @@ function OrgTree({
                     </span>
                   </button>
                   {deptOpen && (
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: 2 }}>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: 1 }}>
                       {dept.users.map((u) => {
                         const isOnline = onlineUserIds.has(String(u.id)) || (String(u.id) === String(myId) && socketConnected);
                         return (
-                          <li key={u.id} style={{ marginBottom: 1 }}>
+                          <li key={u.id}>
                             <button
                               type="button"
-                              className={cn('flex items-center gap-2 px-2 py-[5px] rounded-md bg-transparent text-[13px] w-full border-none cursor-pointer text-left', !isOnline && 'opacity-70', !isOnline && (isDark ? 'text-[#64748b]' : 'text-[#9ca3af]'))}
+                              className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-transparent text-[13px] w-full border-none cursor-pointer text-left', !isOnline && 'opacity-70', !isOnline && (isDark ? 'text-[#64748b]' : 'text-[#9ca3af]'))}
                               onClick={() => void onOpenDirectMessage(u.id)}
                               onContextMenu={(e) => onUserContextMenu(e, u)}
                             >
-                              <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}>
-                                <div style={{ width: 28, height: 28, borderRadius: 8, background: isDark ? '#475569' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#6b7280', overflow: 'hidden' }}>
-                                  <UserAvatar userId={u.id} name={u.name} avatarUrlPath={u.avatarUrl} imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} initialStyle={{ fontSize: 11, fontWeight: 600, color: isDark ? '#94a3b8' : '#6b7280' }} />
+                              <div style={{ position: 'relative', width: 24, height: 24, flexShrink: 0 }}>
+                                <div style={{ width: 24, height: 24, borderRadius: 6, background: isDark ? '#475569' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: isDark ? '#94a3b8' : '#6b7280', overflow: 'hidden' }}>
+                                  <UserAvatar userId={u.id} name={u.name} avatarUrlPath={u.avatarUrl} imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }} initialStyle={{ fontSize: 10, fontWeight: 600, color: isDark ? '#94a3b8' : '#6b7280' }} />
                                 </div>
                                 {u.statusMessage && hasStatusIcon(u.statusMessage) ? (
                                   <span style={{ position: 'absolute', top: -2, right: -2, display: 'block', borderRadius: '50%', border: `1.5px solid ${isDark ? '#1e293b' : '#fff'}`, lineHeight: 0 }}>
