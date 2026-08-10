@@ -72,16 +72,22 @@ type PanelTitleRowProps = {
 };
 
 export function PanelTitleRow({ isDark, title, left, right }: PanelTitleRowProps) {
+  const macDrag = isMacElectron();
   return (
-    <PanelDragHeader className={cn(PANEL_TITLE_ROW, panelHeaderBorder(isDark))}>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        {left ? <PanelNoDragWrap className="flex shrink-0 items-center">{left}</PanelNoDragWrap> : null}
+    <div className={cn(PANEL_TITLE_ROW, panelHeaderBorder(isDark))}>
+      {left ? (
+        <PanelNoDragWrap className="flex shrink-0 items-center">{left}</PanelNoDragWrap>
+      ) : null}
+      <div
+        className={cn('flex min-w-0 flex-1 items-center gap-2', macDrag && 'electron-drag')}
+        style={macDrag ? electronDragStyle : undefined}
+      >
         {title ? <h3 className={panelTitleClass(isDark)}>{title}</h3> : null}
       </div>
       {right ? (
         <PanelNoDragWrap className="flex shrink-0 items-center gap-2">{right}</PanelNoDragWrap>
       ) : null}
-    </PanelDragHeader>
+    </div>
   );
 }
 

@@ -314,7 +314,21 @@ function getLoadFile() {
   return null;
 }
 
+function loadRoute(win, routePath) {
+  const normalized = routePath.startsWith('/') ? routePath : `/${routePath}`;
+  const url = getLoadURL();
+  const file = getLoadFile();
+  if (url) {
+    // Electron 렌더러는 MemoryRouter + location.hash 로 초기 경로 결정
+    const base = url.replace(/\/$/, '');
+    win.loadURL(`${base}/#${normalized}`);
+  } else if (file) {
+    win.loadFile(file, { hash: normalized });
+  }
+}
+
 function createWindow(options = {}) {
+  const { secondWindow, initialRoute, ...browserWindowOptions } = options;
   const isMac = process.platform === 'darwin';
   const isWin = process.platform === 'win32';
   const titleBarHeight = 38;
@@ -344,17 +358,19 @@ function createWindow(options = {}) {
       contextIsolation: true,
       preload: preloadPath,
     },
-    ...options,
+    ...browserWindowOptions,
   });
 
-  const url = getLoadURL();
-  const file = getLoadFile();
-  if (url) {
-    win.loadURL(url);
-  } else if (file) {
-    // loadFile()은 Electron이 ASAR 가상 경로, Windows 경로 구분자, file:// 변환을 직접 처리
-    // pathToFileURL() 사용 시 ASAR 패키지 내 경로를 잘못 해석해 로드 실패 가능
-    win.loadFile(file);
+  if (initialRoute) {
+    loadRoute(win, initialRoute);
+  } else {
+    const url = getLoadURL();
+    const file = getLoadFile();
+    if (url) {
+      win.loadURL(url);
+    } else if (file) {
+      win.loadFile(file);
+    }
   }
 
   // 창 표시 로직:
@@ -391,10 +407,14 @@ function createWindow(options = {}) {
     if (!crashed && details.reason !== 'clean-exit' && !win.isDestroyed()) {
       crashed = true;
       readyShown = false;
-      const url2 = getLoadURL();
-      const file2 = getLoadFile();
-      if (url2) win.loadURL(url2);
-      else if (file2) win.loadFile(file2);
+      if (initialRoute) {
+        loadRoute(win, initialRoute);
+      } else {
+        const url2 = getLoadURL();
+        const file2 = getLoadFile();
+        if (url2) win.loadURL(url2);
+        else if (file2) win.loadFile(file2);
+      }
     }
   });
 
@@ -425,7 +445,7 @@ function createWindow(options = {}) {
     `).catch(() => {});
   });
 
-  const isMainWindow = !options.secondWindow;
+  const isMainWindow = !secondWindow;
   win.isMainWindow = isMainWindow;
   if (isMainWindow) {
     mainWindow = win;
@@ -451,31 +471,37 @@ function openSecondWindow() {
   });
 }
 
-function loadRoute(win, routePath) {
-  const url = getLoadURL();
-  const file = getLoadFile();
-  if (url) {
-    const base = url.endsWith('/') ? url : url + '/';
-    win.loadURL(base + routePath.replace(/^\//, ''));
-  } else if (file) {
-    // loadFile의 두 번째 인자 hash로 HashRouter 경로 전달
-    win.loadFile(file, { hash: routePath });
-  }
-}
-
 function openChatWindow(roomId) {
-  const win = createWindow({ width: 480, height: 680, minWidth: 400, minHeight: 500, secondWindow: true });
-  loadRoute(win, '/chat/' + encodeURIComponent(roomId));
+  createWindow({
+    width: 480,
+    height: 680,
+    minWidth: 400,
+    minHeight: 500,
+    secondWindow: true,
+    initialRoute: `/chat/${encodeURIComponent(roomId)}`,
+  });
 }
 
 function openKanbanWindow(roomId) {
-  const win = createWindow({ width: 1100, height: 750, minWidth: 800, minHeight: 600, secondWindow: true });
-  loadRoute(win, '/kanban/' + encodeURIComponent(roomId));
+  createWindow({
+    width: 1100,
+    height: 750,
+    minWidth: 800,
+    minHeight: 600,
+    secondWindow: true,
+    initialRoute: `/kanban/${encodeURIComponent(roomId)}`,
+  });
 }
 
 function openGanttWindow(roomId) {
-  const win = createWindow({ width: 1200, height: 700, minWidth: 900, minHeight: 550, secondWindow: true });
-  loadRoute(win, '/gantt/' + encodeURIComponent(roomId));
+  createWindow({
+    width: 1200,
+    height: 700,
+    minWidth: 900,
+    minHeight: 550,
+    secondWindow: true,
+    initialRoute: `/gantt/${encodeURIComponent(roomId)}`,
+  });
 }
 
 function broadcastLogout() {
