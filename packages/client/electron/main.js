@@ -357,20 +357,17 @@ function createWindow(options = {}) {
       nodeIntegration: false,
       contextIsolation: true,
       preload: preloadPath,
+      ...(initialRoute ? { additionalArguments: [`emax-route=${initialRoute}`] } : {}),
     },
     ...browserWindowOptions,
   });
 
-  if (initialRoute) {
-    loadRoute(win, initialRoute);
-  } else {
-    const url = getLoadURL();
-    const file = getLoadFile();
-    if (url) {
-      win.loadURL(url);
-    } else if (file) {
-      win.loadFile(file);
-    }
+  const url = getLoadURL();
+  const file = getLoadFile();
+  if (url) {
+    win.loadURL(url);
+  } else if (file) {
+    win.loadFile(file);
   }
 
   // 창 표시 로직:
@@ -410,10 +407,10 @@ function createWindow(options = {}) {
       if (initialRoute) {
         loadRoute(win, initialRoute);
       } else {
-        const url2 = getLoadURL();
-        const file2 = getLoadFile();
-        if (url2) win.loadURL(url2);
-        else if (file2) win.loadFile(file2);
+        const reloadUrl = getLoadURL();
+        const reloadFile = getLoadFile();
+        if (reloadUrl) win.loadURL(reloadUrl);
+        else if (reloadFile) win.loadFile(reloadFile);
       }
     }
   });

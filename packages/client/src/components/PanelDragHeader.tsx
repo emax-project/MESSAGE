@@ -1,4 +1,11 @@
-import type { CSSProperties, ReactNode } from 'react';
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type CSSProperties,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { electronNoDragClass } from './MacElectronDragBar';
 import { cn } from '../utils/cn';
 import { electronDragStyle, electronNoDragStyle, isMacElectron } from '../utils/electronChrome';
@@ -50,6 +57,43 @@ export function usePanelNoDrag() {
   };
 }
 
+const INTERACTIVE_TAGS = new Set(['button', 'input', 'textarea', 'select', 'a', 'label']);
+
+function isInteractiveElement(element: ReactElement) {
+  const type = element.type;
+  if (typeof type === 'string' && INTERACTIVE_TAGS.has(type)) return true;
+  if (element.props.role === 'button') return true;
+  return typeof element.props.onClick === 'function';
+}
+
+/** drag 영역 안 interactive 요소에 no-drag를 직접 부여 (macOS Electron) */
+function applyNoDragToTree(
+  node: ReactNode,
+  noDragClass?: string,
+  noDragStyle?: CSSProperties,
+): ReactNode {
+  if (!noDragClass) return node;
+
+  return Children.map(node, (child) => {
+    if (!isValidElement(child)) return child;
+
+    if (isInteractiveElement(child)) {
+      return cloneElement(child, {
+        className: cn(child.props.className, noDragClass),
+        style: { ...child.props.style, ...noDragStyle },
+      });
+    }
+
+    if (child.props.children) {
+      return cloneElement(child, {
+        children: applyNoDragToTree(child.props.children, noDragClass, noDragStyle),
+      });
+    }
+
+    return child;
+  });
+}
+
 type PanelNoDragWrapProps = {
   children: ReactNode;
   className?: string;
@@ -58,8 +102,8 @@ type PanelNoDragWrapProps = {
 export function PanelNoDragWrap({ children, className }: PanelNoDragWrapProps) {
   const { noDragClass, noDragStyle } = usePanelNoDrag();
   return (
-    <div className={cn(noDragClass, className)} style={noDragStyle}>
-      {children}
+    <div className={className}>
+      {applyNoDragToTree(children, noDragClass, noDragStyle)}
     </div>
   );
 }
@@ -72,21 +116,14 @@ type PanelTitleRowProps = {
 };
 
 export function PanelTitleRow({ isDark, title, left, right }: PanelTitleRowProps) {
-  const macDrag = isMacElectron();
   return (
     <div className={cn(PANEL_TITLE_ROW, panelHeaderBorder(isDark))}>
-      {left ? (
-        <PanelNoDragWrap className="flex shrink-0 items-center">{left}</PanelNoDragWrap>
-      ) : null}
-      <div
-        className={cn('flex min-w-0 flex-1 items-center gap-2', macDrag && 'electron-drag')}
-        style={macDrag ? electronDragStyle : undefined}
-      >
+      {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
+      <PanelDragHeader className="flex min-h-0 min-w-0 flex-1 items-center gap-2 self-stretch">
         {title ? <h3 className={panelTitleClass(isDark)}>{title}</h3> : null}
-      </div>
-      {right ? (
-        <PanelNoDragWrap className="flex shrink-0 items-center gap-2">{right}</PanelNoDragWrap>
-      ) : null}
+        <span className="min-w-0 flex-1 self-stretch" aria-hidden />
+      </PanelDragHeader>
+      {right ? <div className="flex shrink-0 items-center gap-2">{right}</div> : null}
     </div>
   );
 }
@@ -99,9 +136,10 @@ type PanelToolbarRowProps = {
 
 /** 패널 2번째 줄 (검색·탭) — 클릭 가능해야 하므로 drag 영역 사용 안 함 */
 export function PanelToolbarRow({ isDark, children, className }: PanelToolbarRowProps) {
+  const { noDragClass, noDragStyle } = usePanelNoDrag();
   return (
     <div className={cn(PANEL_TOOLBAR_ROW, panelHeaderBorder(isDark), className)}>
-      {children}
+      {applyNoDragToTree(children, noDragClass, noDragStyle)}
     </div>
   );
 }

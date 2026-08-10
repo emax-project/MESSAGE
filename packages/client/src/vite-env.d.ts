@@ -10,6 +10,7 @@ interface ImportMeta {
 
 interface Window {
   electronAPI?: {
+    initialRoute: string | null;
     platform: string;
     notifyAppReady: () => void;
     sendDebugLog: (payload: unknown) => void;

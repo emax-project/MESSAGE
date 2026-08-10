@@ -119,9 +119,14 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  const initialPath = typeof window !== 'undefined' && window.location.hash
-    ? window.location.hash.slice(1) || '/'
-    : '/';
+  const getElectronInitialPath = () => {
+    const fromPreload = window.electronAPI?.initialRoute;
+    if (fromPreload) return fromPreload;
+    if (window.location.hash) return window.location.hash.slice(1) || '/';
+    return '/';
+  };
+
+  const initialPath = isElectron ? getElectronInitialPath() : '/';
   const routerProps = isElectron ? { initialEntries: [initialPath], initialIndex: 0 } : {};
   const RouterWrapper = isElectron ? MemoryRouter : BrowserRouter;
 
