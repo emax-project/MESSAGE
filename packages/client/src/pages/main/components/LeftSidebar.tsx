@@ -7,6 +7,8 @@ import {
   electronNoDragStyle,
   isMacElectron,
   MAC_TRAFFIC_LIGHTS_WIDTH,
+  MAC_TRAFFIC_LIGHTS_ZONE_HEIGHT,
+  MAC_TOP_INSET,
 } from '../../../utils/electronChrome';
 import { cn } from '../../../utils/cn';
 
@@ -66,7 +68,7 @@ function LeftSidebar({
       {macDrag && (
         <div
           className="electron-no-drag absolute left-0 top-0 z-10"
-          style={{ ...electronNoDragStyle, width: MAC_TRAFFIC_LIGHTS_WIDTH, height: 32 }}
+          style={{ ...electronNoDragStyle, width: MAC_TRAFFIC_LIGHTS_WIDTH, height: MAC_TRAFFIC_LIGHTS_ZONE_HEIGHT + MAC_TOP_INSET }}
           aria-hidden
         />
       )}

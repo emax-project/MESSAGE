@@ -2,6 +2,9 @@
 import type { CSSProperties } from 'react';
 
 export const MAC_TRAFFIC_LIGHTS_WIDTH = 78;
+/** macOS hiddenInset 타이틀바 — 트래픽 라이트 아래 콘텐츠 여백 */
+export const MAC_TOP_INSET = 10;
+export const MAC_TRAFFIC_LIGHTS_ZONE_HEIGHT = 32;
 
 export function isElectron(): boolean {
   return typeof window !== 'undefined' && !!window.electronAPI;

@@ -15,6 +15,8 @@ import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
 import {
   PANEL_TITLE_ROW,
+  PanelDragHeader,
+  PanelToolbarRow,
   panelHeaderBorder,
   panelTitleClass,
 } from '../components/PanelDragHeader';
@@ -565,6 +567,60 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const isCreator = !!(room?.isTopic && room?.createdBy && room.createdBy === myId);
   const canInvite = !room?.isTopic || isCreator;
 
+  const iconBtnClass = (compact: boolean) =>
+    cn(
+      'shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors',
+      embedded ? 'w-7 h-7' : compact ? 'w-8 h-8' : 'w-[34px] h-[34px]',
+      isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600',
+    );
+
+  const chatHeaderActions = (
+    <>
+      {embedded && onOpenInNewWindow && (
+        <button type="button" className={iconBtnClass(isCompactHeader)} onClick={onOpenInNewWindow} title="새 창으로 열기">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+        </button>
+      )}
+      <button type="button" className={iconBtnClass(isCompactHeader)} onClick={() => setSearchOpen(!searchOpen)} title="검색">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className={iconBtnClass(isCompactHeader)}
+        onClick={() => {
+          if (window.electronAPI?.openKanbanWindow) {
+            window.electronAPI.openKanbanWindow(roomId!);
+          } else {
+            window.open(`${window.location.origin}/kanban/${roomId}`, '_blank', 'width=1100,height=750');
+          }
+        }}
+        title="프로젝트 보드"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="18" rx="1" /><rect x="14" y="3" width="7" height="10" rx="1" />
+        </svg>
+      </button>
+      {isCreator && (
+        <button type="button" className={iconBtnClass(isCompactHeader)} onClick={() => setSettingsOpen(true)} title="방 설정">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
+          </svg>
+        </button>
+      )}
+      {canInvite && (
+        <button type="button" className={iconBtnClass(isCompactHeader)} onClick={() => setInviteOpen(true)} title="멤버 초대">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
+          </svg>
+        </button>
+      )}
+    </>
+  );
+
   return (
     <div
       className={cn(
@@ -607,22 +663,34 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             </div>
           </div>
         )}
+        {embedded ? (
+          <div className={cn('sticky top-0 z-10 shrink-0 border-b', panelHeaderBorder(isDark))}>
+            <PanelDragHeader className={cn(PANEL_TITLE_ROW, panelHeaderBorder(isDark), 'h-[40px] min-h-[40px] px-4 border-b-0')}>
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                <h3 className={cn(panelTitleClass(isDark), 'text-[15px]')} title={room.name}>{room.name}</h3>
+                {isBoardView && (
+                  <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0', isDark ? 'text-slate-400 bg-white/10' : 'text-slate-500 bg-black/5')}>
+                    보드뷰
+                  </span>
+                )}
+              </div>
+            </PanelDragHeader>
+            <PanelToolbarRow isDark={isDark} compact className="h-[34px] min-h-[34px] justify-end gap-1 px-4 py-0">
+              {chatHeaderActions}
+            </PanelToolbarRow>
+          </div>
+        ) : (
         <header
           className={cn(
-            'sticky top-0 z-10 flex items-center justify-between shrink-0 border-b',
-            embedded
-              ? cn(PANEL_TITLE_ROW, panelHeaderBorder(isDark), isMacElectron() && 'electron-drag')
-              : cn(
-                  isMacElectron() && 'electron-drag',
-                  isCompactHeader ? 'px-3 py-2 gap-2 flex-wrap' : 'px-5 min-h-[56px] gap-3',
-                  isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm',
-                ),
-            !embedded && (isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm'),
+            'sticky top-0 z-10 flex items-center justify-between gap-2 shrink-0 border-b min-w-0 overflow-hidden',
+            isMacElectron() && 'electron-drag',
+            isCompactHeader ? 'px-3 py-2 min-h-[52px]' : 'px-5 min-h-[56px]',
+            isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm',
           )}
           style={isMacElectron() ? electronDragStyle : undefined}
         >
-          <span className="flex items-center gap-2 overflow-hidden min-w-0 pointer-events-none">
-            <span className={cn(embedded ? panelTitleClass(isDark) : cn('text-base font-bold truncate', isDark ? 'text-slate-100' : 'text-slate-800'))}>
+          <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden pointer-events-none">
+            <span className={cn('text-base font-bold truncate', isDark ? 'text-slate-100' : 'text-slate-800')} title={room.name}>
               {room.name}
             </span>
             {isBoardView && (
@@ -631,46 +699,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               </span>
             )}
           </span>
-          <div className={cn(electronNoDragClass, 'flex gap-1.5 items-center ml-auto justify-end', isCompactHeader ? 'flex-wrap' : 'flex-nowrap')} style={isMacElectron() ? electronNoDragStyle : undefined}>
-            {embedded && onOpenInNewWindow && (
-              <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={onOpenInNewWindow} title="새 창으로 열기">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-              </button>
-            )}
-            <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => setSearchOpen(!searchOpen)} title="검색">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-              </svg>
-            </button>
-            <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => {
-              if (window.electronAPI?.openKanbanWindow) {
-                window.electronAPI.openKanbanWindow(roomId!);
-              } else {
-                window.open(`${window.location.origin}/kanban/${roomId}`, '_blank', 'width=1100,height=750');
-              }
-            }} title="프로젝트 보드">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="18" rx="1" /><rect x="14" y="3" width="7" height="10" rx="1" />
-              </svg>
-            </button>
-            {isCreator && (
-              <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => setSettingsOpen(true)} title="방 설정">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
-                </svg>
-              </button>
-            )}
-            {canInvite && (
-            <button type="button" className={cn('shrink-0 rounded-lg border-none cursor-pointer flex items-center justify-center transition-colors', isCompactHeader ? 'w-8 h-8' : 'w-[34px] h-[34px]', isDark ? 'bg-slate-700 text-slate-400' : 'bg-white text-slate-600')} onClick={() => setInviteOpen(true)} title="멤버 초대">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
-              </svg>
-            </button>
-            )}
+          <div className={cn(electronNoDragClass, 'flex shrink-0 flex-nowrap items-center gap-1.5')} style={isMacElectron() ? electronNoDragStyle : undefined}>
+            {chatHeaderActions}
           </div>
         </header>
+        )}
 
         {searchOpen && (
           <div className={cn('flex gap-1.5 py-2 px-4 border-b', isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50')}>
