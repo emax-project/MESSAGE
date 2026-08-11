@@ -3,6 +3,9 @@ import { useThemeStore } from './store';
 import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { authApi } from './api';
+import MacTitleBarInset from './components/MacTitleBarInset';
+import { cn } from './utils/cn';
+import { isMacElectron } from './utils/electronChrome';
 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
@@ -13,7 +16,15 @@ const GanttPage = lazy(() => import('./pages/GanttPage'));
 
 /** 메인/인증 화면: PC에서도 모바일 maxWidth로 중앙 정렬. 칸반·간트·독립 채팅 창은 전체 폭. */
 function MobileShell({ children }: { children: ReactNode }) {
-  return <div className="app-mobile-shell">{children}</div>;
+  const isDark = useThemeStore((s) => s.isDark);
+  const macChrome = isMacElectron();
+
+  return (
+    <div className={cn('app-mobile-shell', macChrome && 'app-mobile-shell--mac')}>
+      {macChrome && <MacTitleBarInset isDark={isDark} overlay />}
+      {children}
+    </div>
+  );
 }
 
 // Electron: MemoryRouter 사용 (URL을 전혀 건드리지 않음 → file://C:/login ERR_FILE_NOT_FOUND 근본 차단)
@@ -102,13 +113,21 @@ export default function App() {
     }
   }, []);
 
-  // Electron: overflow 제약 해제용 body 클래스
+  // Electron: overflow 제약 해제 + macOS 타이틀바 여백 클래스
   useEffect(() => {
-    if (isElectron) {
-      document.body.classList.add('electron-app');
-      return () => document.body.classList.remove('electron-app');
-    }
+    if (!isElectron) return;
+    document.body.classList.add('electron-app');
+    if (isMacElectron()) document.body.classList.add('electron-mac');
+    return () => {
+      document.body.classList.remove('electron-app', 'electron-mac');
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isElectron) return;
+    document.body.classList.toggle('theme-dark', isDark);
+    document.body.classList.toggle('theme-light', !isDark);
+  }, [isDark]);
 
   // Electron: React 마운트 완료 후 main process에 창 표시 신호 전송
   useEffect(() => {

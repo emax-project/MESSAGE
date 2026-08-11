@@ -627,6 +627,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       className={cn(
         'relative flex flex-col overflow-hidden',
         embedded ? 'flex-1 min-h-0 min-w-0' : 'h-screen w-full min-w-0',
+        !embedded && isMacElectron() && 'electron-mac-window',
         isDark ? 'bg-slate-900' : embedded ? 'bg-slate-50' : 'bg-white',
       )}
     >
@@ -646,7 +647,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         }
       `}</style>
       {!embedded && hasElectron && isWinElectron() && <TitleBar title={room.name} isDark={isDark} />}
-      {!embedded && <MacTitleBarInset isDark={isDark} />}
+      {!embedded && isMacElectron() && <MacTitleBarInset isDark={isDark} overlay />}
       <div className="relative flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <div
           className={cn(

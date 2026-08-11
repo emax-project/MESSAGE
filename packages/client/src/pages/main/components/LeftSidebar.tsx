@@ -57,6 +57,7 @@ function LeftSidebar({
       className={cn(
         'relative shrink-0 flex flex-col items-center py-2 gap-1 border-r',
         macDrag ? 'w-[78px]' : 'w-[56px]',
+        macDrag && 'pt-1',
         macDrag && 'electron-drag',
         isDark ? 'bg-slate-800 border-r-slate-600' : 'bg-white border-r-slate-200',
       )}

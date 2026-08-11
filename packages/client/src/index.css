@@ -21,6 +21,7 @@
   /* 모바일 우선 레이아웃 규격 (PC에서도 동일 maxWidth로 중앙 정렬) */
   --app-max-width: 430px;
   --app-sidebar-width: min(320px, 100%);
+  --mac-titlebar-inset: 40px;
 }
 
 * {
@@ -91,6 +92,34 @@ body {
   min-height: 0;
   min-width: 0;
   /* overflow:hidden 은 -webkit-app-region: drag 를 막으므로 내부 스크롤 영역에만 적용 */
+}
+
+/* Electron 데스크톱: 모바일 셸 장식 제거 + macOS 타이틀바 여백 */
+body.electron-app .app-mobile-shell {
+  box-shadow: none;
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  background: transparent;
+}
+
+body.electron-app.electron-mac .app-mobile-shell--mac {
+  padding-top: var(--mac-titlebar-inset);
+  box-sizing: border-box;
+}
+
+body.electron-app.electron-mac.theme-light .app-mobile-shell--mac {
+  background: #ffffff;
+}
+
+body.electron-app.electron-mac.theme-dark .app-mobile-shell--mac {
+  background: #0f172a;
+}
+
+body.electron-app.electron-mac .electron-mac-window {
+  padding-top: var(--mac-titlebar-inset);
+  box-sizing: border-box;
+  position: relative;
 }
 
 ::-webkit-scrollbar {
