@@ -6,9 +6,6 @@ import {
   electronDragStyle,
   electronNoDragStyle,
   isMacElectron,
-  MAC_TRAFFIC_LIGHTS_WIDTH,
-  MAC_TRAFFIC_LIGHTS_ZONE_HEIGHT,
-  MAC_TOP_INSET,
 } from '../../../utils/electronChrome';
 import { cn } from '../../../utils/cn';
 
@@ -58,20 +55,14 @@ function LeftSidebar({
   return (
     <aside
       className={cn(
-        'relative w-[56px] shrink-0 flex flex-col items-center py-2 gap-1 border-r',
+        'relative shrink-0 flex flex-col items-center py-2 gap-1 border-r',
+        macDrag ? 'w-[78px]' : 'w-[56px]',
         macDrag && 'electron-drag',
         isDark ? 'bg-slate-800 border-r-slate-600' : 'bg-white border-r-slate-200',
       )}
       style={macDrag ? electronDragStyle : undefined}
       aria-label="메인 메뉴"
     >
-      {macDrag && (
-        <div
-          className="electron-no-drag absolute left-0 top-0 z-10"
-          style={{ ...electronNoDragStyle, width: MAC_TRAFFIC_LIGHTS_WIDTH, height: MAC_TRAFFIC_LIGHTS_ZONE_HEIGHT + MAC_TOP_INSET }}
-          aria-hidden
-        />
-      )}
       <button
         type="button"
         onClick={onNavigateHome}

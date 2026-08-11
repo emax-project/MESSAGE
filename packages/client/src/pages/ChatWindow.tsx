@@ -13,6 +13,7 @@ import MentionPopup from '../components/MentionPopup';
 import PinnedMessages from '../components/PinnedMessages';
 import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
+import MacTitleBarInset from '../components/MacTitleBarInset';
 import {
   PANEL_TITLE_ROW,
   PanelDragHeader,
@@ -645,6 +646,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         }
       `}</style>
       {!embedded && hasElectron && isWinElectron() && <TitleBar title={room.name} isDark={isDark} />}
+      {!embedded && <MacTitleBarInset isDark={isDark} />}
       <div className="relative flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <div
           className={cn(
@@ -685,6 +687,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
             'sticky top-0 z-10 flex items-center justify-between gap-2 shrink-0 border-b min-w-0 overflow-hidden',
             isMacElectron() && 'electron-drag',
             isCompactHeader ? 'px-3 py-2 min-h-[52px]' : 'px-5 min-h-[56px]',
+            isMacElectron() && (isCompactHeader ? 'pl-[78px]' : 'pl-[86px]'),
             isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50 shadow-sm',
           )}
           style={isMacElectron() ? electronDragStyle : undefined}

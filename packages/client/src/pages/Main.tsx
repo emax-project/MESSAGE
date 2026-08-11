@@ -7,7 +7,8 @@ import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, me
 import MemoComposeModal from '../components/MemoComposeModal';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar from '../components/TitleBar';
-import { isMacElectron, isWinElectron, MAC_TOP_INSET } from '../utils/electronChrome';
+import MacTitleBarInset from '../components/MacTitleBarInset';
+import { isWinElectron } from '../utils/electronChrome';
 import {
   normalizeTimeRange,
   startOfMonth,
@@ -600,10 +601,8 @@ export default function Main() {
   return (
     <div className={cn('relative flex flex-col h-full min-h-0 w-full min-w-0', isDark ? 'bg-slate-900' : 'bg-white')}>
       {hasElectron && isWinElectron() && <TitleBar title="EMAX" isDark={isDark} />}
-      <div
-        className="flex flex-1 flex-row min-h-0 min-w-0"
-        style={isMacElectron() ? { paddingTop: MAC_TOP_INSET } : undefined}
-      >
+      <MacTitleBarInset isDark={isDark} />
+      <div className="flex flex-1 flex-row min-h-0 min-w-0">
         <LeftSidebar
           isDark={isDark}
           activePanel={activePanel}
