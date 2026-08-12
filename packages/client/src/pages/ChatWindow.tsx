@@ -13,7 +13,6 @@ import MentionPopup from '../components/MentionPopup';
 import PinnedMessages from '../components/PinnedMessages';
 import TaskCreateModal from '../components/TaskCreateModal';
 import TitleBar from '../components/TitleBar';
-import MacTitleBarInset from '../components/MacTitleBarInset';
 import {
   PANEL_TITLE_ROW,
   PanelDragHeader,
@@ -626,8 +625,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     <div
       className={cn(
         'relative flex flex-col overflow-hidden',
-        embedded ? 'flex-1 min-h-0 min-w-0' : 'h-screen w-full min-w-0',
-        !embedded && isMacElectron() && 'electron-mac-window',
+        embedded ? 'flex-1 min-h-0 min-w-0' : 'h-full min-h-0 w-full min-w-0',
         isDark ? 'bg-slate-900' : embedded ? 'bg-slate-50' : 'bg-white',
       )}
     >
@@ -647,7 +645,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         }
       `}</style>
       {!embedded && hasElectron && isWinElectron() && <TitleBar title={room.name} isDark={isDark} />}
-      {!embedded && isMacElectron() && <MacTitleBarInset isDark={isDark} overlay />}
       <div className="relative flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <div
           className={cn(

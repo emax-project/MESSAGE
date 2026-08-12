@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell, nativeImage } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 // Windows: GPU 렌더링 문제로 검은 화면 발생 시 소프트웨어 렌더링 강제
 if (process.platform === 'win32') {
@@ -319,11 +320,11 @@ function loadRoute(win, routePath) {
   const url = getLoadURL();
   const file = getLoadFile();
   if (url) {
-    // Electron 렌더러는 MemoryRouter + location.hash 로 초기 경로 결정
     const base = url.replace(/\/$/, '');
     win.loadURL(`${base}/#${normalized}`);
   } else if (file) {
-    win.loadFile(file, { hash: normalized });
+    // loadFile({ hash })보다 file:// URL + hash가 Electron·HashRouter와 더 안정적
+    win.loadURL(`${pathToFileURL(file).href}#${normalized}`);
   }
 }
 
@@ -366,6 +367,7 @@ function createWindow(options = {}) {
   const file = getLoadFile();
   if (initialRoute) {
     loadRoute(win, initialRoute);
+    win.__emaxInitialRoute = initialRoute;
   } else if (url) {
     win.loadURL(url);
   } else if (file) {
@@ -477,7 +479,7 @@ function openChatWindow(roomId) {
     minWidth: 400,
     minHeight: 500,
     secondWindow: true,
-    initialRoute: `/chat/${encodeURIComponent(roomId)}`,
+    initialRoute: `/chat/${roomId}`,
   });
 }
 
@@ -488,7 +490,7 @@ function openKanbanWindow(roomId) {
     minWidth: 800,
     minHeight: 600,
     secondWindow: true,
-    initialRoute: `/kanban/${encodeURIComponent(roomId)}`,
+    initialRoute: `/kanban/${roomId}`,
   });
 }
 
@@ -499,7 +501,7 @@ function openGanttWindow(roomId) {
     minWidth: 900,
     minHeight: 550,
     secondWindow: true,
-    initialRoute: `/gantt/${encodeURIComponent(roomId)}`,
+    initialRoute: `/gantt/${roomId}`,
   });
 }
 
@@ -584,6 +586,11 @@ ipcMain.handle('window-resize', (event, width, height) => {
 ipcMain.on('app-ready', (event) => {
   const showFn = windowReadyHandlers.get(event.sender.id);
   if (showFn) showFn();
+});
+
+ipcMain.on('emax-get-initial-route', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  event.returnValue = win?.__emaxInitialRoute ?? null;
 });
 
 ipcMain.handle('show-notification', (_, { title, body, roomId, icon, imagePreview }) => {

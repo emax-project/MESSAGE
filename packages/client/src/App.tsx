@@ -1,9 +1,10 @@
 import { useEffect, useState, Component, lazy, Suspense, type ReactNode } from 'react';
 import { useThemeStore } from './store';
-import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { authApi } from './api';
 import MacTitleBarInset from './components/MacTitleBarInset';
+import ElectronSecondaryShell from './components/ElectronSecondaryShell';
 import { cn } from './utils/cn';
 import { isMacElectron } from './utils/electronChrome';
 
@@ -27,8 +28,8 @@ function MobileShell({ children }: { children: ReactNode }) {
   );
 }
 
-// Electron: MemoryRouter 사용 (URL을 전혀 건드리지 않음 → file://C:/login ERR_FILE_NOT_FOUND 근본 차단)
-// HashRouter/BrowserRouter는 file:// 에서 History API 제한으로 전체 페이지 이동 발생
+// Electron: HashRouter — file:// + hash(#/kanban/...) 로 보조 창 라우팅 (MemoryRouter는 초기 hash 미반영)
+// BrowserRouter는 file:// 에서 /login 등으로 이동 시 ERR_FILE_NOT_FOUND 발생
 const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron');
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -55,6 +56,20 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
     }
     return this.props.children;
   }
+}
+
+function ElectronRouteBootstrap({ expectedPath }: { expectedPath: string }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!isElectron || !expectedPath || expectedPath === '/') return;
+    if (location.pathname !== expectedPath) {
+      navigate(expectedPath, { replace: true });
+    }
+  }, [expectedPath, location.pathname, navigate]);
+
+  return null;
 }
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -158,16 +173,15 @@ export default function App() {
   }, []);
 
   const getElectronInitialPath = () => {
-    const fromPreload = window.electronAPI?.initialRoute;
-    if (fromPreload) return fromPreload;
     const hash = window.location.hash?.slice(1);
     if (hash) return hash.startsWith('/') ? hash : `/${hash}`;
+    const fromPreload = window.electronAPI?.initialRoute;
+    if (fromPreload) return fromPreload;
     return '/';
   };
 
   const initialPath = isElectron ? getElectronInitialPath() : '/';
-  const routerProps = isElectron ? { initialEntries: [initialPath], initialIndex: 0 } : {};
-  const RouterWrapper = isElectron ? MemoryRouter : BrowserRouter;
+  const RouterWrapper = isElectron ? HashRouter : BrowserRouter;
 
   const fallback = (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#94a3b8', fontSize: 15 }}>
@@ -178,8 +192,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', width: '100%', overflow: 'hidden' }}>
-        <RouterWrapper {...routerProps}>
+        <RouterWrapper>
           <Suspense fallback={fallback}>
+          <ElectronRouteBootstrap expectedPath={initialPath} />
           <Routes>
         <Route path="/login" element={<MobileShell><Login /></MobileShell>} />
         <Route path="/register" element={<MobileShell><Register /></MobileShell>} />
@@ -203,7 +218,9 @@ export default function App() {
           path="/chat/:roomId"
           element={
             <PrivateRoute>
-              <ChatWindow />
+              <ElectronSecondaryShell>
+                <ChatWindow />
+              </ElectronSecondaryShell>
             </PrivateRoute>
           }
         />
@@ -211,7 +228,9 @@ export default function App() {
           path="/kanban/:roomId"
           element={
             <PrivateRoute>
-              <KanbanPage />
+              <ElectronSecondaryShell>
+                <KanbanPage />
+              </ElectronSecondaryShell>
             </PrivateRoute>
           }
         />
@@ -219,7 +238,9 @@ export default function App() {
           path="/gantt/:roomId"
           element={
             <PrivateRoute>
-              <GanttPage />
+              <ElectronSecondaryShell>
+                <GanttPage />
+              </ElectronSecondaryShell>
             </PrivateRoute>
           }
         />

@@ -7,6 +7,14 @@ function readInitialRouteArg() {
     const route = fromArgv.slice(prefix.length);
     return route.startsWith('/') ? route : `/${route}`;
   }
+  try {
+    const fromMain = ipcRenderer.sendSync('emax-get-initial-route');
+    if (typeof fromMain === 'string' && fromMain) {
+      return fromMain.startsWith('/') ? fromMain : `/${fromMain}`;
+    }
+  } catch {
+    // ignore
+  }
   return null;
 }
 
@@ -43,7 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setTitleBarTheme: (isDark) => ipcRenderer.invoke('set-title-bar-theme', { isDark }),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
-  openUpdateDownload: (version?: string | null) => ipcRenderer.invoke('open-update-download', version ?? null),
+  openUpdateDownload: (version) => ipcRenderer.invoke('open-update-download', version ?? null),
   onUpdateDownloaded: (handler) => {
     const listener = () => handler();
     ipcRenderer.on('update-downloaded', listener);

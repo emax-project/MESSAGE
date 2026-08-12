@@ -178,7 +178,7 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
   const hasElectron = !!window.electronAPI;
 
   return (
-    <div className={cn('w-full h-screen flex flex-col overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
+    <div className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
       {/* Electron title bar */}
       {hasElectron && (
         <TitleBar title="프로젝트 보드" isDark={isDark} />
