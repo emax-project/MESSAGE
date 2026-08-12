@@ -1128,9 +1128,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 ref={boardEditorRef}
                 value={input}
                 onChange={setInput}
-                placeholder="글 작성 (Shift+Enter로 줄바꿈)"
+                placeholder={isCompactHeader ? '글 작성…' : '글 작성 (Shift+Enter)'}
                 isDark={isDark}
                 disabled={!socket}
+                compact={isCompactHeader}
+                minHeight={isCompactHeader ? 38 : 42}
                 onKeyDown={handleKeyDown}
               />
             ) : (

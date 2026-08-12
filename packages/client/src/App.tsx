@@ -1,6 +1,6 @@
-import { useEffect, useState, Component, lazy, Suspense, type ReactNode } from 'react';
+import { useEffect, useRef, useState, Component, lazy, Suspense, type ReactNode } from 'react';
 import { useThemeStore } from './store';
-import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { authApi } from './api';
 import MacTitleBarInset from './components/MacTitleBarInset';
@@ -58,16 +58,26 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-function ElectronRouteBootstrap({ expectedPath }: { expectedPath: string }) {
+function getElectronInitialPath() {
+  const hash = window.location.hash?.slice(1);
+  if (hash) return hash.startsWith('/') ? hash : `/${hash}`;
+  const fromPreload = window.electronAPI?.initialRoute;
+  if (fromPreload) return fromPreload;
+  return '/';
+}
+
+/** Electron 보조 창: 최초 마운트 시 hash/preload 경로로 1회만 동기화 (이후 사용자 내비게이션은 건드리지 않음) */
+function ElectronRouteBootstrap() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const didBootstrap = useRef(false);
 
   useEffect(() => {
-    if (!isElectron || !expectedPath || expectedPath === '/') return;
-    if (location.pathname !== expectedPath) {
-      navigate(expectedPath, { replace: true });
-    }
-  }, [expectedPath, location.pathname, navigate]);
+    if (!isElectron || didBootstrap.current) return;
+    didBootstrap.current = true;
+    const expectedPath = getElectronInitialPath();
+    if (!expectedPath || expectedPath === '/') return;
+    navigate(expectedPath, { replace: true });
+  }, [navigate]);
 
   return null;
 }
@@ -172,15 +182,6 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  const getElectronInitialPath = () => {
-    const hash = window.location.hash?.slice(1);
-    if (hash) return hash.startsWith('/') ? hash : `/${hash}`;
-    const fromPreload = window.electronAPI?.initialRoute;
-    if (fromPreload) return fromPreload;
-    return '/';
-  };
-
-  const initialPath = isElectron ? getElectronInitialPath() : '/';
   const RouterWrapper = isElectron ? HashRouter : BrowserRouter;
 
   const fallback = (
@@ -194,7 +195,7 @@ export default function App() {
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', width: '100%', overflow: 'hidden' }}>
         <RouterWrapper>
           <Suspense fallback={fallback}>
-          <ElectronRouteBootstrap expectedPath={initialPath} />
+          <ElectronRouteBootstrap />
           <Routes>
         <Route path="/login" element={<MobileShell><Login /></MobileShell>} />
         <Route path="/register" element={<MobileShell><Register /></MobileShell>} />

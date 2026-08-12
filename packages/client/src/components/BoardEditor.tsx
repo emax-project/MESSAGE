@@ -13,16 +13,18 @@ type Props = {
   disabled?: boolean;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   minHeight?: number;
+  compact?: boolean;
 };
 
 const BoardEditor = forwardRef<BoardEditorRef, Props>(function BoardEditor({
   value,
   onChange,
-  placeholder = '글 작성 (Shift+Enter로 줄바꿈)',
+  placeholder = '글 작성 (Shift+Enter)',
   isDark,
   disabled = false,
   onKeyDown,
   minHeight = 42,
+  compact = false,
 }, ref) {
   const isInternalChange = useRef(false);
 
@@ -93,23 +95,26 @@ const BoardEditor = forwardRef<BoardEditorRef, Props>(function BoardEditor({
     <div
       style={{
         flex: 1,
+        minWidth: 0,
         minHeight,
         maxHeight: 200,
         overflowY: 'auto',
-        padding: '10px 18px',
+        overflowX: 'hidden',
+        padding: compact ? '8px 12px' : '10px 18px',
         border: `1px solid ${border}`,
-        borderRadius: 20,
+        borderRadius: compact ? 18 : 20,
         background: bg,
         color: text,
       }}
       className="board-editor-wrap"
       data-dark={isDark ? 'true' : 'false'}
+      data-compact={compact ? 'true' : 'false'}
     >
       <style>{`
         .board-editor-wrap .ProseMirror {
           outline: none;
           min-height: ${minHeight - 20}px;
-          font-size: 14px;
+          font-size: ${compact ? 13 : 14}px;
           line-height: 1.4;
         }
         .board-editor-wrap .ProseMirror p { margin: 0 0 8px 0; }
@@ -124,12 +129,19 @@ const BoardEditor = forwardRef<BoardEditorRef, Props>(function BoardEditor({
         .board-editor-wrap .ProseMirror pre { background: rgba(0,0,0,0.06); padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
         .board-editor-wrap[data-dark="true"] .ProseMirror pre { background: rgba(255,255,255,0.06); }
         .board-editor-wrap .ProseMirror pre code { background: none; padding: 0; }
+        .board-editor-wrap .ProseMirror p.is-editor-empty:first-child {
+          overflow: hidden;
+        }
         .board-editor-wrap .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           color: ${placeholderColor};
           float: left;
           pointer-events: none;
           height: 0;
+          max-width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       `}</style>
       <EditorContent editor={editor} />

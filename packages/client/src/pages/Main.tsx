@@ -475,7 +475,7 @@ export default function Main() {
   }, [navigate, queryClient]);
   const handleNavigateHome = useCallback(() => {
     setActivePanel('none');
-    navigate('/');
+    navigate('/', { replace: true, state: null });
   }, [navigate]);
   const handleSelectMention = useCallback(async (m: MentionItem) => {
     if (!m.readAt) {
