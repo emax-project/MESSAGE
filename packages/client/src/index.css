@@ -178,5 +178,11 @@ body.electron-app.electron-mac .electron-mac-window {
 .board-content-html blockquote { border-left: 4px solid #64748b; margin: 8px 0; padding-left: 12px; color: #64748b; }
 .board-content-html a { color: #60a5fa; text-decoration: underline; }
 .board-content-html[data-dark="false"] a { color: #2563eb; }
+.board-content-html--mine a,
+.board-content-html--mine[data-dark="true"] a,
+.board-content-html--mine[data-dark="false"] a {
+  color: #fef08a;
+  font-weight: 600;
+}
 .board-content-html[data-dark="true"] code { background: rgba(255,255,255,0.1); }
 .board-content-html[data-dark="true"] pre { background: rgba(255,255,255,0.06); }

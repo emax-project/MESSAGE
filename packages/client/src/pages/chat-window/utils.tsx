@@ -158,14 +158,19 @@ export function looksLikeHtml(content: string): boolean {
   return /<[a-z][\s\S]*>/i.test(content);
 }
 
-export function renderMessageContent(content: string, isDark: boolean): ReactNode {
+function getMessageLinkColor(isDark: boolean, isMine?: boolean): string {
+  if (isMine) return '#fef08a';
+  return isDark ? '#93c5fd' : 'var(--color-brand-dark)';
+}
+
+export function renderMessageContent(content: string, isDark: boolean, isMine?: boolean): ReactNode {
   if (looksLikeHtml(content)) {
     const sanitized = DOMPurify.sanitize(content, {
       ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'a', 'blockquote'],
     });
     return (
       <div
-        className="board-content-html"
+        className={isMine ? 'board-content-html board-content-html--mine' : 'board-content-html'}
         dangerouslySetInnerHTML={{ __html: sanitized }}
         style={{
           fontSize: 14,
@@ -176,12 +181,12 @@ export function renderMessageContent(content: string, isDark: boolean): ReactNod
       />
     );
   }
-  return renderContentWithMentions(content, isDark);
+  return renderContentWithMentions(content, isDark, isMine);
 }
 
-export function renderContentWithMentions(content: string, isDark: boolean): ReactNode {
+export function renderContentWithMentions(content: string, isDark: boolean, isMine?: boolean): ReactNode {
   const parts = content.split(LINK_SPLIT_REGEX);
-  const linkColor = isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)';
+  const linkColor = getMessageLinkColor(isDark, isMine);
   return parts.map((part, i) => {
     if (/^https?:\/\//i.test(part)) {
       const href = part.replace(/[.,;:!?)]+$/, '');

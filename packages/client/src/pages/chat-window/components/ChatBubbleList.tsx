@@ -329,7 +329,7 @@ export default function ChatBubbleList({
                   ) : (
                     <>
                       <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">
-                      {renderMessageContent(m.content, isDark)}
+                      {renderMessageContent(m.content, isDark, isMine)}
                     </span>
                       {extractFirstUrl(m.content) && (
                         <LinkPreview url={extractFirstUrl(m.content)!} isDark={isDark} />
