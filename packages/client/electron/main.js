@@ -364,7 +364,9 @@ function createWindow(options = {}) {
 
   const url = getLoadURL();
   const file = getLoadFile();
-  if (url) {
+  if (initialRoute) {
+    loadRoute(win, initialRoute);
+  } else if (url) {
     win.loadURL(url);
   } else if (file) {
     win.loadFile(file);

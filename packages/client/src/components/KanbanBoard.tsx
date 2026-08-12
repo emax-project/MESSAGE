@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectsApi, type Project, type TaskItem, type User } from '../api';
 import { useThemeStore } from '../store';
@@ -49,10 +49,11 @@ export default function KanbanBoard({ roomId, members, onClose }: Props) {
 
   const project: Project | undefined = projects.find((p) => p.id === selectedProjectId) || projects[0];
 
-  // Auto-select first project
-  if (project && !selectedProjectId && projects.length > 0) {
-    setSelectedProjectId(project.id);
-  }
+  useEffect(() => {
+    if (!selectedProjectId && projects.length > 0) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [projects, selectedProjectId]);
 
   const boards = project?.boards || [];
   const tasks = project?.tasks || [];

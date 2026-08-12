@@ -7,7 +7,8 @@ import GanttChart from '../components/GanttChart';
 export default function GanttPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const token = useAuthStore((s) => s.token);
+  const storeToken = useAuthStore((s) => s.token);
+  const token = storeToken ?? localStorage.getItem('token');
   const isDark = useThemeStore((s) => s.isDark);
 
   const { data: room, isLoading } = useQuery({

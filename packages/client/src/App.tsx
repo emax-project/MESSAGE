@@ -58,7 +58,26 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const token = useAuthStore((s) => s.token);
+  const storeToken = useAuthStore((s) => s.token);
+  const [authReady, setAuthReady] = useState(() => useAuthStore.persist.hasHydrated());
+
+  useEffect(() => {
+    if (useAuthStore.persist.hasHydrated()) {
+      setAuthReady(true);
+      return;
+    }
+    return useAuthStore.persist.onFinishHydration(() => setAuthReady(true));
+  }, []);
+
+  const token = storeToken ?? localStorage.getItem('token');
+
+  if (!authReady && !token) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#94a3b8', fontSize: 15 }}>
+        로딩 중...
+      </div>
+    );
+  }
   if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -141,7 +160,8 @@ export default function App() {
   const getElectronInitialPath = () => {
     const fromPreload = window.electronAPI?.initialRoute;
     if (fromPreload) return fromPreload;
-    if (window.location.hash) return window.location.hash.slice(1) || '/';
+    const hash = window.location.hash?.slice(1);
+    if (hash) return hash.startsWith('/') ? hash : `/${hash}`;
     return '/';
   };
 

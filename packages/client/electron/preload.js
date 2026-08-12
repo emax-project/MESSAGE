@@ -2,10 +2,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 function readInitialRouteArg() {
   const prefix = 'emax-route=';
-  const arg = process.argv.find((a) => typeof a === 'string' && a.startsWith(prefix));
-  if (!arg) return null;
-  const route = arg.slice(prefix.length);
-  return route.startsWith('/') ? route : `/${route}`;
+  const fromArgv = process.argv.find((a) => typeof a === 'string' && a.startsWith(prefix));
+  if (fromArgv) {
+    const route = fromArgv.slice(prefix.length);
+    return route.startsWith('/') ? route : `/${route}`;
+  }
+  return null;
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
