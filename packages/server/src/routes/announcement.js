@@ -1,26 +1,9 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
+import { assertAdmin } from '../lib/admin.js';
 
 export const announcementRouter = Router();
-
-async function assertAdmin(req, res) {
-  const adminEmails = (process.env.ADMIN_EMAIL || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-  if (adminEmails.length === 0) {
-    res.status(503).json({ error: 'Admin not configured (ADMIN_EMAIL)' });
-    return null;
-  }
-  const user = await prisma.user.findUnique({
-    where: { id: req.userId },
-    select: { email: true },
-  });
-  const userEmail = (user?.email || '').trim().toLowerCase();
-  if (!user || !adminEmails.includes(userEmail)) {
-    res.status(403).json({ error: 'Admin only' });
-    return null;
-  }
-  return user;
-}
 
 const toItem = (row) => ({
   id: row.id,

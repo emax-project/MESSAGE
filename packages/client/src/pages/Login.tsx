@@ -7,6 +7,19 @@ import { AuthCard } from '../components/AuthCard';
 import UITextInput from '../components/ui/UITextInput';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 
+const REMEMBER_EMAIL_KEY = 'emax_remember_email';
+const SAVED_EMAIL_KEY = 'emax_saved_email';
+
+function loadRememberedEmail(): { remember: boolean; email: string } {
+  try {
+    const remember = localStorage.getItem(REMEMBER_EMAIL_KEY) === '1';
+    const email = remember ? (localStorage.getItem(SAVED_EMAIL_KEY) || '') : '';
+    return { remember, email };
+  } catch {
+    return { remember: false, email: '' };
+  }
+}
+
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -22,9 +35,11 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const remembered = loadRememberedEmail();
+  const [email, setEmail] = useState(remembered.email);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(remembered.remember);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [serverUrl, setServerUrl] = useState(() => getBaseUrl() || 'http://203.254.98.92:3001');
@@ -45,6 +60,15 @@ export default function Login() {
     setLoading(true);
     try {
       const { user, token } = await authApi.login(email, password);
+      try {
+        if (rememberEmail) {
+          localStorage.setItem(REMEMBER_EMAIL_KEY, '1');
+          localStorage.setItem(SAVED_EMAIL_KEY, email.trim());
+        } else {
+          localStorage.removeItem(REMEMBER_EMAIL_KEY);
+          localStorage.removeItem(SAVED_EMAIL_KEY);
+        }
+      } catch { /* ignore */ }
       setAuth(user, token);
       window.electronAPI?.showNotification('로그인', `${user.name}님 로그인되었습니다.`);
       navigate('/', { replace: true });
@@ -105,6 +129,15 @@ export default function Login() {
                 <EyeIcon open={showPassword} />
               </button>
             </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none self-start">
+              <input
+                type="checkbox"
+                checked={rememberEmail}
+                onChange={(e) => setRememberEmail(e.target.checked)}
+                className="w-4 h-4 rounded border-[#cbd5e1] accent-black cursor-pointer"
+              />
+              <span className="text-[13px] text-[#64748b]">아이디 저장</span>
+            </label>
             {isElectron && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-medium text-[#64748b]">서버 주소</label>

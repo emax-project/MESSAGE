@@ -1,12 +1,176 @@
 import path from 'path';
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
+import { assertAdmin } from '../lib/admin.js';
 import { avatarUpload, UPLOAD_DIR } from '../upload.js';
 
 export const usersRouter = Router();
 
 usersRouter.use(authMiddleware);
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const BULK_MAX = 500;
+
+/**
+ * Resolve company + department by name. Creates missing rows.
+ * Cache key: `${companyName}::${departmentName}` (lowercase).
+ */
+async function resolveDepartmentId(companyName, departmentName, cache) {
+  const key = `${companyName.toLowerCase()}::${departmentName.toLowerCase()}`;
+  if (cache.has(key)) return cache.get(key);
+
+  let company = await prisma.company.findFirst({
+    where: { name: { equals: companyName, mode: 'insensitive' } },
+  });
+  if (!company) {
+    company = await prisma.company.create({ data: { name: companyName } });
+  }
+
+  let department = await prisma.department.findFirst({
+    where: {
+      companyId: company.id,
+      name: { equals: departmentName, mode: 'insensitive' },
+    },
+  });
+  if (!department) {
+    department = await prisma.department.create({
+      data: { name: departmentName, companyId: company.id },
+    });
+  }
+
+  cache.set(key, department.id);
+  return department.id;
+}
+
+/**
+ * POST /users/bulk — admin only bulk user registration.
+ * Body: { defaultPassword?: string, users: [{ email, name, password?, phone?, jobTitle?, departmentName?, companyName? }] }
+ * Partial success: created[] + failed[].
+ */
+usersRouter.post('/bulk', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+
+    const users = Array.isArray(req.body?.users) ? req.body.users : null;
+    if (!users || users.length === 0) {
+      return res.status(400).json({ error: 'users array is required' });
+    }
+    if (users.length > BULK_MAX) {
+      return res.status(400).json({ error: `users must be at most ${BULK_MAX}` });
+    }
+
+    const defaultPassword =
+      typeof req.body.defaultPassword === 'string' ? req.body.defaultPassword : '';
+
+    const deptCache = new Map();
+    const created = [];
+    const failed = [];
+    const seenEmails = new Set();
+
+    for (let i = 0; i < users.length; i++) {
+      const row = i + 1;
+      const item = users[i] && typeof users[i] === 'object' ? users[i] : {};
+      const email = typeof item.email === 'string' ? item.email.trim().toLowerCase() : '';
+      const name = typeof item.name === 'string' ? item.name.trim() : '';
+      const password =
+        typeof item.password === 'string' && item.password
+          ? item.password
+          : defaultPassword;
+      const phone =
+        typeof item.phone === 'string' && item.phone.trim()
+          ? item.phone.trim().slice(0, 50)
+          : null;
+      const jobTitle =
+        typeof item.jobTitle === 'string' && item.jobTitle.trim()
+          ? item.jobTitle.trim().slice(0, 30)
+          : null;
+      const departmentName =
+        typeof item.departmentName === 'string' ? item.departmentName.trim() : '';
+      const companyName =
+        typeof item.companyName === 'string' ? item.companyName.trim() : '';
+
+      if (!email || !EMAIL_RE.test(email)) {
+        failed.push({ row, email: email || null, reason: 'INVALID_EMAIL' });
+        continue;
+      }
+      if (!name) {
+        failed.push({ row, email, reason: 'NAME_REQUIRED' });
+        continue;
+      }
+      if (!password || password.length < 4) {
+        failed.push({ row, email, reason: 'PASSWORD_REQUIRED' });
+        continue;
+      }
+      if (seenEmails.has(email)) {
+        failed.push({ row, email, reason: 'DUPLICATE_IN_BATCH' });
+        continue;
+      }
+      seenEmails.add(email);
+
+      if ((departmentName && !companyName) || (!departmentName && companyName)) {
+        failed.push({ row, email, reason: 'COMPANY_AND_DEPARTMENT_REQUIRED' });
+        continue;
+      }
+
+      try {
+        const existing = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true },
+        });
+        if (existing) {
+          failed.push({ row, email, reason: 'EMAIL_EXISTS' });
+          continue;
+        }
+
+        let departmentId = null;
+        if (companyName && departmentName) {
+          departmentId = await resolveDepartmentId(companyName, departmentName, deptCache);
+        }
+
+        const hashed = await bcrypt.hash(password, 10);
+        const user = await prisma.user.create({
+          data: {
+            email,
+            name,
+            password: hashed,
+            phone,
+            jobTitle,
+            departmentId,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,
+            jobTitle: true,
+            departmentId: true,
+            createdAt: true,
+          },
+        });
+        created.push(user);
+      } catch (err) {
+        if (err?.code === 'P2002') {
+          failed.push({ row, email, reason: 'EMAIL_EXISTS' });
+        } else {
+          console.error(`[users/bulk] row ${row}:`, err);
+          failed.push({ row, email, reason: 'CREATE_FAILED' });
+        }
+      }
+    }
+
+    return res.status(201).json({
+      created: created.length,
+      failed: failed.length,
+      users: created,
+      errors: failed,
+    });
+  } catch (err) {
+    console.error('[users/bulk]', err);
+    return res.status(500).json({ error: 'Bulk registration failed' });
+  }
+});
 
 usersRouter.get('/', async (req, res) => {
   try {

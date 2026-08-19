@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { authMiddleware, signToken } from '../auth.js';
+import { isAdminEmail } from '../lib/admin.js';
 
 export const authRouter = Router();
 
@@ -23,11 +24,9 @@ authRouter.post('/register', async (req, res) => {
     await prisma.userSession.deleteMany({ where: { userId: user.id } });
     const session = await prisma.userSession.create({ data: { userId: user.id } });
     const token = signToken({ userId: user.id, sessionId: session.id });
-    const adminEmails = (process.env.ADMIN_EMAIL || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-    const userEmail = (user.email || '').trim().toLowerCase();
     const userWithAdmin = {
       ...user,
-      isAdmin: adminEmails.length > 0 && adminEmails.includes(userEmail),
+      isAdmin: isAdminEmail(user.email),
     };
     return res.status(201).json({ user: userWithAdmin, token });
   } catch (err) {
@@ -49,15 +48,13 @@ authRouter.post('/login', async (req, res) => {
     await prisma.userSession.deleteMany({ where: { userId: user.id } });
     const session = await prisma.userSession.create({ data: { userId: user.id } });
     const token = signToken({ userId: user.id, sessionId: session.id });
-    const adminEmails = (process.env.ADMIN_EMAIL || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-    const userEmail = (user.email || '').trim().toLowerCase();
     return res.json({
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         createdAt: user.createdAt,
-        isAdmin: adminEmails.length > 0 && adminEmails.includes(userEmail),
+        isAdmin: isAdminEmail(user.email),
       },
       token,
     });
@@ -75,14 +72,12 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
       select: { id: true, email: true, name: true, phone: true, jobTitle: true, statusMessage: true, createdAt: true, avatarUrl: true, updatedAt: true },
     });
     if (!user) return res.status(401).json({ error: 'User not found' });
-    const adminEmails = (process.env.ADMIN_EMAIL || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-    const userEmail = (user.email || '').trim().toLowerCase();
     const avatarVer = user.updatedAt ? `?v=${new Date(user.updatedAt).getTime()}` : '';
     return res.json({
       user: {
         ...user,
         avatarUrl: user.avatarUrl ? `/users/${user.id}/avatar${avatarVer}` : null,
-        isAdmin: adminEmails.length > 0 && adminEmails.includes(userEmail),
+        isAdmin: isAdminEmail(user.email),
       },
     });
   } catch (err) {

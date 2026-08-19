@@ -319,8 +319,35 @@ export const authApi = {
   logout: () => api.post('/auth/logout', {}) as Promise<{ ok: boolean }>,
 };
 
+export type BulkRegisterUserInput = {
+  email: string;
+  name: string;
+  password?: string;
+  phone?: string;
+  jobTitle?: string;
+  departmentName?: string;
+  companyName?: string;
+};
+
+export type BulkRegisterResult = {
+  created: number;
+  failed: number;
+  users: Array<{
+    id: string;
+    email: string;
+    name: string;
+    phone?: string | null;
+    jobTitle?: string | null;
+    departmentId?: string | null;
+    createdAt: string;
+  }>;
+  errors: Array<{ row: number; email: string | null; reason: string }>;
+};
+
 export const usersApi = {
   list: () => api.get('/users') as Promise<User[]>,
+  bulkRegister: (data: { defaultPassword?: string; users: BulkRegisterUserInput[] }) =>
+    api.post('/users/bulk', data) as Promise<BulkRegisterResult>,
   updateProfile: (data: { phone?: string | null; jobTitle?: string | null; statusMessage?: string | null }) =>
     api.put('/users/me', data) as Promise<{ ok: boolean }>,
   updateStatus: (statusMessage: string) =>
