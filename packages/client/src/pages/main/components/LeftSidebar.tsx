@@ -11,6 +11,17 @@ import { cn } from '../../../utils/cn';
 
 type ActivePanel = 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings';
 
+const GROUPWARE_URL = 'https://gwdemo.emaxit.co.kr:49598/login/loginPage';
+
+function openGroupware() {
+  const openExternal = window.electronAPI?.openExternal;
+  if (openExternal) {
+    void openExternal(GROUPWARE_URL);
+    return;
+  }
+  window.open(GROUPWARE_URL, '_blank', 'noopener,noreferrer');
+}
+
 type LeftSidebarProps = {
   isDark: boolean;
   activePanel: ActivePanel;
@@ -126,6 +137,21 @@ function LeftSidebar({
               {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
             </span>
           )}
+        </button>
+
+        <button
+          type="button"
+          style={{ ...btnStyle(false), ...(macDrag ? electronNoDragStyle : {}) }}
+          onClick={openGroupware}
+          title="그룹웨어"
+          className={electronNoDragClass}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
         </button>
 
         <button type="button" style={{ ...btnStyle(activePanel === 'settings'), ...(macDrag ? electronNoDragStyle : {}) }} onClick={() => togglePanel('settings')} title="설정" className={cn(electronNoDragClass, 'relative')}>

@@ -242,13 +242,12 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   useEffect(() => {
     if (roomId) {
       roomsApi.markRead(roomId).then(() => {
-        queryClient.refetchQueries({ queryKey: ['rooms'] });
-        queryClient.refetchQueries({ queryKey: ['rooms', roomId, 'messages'] });
+        if (myId) queryClient.invalidateQueries({ queryKey: ['rooms', myId], exact: true });
       }).catch((err) => {
         console.warn('[markRead] 읽음 처리 실패:', err.message);
       });
     }
-  }, [roomId, queryClient]);
+  }, [roomId, queryClient, myId]);
   useActiveChatPresence(roomId);
 
   // roomId 변경 시 초기 스크롤 플래그 리셋
@@ -348,7 +347,8 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       setPendingFiles([]);
       setInput('');
       setReplyTo(null);
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      // 방 목록만 갱신 — ['rooms'] 전체 invalidate 시 messages 캐시가 리페치되며 소켓 prepend가 덮어써질 수 있음
+      if (myId) queryClient.invalidateQueries({ queryKey: ['rooms', myId], exact: true });
       return;
     }
 
@@ -368,7 +368,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
       };
     }
     s.emit('message', payload);
-    queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    if (myId) queryClient.invalidateQueries({ queryKey: ['rooms', myId], exact: true });
     setInput('');
     setReplyTo(null);
     setMessageContext(null);
@@ -949,7 +949,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                       onClick={() => {
                         if (!socketRef.current || !roomId) return;
                         socketRef.current.emit('message', { roomId, content: '', sharedEvent: { title: ev.title, startAt: ev.startAt, endAt: ev.endAt, description: ev.description ?? '' } });
-                        queryClient.invalidateQueries({ queryKey: ['rooms'] });
+                        if (myId) queryClient.invalidateQueries({ queryKey: ['rooms', myId], exact: true });
                         setShareEventOpen(false);
                       }}
                       onKeyDown={(e) => e.key === 'Enter' && (document.activeElement as HTMLElement)?.click()}

@@ -14,6 +14,14 @@ function PersonIcon({ size = 11 }: { size?: number }) {
   );
 }
 
+function FolderIcon({ size = 14, color }: { size?: number; color: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
 function StarIcon({ filled, size = 16, color }: { filled: boolean; size?: number; color: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0 }} fill={filled ? color : 'none'} stroke={color} strokeWidth={filled ? 0 : 1.5} strokeLinecap="round" strokeLinejoin="round">
@@ -122,6 +130,7 @@ function OrgTree({
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <UIChevron open={deptOpen} size={9} color={deptOpen ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
                     </span>
+                    <FolderIcon size={14} color={deptOpen ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />
                     <span style={{ fontWeight: 500, fontSize: 13, color: deptOpen ? '#007aff' : (isDark ? '#94a3b8' : '#6b7280'), flex: 1, textAlign: 'left' }}>{dept.name}</span>
                     <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggleOrgStar(dept.id); }} onMouseDown={(e) => e.stopPropagation()} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                       <StarIcon filled={orgStarred.has(dept.id)} size={14} color={orgStarred.has(dept.id) ? '#007aff' : (isDark ? '#64748b' : '#9ca3af')} />

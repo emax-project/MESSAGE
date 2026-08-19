@@ -141,7 +141,8 @@ export function registerSocketHandlers(io) {
             }
           : null;
 
-        // 즉시 emit → 연속 메시지가 빠르게 표시되도록
+        // 송신자 소켓이 아직 room에 없어도 즉시 보이도록 join 후 브로드캐스트
+        socket.join(roomId);
         io.to(roomId).emit('message', {
           ...message,
           sender: senderForClient,
