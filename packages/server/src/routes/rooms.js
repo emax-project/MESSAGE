@@ -260,6 +260,105 @@ roomsRouter.post('/topic', async (req, res) => {
   }
 });
 
+// Create a group chat (isGroup, not topic) with name + members
+roomsRouter.post('/group', async (req, res) => {
+  try {
+    const { name, memberIds } = req.body;
+    const roomName = typeof name === 'string' ? name.trim() : '';
+    if (!roomName) {
+      return res.status(400).json({ error: '그룹 채팅 이름을 입력해주세요' });
+    }
+    if (roomName.length > 60) {
+      return res.status(400).json({ error: '그룹 채팅 이름은 60자 이내로 입력해주세요' });
+    }
+
+    const allMemberIds = new Set([req.userId]);
+    if (Array.isArray(memberIds)) {
+      for (const id of memberIds) {
+        if (typeof id === 'string' && id.trim()) allMemberIds.add(id.trim());
+      }
+    }
+    if (allMemberIds.size < 2) {
+      return res.status(400).json({ error: '나 외에 멤버가 1명 이상 필요합니다' });
+    }
+
+    const requester = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, name: true },
+    });
+
+    const newRoom = await prisma.$transaction(async (tx) => {
+      const room = await tx.room.create({
+        data: {
+          isGroup: true,
+          isTopic: false,
+          name: roomName,
+          createdBy: req.userId,
+          members: {
+            create: [...allMemberIds].map((uid) => ({ userId: uid })),
+          },
+        },
+        include: {
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true, avatarUrl: true, updatedAt: true } },
+            },
+          },
+        },
+      });
+
+      await tx.message.create({
+        data: {
+          roomId: room.id,
+          senderId: req.userId,
+          content: `${requester?.name ?? '사용자'}님이 그룹 채팅을 만들었습니다`,
+        },
+      });
+
+      return room;
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      for (const uid of allMemberIds) {
+        const sockets = await io.in(`user:${uid}`).fetchSockets();
+        for (const s of sockets) s.join(newRoom.id);
+      }
+      io.to(newRoom.id).emit('members_added', { roomId: newRoom.id, newRoom: true });
+    }
+
+    const members = (newRoom.members ?? []).map((m) => {
+      const ver = m.user?.updatedAt ? `?v=${new Date(m.user.updatedAt).getTime()}` : '';
+      return {
+        id: m.user?.id ?? m.userId,
+        name: m.user?.name ?? '',
+        email: m.user?.email ?? '',
+        avatarUrl: m.user?.avatarUrl ? `/users/${m.user.id}/avatar${ver}` : null,
+      };
+    });
+
+    return res.status(201).json({
+      id: newRoom.id,
+      name: newRoom.name,
+      avatarUrl: null,
+      initials: newRoom.initials || null,
+      isGroup: true,
+      isTopic: false,
+      viewMode: newRoom.viewMode || 'chat',
+      isPublic: newRoom.isPublic,
+      createdBy: newRoom.createdBy || null,
+      members,
+      updatedAt: newRoom.updatedAt,
+      lastMessage: null,
+      unreadCount: 0,
+      isFavorite: false,
+    });
+  } catch (err) {
+    console.error('[createGroup]', err);
+    return res.status(500).json({ error: 'Failed to create group chat' });
+  }
+});
+
 // Create 1:1 room (or return existing)
 roomsRouter.post('/', async (req, res) => {
   try {

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, authApi, type Room, type OrgCompany, type OrgUser, type Event, type Folder } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, orgGroupsApi, authApi, type Room, type OrgCompany, type OrgUser, type OrgGroup, type Event, type Folder } from '../api';
 import MemoComposeModal from '../components/MemoComposeModal';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar from '../components/TitleBar';
@@ -154,8 +154,12 @@ export default function Main() {
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [showMemoCompose, setShowMemoCompose] = useState(false);
   const [memoComposeRecipients, setMemoComposeRecipients] = useState<string[]>([]);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; user: OrgUser } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; user: OrgUser; orgGroupId?: string } | null>(null);
   const [profileModalUser, setProfileModalUser] = useState<OrgUser | null>(null);
+  const [addToGroupUser, setAddToGroupUser] = useState<OrgUser | null>(null);
+  const [showCreateOrgGroupModal, setShowCreateOrgGroupModal] = useState(false);
+  const [renamingOrgGroup, setRenamingOrgGroup] = useState<OrgGroup | null>(null);
+  const [deletingOrgGroup, setDeletingOrgGroup] = useState<OrgGroup | null>(null);
   const [roomContextMenu, setRoomContextMenu] = useState<{ x: number; y: number; room: Room } | null>(null);
   const [showFolderManageModal, setShowFolderManageModal] = useState(false);
   const [avatarEditFile, setAvatarEditFile] = useState<File | null>(null);
@@ -255,6 +259,11 @@ export default function Main() {
   const totalUnreadCount = topicUnreadCount + chatUnreadCount;
 
   const { data: orgTreeRaw = [], isLoading: orgLoading, isError: orgError, refetch: refetchOrg } = useQuery<OrgCompany[]>({ queryKey: ['org', 'tree'], queryFn: orgApi.tree });
+  const { data: orgGroupsRaw = [] } = useQuery<OrgGroup[]>({
+    queryKey: ['org-groups'],
+    queryFn: orgGroupsApi.list,
+    enabled: !!myId,
+  });
   const orgTree = useMemo(() => {
     const tree = orgTreeRaw ?? [];
     const filtered = tree.map((company) => ({
@@ -272,6 +281,19 @@ export default function Main() {
       .map((c) => ({ ...c, departments: [...c.departments].sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0)) }))
       .sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0));
   }, [orgTreeRaw, q, showOnlineOnly, onlineUserIds, orgStarred]);
+
+  const orgGroups = useMemo(() => {
+    return (orgGroupsRaw ?? [])
+      .map((g) => ({
+        ...g,
+        members: (g.members ?? []).filter((u) => {
+          const nameMatch = !q || u.name?.toLowerCase().includes(q);
+          const onlineMatch = !showOnlineOnly || onlineUserIds.has(String(u.id));
+          return nameMatch && onlineMatch;
+        }),
+      }))
+      .filter((g) => (!q && !showOnlineOnly) || g.members.length > 0);
+  }, [orgGroupsRaw, q, showOnlineOnly, onlineUserIds]);
 
   const companyMemberCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -535,10 +557,92 @@ export default function Main() {
       console.error(err);
     }
   }, [navigate, queryClient]);
-  const handleUserContextMenu = useCallback((e: React.MouseEvent<HTMLButtonElement>, userInfo: OrgUser) => {
+  const handleUserContextMenu = useCallback((e: React.MouseEvent<HTMLButtonElement>, userInfo: OrgUser, opts?: { orgGroupId?: string }) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, user: userInfo });
+    setContextMenu({ x: e.clientX, y: e.clientY, user: userInfo, orgGroupId: opts?.orgGroupId });
   }, []);
+
+  const handleCreateOrgGroup = useCallback(async (name: string) => {
+    await orgGroupsApi.create(name.trim());
+    queryClient.invalidateQueries({ queryKey: ['org-groups'] });
+  }, [queryClient]);
+
+  const openCreateOrgGroupModal = useCallback(() => {
+    setShowCreateOrgGroupModal(true);
+  }, []);
+
+  const handleRenameOrgGroupSubmit = useCallback(async (name: string) => {
+    if (!renamingOrgGroup) return;
+    await orgGroupsApi.update(renamingOrgGroup.id, name.trim());
+    queryClient.invalidateQueries({ queryKey: ['org-groups'] });
+  }, [queryClient, renamingOrgGroup]);
+
+  const handleDeleteOrgGroupConfirm = useCallback(async () => {
+    if (!deletingOrgGroup) return;
+    await orgGroupsApi.delete(deletingOrgGroup.id);
+    queryClient.invalidateQueries({ queryKey: ['org-groups'] });
+  }, [queryClient, deletingOrgGroup]);
+
+  const handleCreateChatFromOrgGroup = useCallback(async (group: OrgGroup) => {
+    const full = (orgGroupsRaw ?? []).find((g) => g.id === group.id) ?? group;
+    const memberIds = (full.members ?? [])
+      .map((m) => m.id)
+      .filter((id) => id && id !== myId);
+    if (memberIds.length === 0) {
+      alert('그룹에 다른 멤버가 없습니다. 멤버를 추가한 뒤 다시 시도해 주세요.');
+      return;
+    }
+    try {
+      if (memberIds.length === 1) {
+        const room = await roomsApi.create(memberIds[0]);
+        queryClient.invalidateQueries({ queryKey: ['rooms'] });
+        setActivePanel('none');
+        navigate(`/room/${room.id}`);
+        return;
+      }
+      const room = await roomsApi.createGroup({
+        name: full.name,
+        memberIds,
+      });
+      if (myId) {
+        queryClient.setQueryData<Room[]>(['rooms', myId], (prev) => {
+          const roomToAdd = { ...room, unreadCount: 0, isFavorite: false } as Room;
+          if (!prev) return [roomToAdd];
+          if (prev.some((r) => r.id === room.id)) return prev;
+          return [roomToAdd, ...prev];
+        });
+      }
+      queryClient.setQueryData(['rooms', room.id], room);
+      setActivePanel('none');
+      navigate(`/room/${room.id}`);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : '그룹 채팅 생성에 실패했습니다.');
+    }
+  }, [orgGroupsRaw, myId, queryClient, navigate]);
+
+  const handleAddToOrgGroup = useCallback(async (groupId: string, userId: string) => {
+    try {
+      await orgGroupsApi.addMember(groupId, userId);
+      queryClient.invalidateQueries({ queryKey: ['org-groups'] });
+      setAddToGroupUser(null);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : '그룹에 추가하지 못했습니다.');
+    }
+  }, [queryClient]);
+
+  const handleRemoveFromOrgGroup = useCallback(async (groupId: string, userId: string) => {
+    try {
+      await orgGroupsApi.removeMember(groupId, userId);
+      queryClient.invalidateQueries({ queryKey: ['org-groups'] });
+      setContextMenu(null);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : '그룹에서 제거하지 못했습니다.');
+    }
+  }, [queryClient]);
+
   const handleTopicCreated = useCallback((id: string) => {
     recentTopicRoomRef.current = { id, at: Date.now() };
   }, []);
@@ -676,6 +780,7 @@ export default function Main() {
                 orgLoading,
                 orgError,
                 orgTree,
+                orgGroups,
                 companyMemberCounts,
                 treeOpen,
                 orgStarred,
@@ -688,6 +793,10 @@ export default function Main() {
                 onToggleTree: toggleTree,
                 onOpenDirectMessage: handleOpenDirectMessage,
                 onUserContextMenu: handleUserContextMenu,
+                onCreateOrgGroup: openCreateOrgGroupModal,
+                onRenameOrgGroup: (g) => setRenamingOrgGroup(g),
+                onDeleteOrgGroup: (g) => setDeletingOrgGroup(g),
+                onCreateChatFromOrgGroup: (g) => { void handleCreateChatFromOrgGroup(g); },
                 hasStatusIcon,
                 renderStatusIcon: (status, size = 11) => <StatusIcon status={status} size={size} />,
               }}
@@ -762,6 +871,21 @@ export default function Main() {
         contextMenu={contextMenu}
         setContextMenu={setContextMenu}
         setProfileModalUser={setProfileModalUser}
+        orgGroups={orgGroupsRaw}
+        addToGroupUser={addToGroupUser}
+        setAddToGroupUser={setAddToGroupUser}
+        onAddToOrgGroup={handleAddToOrgGroup}
+        onRemoveFromOrgGroup={handleRemoveFromOrgGroup}
+        showCreateOrgGroupModal={showCreateOrgGroupModal}
+        setShowCreateOrgGroupModal={setShowCreateOrgGroupModal}
+        onCreateOrgGroup={handleCreateOrgGroup}
+        onOpenCreateOrgGroupModal={openCreateOrgGroupModal}
+        renamingOrgGroup={renamingOrgGroup}
+        setRenamingOrgGroup={setRenamingOrgGroup}
+        onRenameOrgGroupSubmit={handleRenameOrgGroupSubmit}
+        deletingOrgGroup={deletingOrgGroup}
+        setDeletingOrgGroup={setDeletingOrgGroup}
+        onDeleteOrgGroupConfirm={handleDeleteOrgGroupConfirm}
         roomContextMenu={roomContextMenu}
         setRoomContextMenu={setRoomContextMenu}
         mutedRoomIds={mutedRoomIds}

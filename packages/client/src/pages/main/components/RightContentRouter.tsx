@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { AnnouncementItem, Event, OrgCompany, OrgUser } from '../../../api';
+import type { AnnouncementItem, Event, OrgCompany, OrgGroup, OrgUser } from '../../../api';
 import { getCommonMessages } from '../../../i18n';
 import type { UpdateStatus } from '../hooks/useUpdateManager';
 import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
@@ -71,6 +71,7 @@ type RightContentRouterProps = {
     orgLoading: boolean;
     orgError: boolean;
     orgTree: OrgCompany[];
+    orgGroups: OrgGroup[];
     companyMemberCounts?: Record<string, number>;
     treeOpen: Record<string, boolean>;
     orgStarred: Set<string>;
@@ -82,7 +83,11 @@ type RightContentRouterProps = {
     onRetryOrg: () => void;
     onToggleTree: (key: string) => void;
     onOpenDirectMessage: (userId: string) => void | Promise<void>;
-    onUserContextMenu: (e: React.MouseEvent<HTMLButtonElement>, user: OrgUser) => void;
+    onUserContextMenu: (e: React.MouseEvent<HTMLButtonElement>, user: OrgUser, opts?: { orgGroupId?: string }) => void;
+    onCreateOrgGroup: () => void;
+    onRenameOrgGroup: (group: OrgGroup) => void;
+    onDeleteOrgGroup: (group: OrgGroup) => void;
+    onCreateChatFromOrgGroup: (group: OrgGroup) => void;
     hasStatusIcon: (status?: string | null) => boolean;
     renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
   };
@@ -168,6 +173,7 @@ function RightContentRouter({
             orgLoading={orgProps.orgLoading}
             orgError={orgProps.orgError}
             orgTree={orgProps.orgTree}
+            orgGroups={orgProps.orgGroups}
             companyMemberCounts={orgProps.companyMemberCounts}
             treeOpen={orgProps.treeOpen}
             orgStarred={orgProps.orgStarred}
@@ -180,6 +186,10 @@ function RightContentRouter({
             onToggleTree={orgProps.onToggleTree}
             onOpenDirectMessage={orgProps.onOpenDirectMessage}
             onUserContextMenu={orgProps.onUserContextMenu}
+            onCreateOrgGroup={orgProps.onCreateOrgGroup}
+            onRenameOrgGroup={orgProps.onRenameOrgGroup}
+            onDeleteOrgGroup={orgProps.onDeleteOrgGroup}
+            onCreateChatFromOrgGroup={orgProps.onCreateChatFromOrgGroup}
             hasStatusIcon={orgProps.hasStatusIcon}
             renderStatusIcon={orgProps.renderStatusIcon}
           />

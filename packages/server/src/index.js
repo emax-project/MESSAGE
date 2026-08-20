@@ -41,6 +41,7 @@ import { mentionsRouter } from './routes/mentions.js';
 import { memosRouter } from './routes/memos.js';
 import { linkPreviewRouter } from './routes/linkPreview.js';
 import { foldersRouter } from './routes/folders.js';
+import { orgGroupsRouter } from './routes/orgGroups.js';
 import { prisma } from './db.js';
 import { authMiddleware, verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
@@ -90,6 +91,7 @@ app.use('/api/mentions', mentionsRouter);
 app.use('/api/memos', memosRouter);
 app.use('/api/link-preview', linkPreviewRouter());
 app.use('/api/folders', foldersRouter);
+app.use('/api/org-groups', orgGroupsRouter);
 // 기존 경로도 유지 (하위 호환)
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
@@ -105,6 +107,7 @@ app.use('/mentions', mentionsRouter);
 app.use('/memos', memosRouter);
 app.use('/link-preview', linkPreviewRouter());
 app.use('/folders', foldersRouter);
+app.use('/org-groups', orgGroupsRouter);
 // Disable public uploads to enforce auth/expiry checks via /files/download
 // app.use('/uploads', express.static(UPLOAD_DIR));
 

@@ -417,6 +417,8 @@ export const roomsApi = {
   create: (otherUserId: string) => api.post('/rooms', { otherUserId }) as Promise<Room & { members: { user: User }[] }>,
   createTopic: (data: { name: string; description?: string; isPublic?: boolean; viewMode?: string; memberIds: string[]; folderId?: string; initials?: string }) =>
     api.post('/rooms/topic', data) as Promise<Room>,
+  createGroup: (data: { name: string; memberIds: string[] }) =>
+    api.post('/rooms/group', data) as Promise<Room>,
   get: (id: string) => api.get(`/rooms/${id}`) as Promise<Room>,
   updateViewMode: (roomId: string, viewMode: 'chat' | 'board') =>
     api.put(`/rooms/${roomId}`, { viewMode }) as Promise<{ viewMode: string }>,
@@ -655,6 +657,25 @@ export const foldersApi = {
   delete: (id: string) => api.delete(`/folders/${id}`) as Promise<{ ok: boolean }>,
   assign: (roomId: string, folderId: string | null) =>
     api.put('/folders/assign', { roomId, folderId }) as Promise<{ ok: boolean }>,
+};
+
+export type OrgGroup = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  members: OrgUser[];
+};
+
+export const orgGroupsApi = {
+  list: () => api.get('/org-groups') as Promise<OrgGroup[]>,
+  create: (name: string) => api.post('/org-groups', { name }) as Promise<OrgGroup>,
+  update: (id: string, name: string) => api.put(`/org-groups/${id}`, { name }) as Promise<OrgGroup>,
+  delete: (id: string) => api.delete(`/org-groups/${id}`) as Promise<{ ok: boolean }>,
+  addMember: (groupId: string, userId: string) =>
+    api.post(`/org-groups/${groupId}/members`, { userId }) as Promise<OrgGroup>,
+  removeMember: (groupId: string, userId: string) =>
+    api.delete(`/org-groups/${groupId}/members/${userId}`) as Promise<OrgGroup>,
 };
 
 export function getSocketUrl(): string {

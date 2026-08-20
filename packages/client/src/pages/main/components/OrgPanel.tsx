@@ -1,8 +1,7 @@
-import { memo } from 'react';
-import type { MouseEvent } from 'react';
-import type { OrgCompany, OrgUser } from '../../../api';
+import { memo, useState } from 'react';
+import type { OrgCompany, OrgGroup } from '../../../api';
 import UICloseButton from '../../../components/ui/UICloseButton';
-import OrgTree from './OrgTree';
+import OrgTree, { type OrgUserContextMenuHandler } from './OrgTree';
 import {
   PanelNoDragWrap,
   PanelTitleRow,
@@ -10,6 +9,8 @@ import {
   usePanelNoDrag,
 } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
+
+type OrgTab = 'org' | 'groups';
 
 type OrgPanelProps = {
   isDark: boolean;
@@ -21,6 +22,7 @@ type OrgPanelProps = {
   orgLoading: boolean;
   orgError: boolean;
   orgTree: OrgCompany[];
+  orgGroups: OrgGroup[];
   companyMemberCounts?: Record<string, number>;
   treeOpen: Record<string, boolean>;
   orgStarred: Set<string>;
@@ -32,7 +34,11 @@ type OrgPanelProps = {
   onRetryOrg: () => void;
   onToggleTree: (key: string) => void;
   onOpenDirectMessage: (userId: string) => void | Promise<void>;
-  onUserContextMenu: (e: MouseEvent<HTMLButtonElement>, user: OrgUser) => void;
+  onUserContextMenu: OrgUserContextMenuHandler;
+  onCreateOrgGroup: () => void;
+  onRenameOrgGroup: (group: OrgGroup) => void;
+  onDeleteOrgGroup: (group: OrgGroup) => void;
+  onCreateChatFromOrgGroup: (group: OrgGroup) => void;
   hasStatusIcon: (status?: string | null) => boolean;
   renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
 };
@@ -47,6 +53,7 @@ function OrgPanel({
   orgLoading,
   orgError,
   orgTree,
+  orgGroups,
   companyMemberCounts,
   treeOpen,
   orgStarred,
@@ -59,14 +66,49 @@ function OrgPanel({
   onToggleTree,
   onOpenDirectMessage,
   onUserContextMenu,
+  onCreateOrgGroup,
+  onRenameOrgGroup,
+  onDeleteOrgGroup,
+  onCreateChatFromOrgGroup,
   hasStatusIcon,
   renderStatusIcon,
 }: OrgPanelProps) {
   const { noDragClass, noDragStyle } = usePanelNoDrag();
   const wrap = panelWrapStyle(820);
+  const [tab, setTab] = useState<OrgTab>('org');
+
+  const tabBtn = (id: OrgTab, label: string) => (
+    <button
+      type="button"
+      onClick={() => setTab(id)}
+      className={cn(
+        'px-3 py-1.5 rounded-lg text-[13px] font-semibold border-none cursor-pointer',
+        tab === id
+          ? 'bg-brand text-white'
+          : isDark
+            ? 'bg-transparent text-slate-300'
+            : 'bg-transparent text-slate-600',
+      )}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className={wrap.className} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title="조직도" compact />
+      <PanelTitleRow isDark={isDark} title={tab === 'org' ? '조직도' : '내 그룹'} compact />
+
+      <div
+        className={cn(
+          'flex items-center gap-1 px-3 py-1.5 border-b',
+          isDark ? 'border-slate-600' : 'border-slate-200',
+        )}
+      >
+        <PanelNoDragWrap className="flex items-center gap-1">
+          {tabBtn('org', '조직도')}
+          {tabBtn('groups', '내 그룹')}
+        </PanelNoDragWrap>
+      </div>
 
       <PanelToolbarRow isDark={isDark} compact>
         <input
@@ -111,14 +153,31 @@ function OrgPanel({
             온라인
           </button>
         </PanelNoDragWrap>
+        {tab === 'groups' && (
+          <PanelNoDragWrap>
+            <button
+              type="button"
+              onClick={onCreateOrgGroup}
+              title="내 그룹 만들기"
+              className={cn(
+                'shrink-0 px-2 py-1 border rounded-2xl text-[11px] font-semibold whitespace-nowrap cursor-pointer',
+                isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-white text-slate-700',
+              )}
+            >
+              + 그룹
+            </button>
+          </PanelNoDragWrap>
+        )}
       </PanelToolbarRow>
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <OrgTree
           isDark={isDark}
+          view={tab}
           orgLoading={orgLoading}
           orgError={orgError}
           orgTree={orgTree}
+          orgGroups={orgGroups}
           companyMemberCounts={companyMemberCounts}
           treeOpen={treeOpen}
           orgStarred={orgStarred}
@@ -131,6 +190,9 @@ function OrgPanel({
           onToggleTree={onToggleTree}
           onOpenDirectMessage={onOpenDirectMessage}
           onUserContextMenu={onUserContextMenu}
+          onRenameOrgGroup={onRenameOrgGroup}
+          onDeleteOrgGroup={onDeleteOrgGroup}
+          onCreateChatFromOrgGroup={onCreateChatFromOrgGroup}
           hasStatusIcon={hasStatusIcon}
           renderStatusIcon={renderStatusIcon}
         />

@@ -45,6 +45,8 @@ model User {
   deviceTokens    DeviceToken[]
   sentMemos       Memo[]           @relation("SentMemos")
   receivedMemos   MemoRecipient[]  @relation("ReceivedMemos")
+  orgGroups            OrgGroup[]
+  orgGroupMemberships  OrgGroupMember[]
 
   @@index([departmentId])
 }
@@ -320,6 +322,32 @@ model Folder {
   roomMemberships RoomMember[]
 
   @@index([userId])
+}
+
+// 조직도 개인 연락처 그룹 (채팅 Folder와 별개)
+model OrgGroup {
+  id        String           @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members   OrgGroupMember[]
+
+  @@index([userId])
+}
+
+model OrgGroupMember {
+  id           String   @id @default(cuid())
+  groupId      String
+  memberUserId String
+  createdAt    DateTime @default(now())
+  group        OrgGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member       User     @relation(fields: [memberUserId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, memberUserId])
+  @@index([groupId])
+  @@index([memberUserId])
 }
 
 model DeviceToken {
