@@ -1,27 +1,72 @@
-/** 현재 로그인(연결) 중인 사용자 ID별 소켓 연결 수 */
-const online = new Map();
+/** 사용자별 PC/모바일 소켓 연결 수 */
+const online = new Map(); // userId -> { desktop: number, mobile: number }
 
-export function add(userId) {
-  if (!userId) return;
-  const key = String(userId);
-  online.set(key, (online.get(key) || 0) + 1);
+function normalizeDevice(device) {
+  return device === 'mobile' ? 'mobile' : 'desktop';
 }
 
-export function remove(userId) {
+function emptyCounts() {
+  return { desktop: 0, mobile: 0 };
+}
+
+function getCounts(userId) {
+  return online.get(String(userId)) || emptyCounts();
+}
+
+function isPresent(counts) {
+  return (counts.desktop || 0) > 0 || (counts.mobile || 0) > 0;
+}
+
+export function add(userId, device = 'desktop') {
   if (!userId) return;
   const key = String(userId);
-  const count = online.get(key) || 0;
-  if (count <= 1) {
+  const d = normalizeDevice(device);
+  const counts = { ...getCounts(key) };
+  counts[d] = (counts[d] || 0) + 1;
+  online.set(key, counts);
+}
+
+export function remove(userId, device = 'desktop') {
+  if (!userId) return;
+  const key = String(userId);
+  const d = normalizeDevice(device);
+  const counts = { ...getCounts(key) };
+  counts[d] = Math.max(0, (counts[d] || 0) - 1);
+  if (!isPresent(counts)) {
     online.delete(key);
   } else {
-    online.set(key, count - 1);
+    online.set(key, counts);
   }
 }
 
 export function has(userId) {
-  return userId ? online.has(String(userId)) : false;
+  if (!userId) return false;
+  return online.has(String(userId));
 }
 
+export function getDevices(userId) {
+  const counts = getCounts(userId);
+  return {
+    desktop: (counts.desktop || 0) > 0,
+    mobile: (counts.mobile || 0) > 0,
+  };
+}
+
+/** @returns {string[]} */
 export function getAll() {
   return Array.from(online.keys());
+}
+
+/**
+ * @returns {Record<string, { desktop: boolean, mobile: boolean }>}
+ */
+export function getPresenceMap() {
+  const map = {};
+  for (const [userId, counts] of online) {
+    map[userId] = {
+      desktop: (counts.desktop || 0) > 0,
+      mobile: (counts.mobile || 0) > 0,
+    };
+  }
+  return map;
 }

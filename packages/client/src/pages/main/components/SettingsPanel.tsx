@@ -153,7 +153,7 @@ function SettingsPanel({
 
         <ProfileEditSection isDark={isDark} />
 
-        {user?.isAdmin && <BulkUserRegisterSection isDark={isDark} />}
+        {user?.isAdmin && <BulkUserRegisterSection isDark={isDark} isNarrowLayout={isNarrowLayout} />}
 
         {notificationsSnoozedUntil > Date.now() && <div style={{ padding: '6px 10px', borderRadius: 999, background: isDark ? '#171717' : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' }}>알림 일시 중지 중</div>}
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>

@@ -4,6 +4,13 @@ import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { filesApi, getBaseUrl, getSocketUrl, navigateToLogin, type Message, type Room } from '../../../api';
 import { playNotificationSound } from '../../../utils/notificationSound';
+import {
+  detectClientDevice,
+  mergePresence,
+  presenceFromList,
+  removePresence,
+  type OnlinePresenceMap,
+} from '../../../utils/presence';
 
 type MessagesPage = { messages: Message[]; nextCursor: string | null; hasMore: boolean };
 
@@ -15,6 +22,7 @@ type UseMainSocketParams = {
   mutedRoomIdsRef: MutableRefObject<Set<string>>;
   notificationsSnoozedUntilRef: MutableRefObject<number>;
   setOnlineUserIds: Dispatch<SetStateAction<Set<string>>>;
+  setOnlinePresence: Dispatch<SetStateAction<OnlinePresenceMap>>;
   setSocketConnected: Dispatch<SetStateAction<boolean>>;
   setSocket: Dispatch<SetStateAction<Socket | null>>;
   socketRef: MutableRefObject<Socket | null>;
@@ -31,6 +39,7 @@ export function useMainSocket({
   mutedRoomIdsRef,
   notificationsSnoozedUntilRef,
   setOnlineUserIds,
+  setOnlinePresence,
   setSocketConnected,
   setSocket,
   socketRef,
@@ -42,7 +51,8 @@ export function useMainSocket({
     if (!token) return;
     if (socketRef.current?.connected) return;
     const url = getSocketUrl();
-    const s = io(url, { path: '/socket.io', auth: { token } });
+    const device = detectClientDevice();
+    const s = io(url, { path: '/socket.io', auth: { token, device } });
     socketRef.current = s;
     s.on('connect_error', (err: { message?: string }) => {
       if (err?.message?.includes('invalid token')) {
@@ -57,7 +67,11 @@ export function useMainSocket({
     });
     s.on('connect', () => {
       setSocketConnected(true);
-      if (myIdRef.current) setOnlineUserIds((prev) => new Set([...prev, String(myIdRef.current)]));
+      if (myIdRef.current) {
+        const uid = String(myIdRef.current);
+        setOnlineUserIds((prev) => new Set([...prev, uid]));
+        setOnlinePresence((prev) => mergePresence(prev, uid, null, device));
+      }
     });
     s.on('disconnect', () => {
       setSocketConnected(false);
@@ -172,11 +186,22 @@ export function useMainSocket({
       const uid = myIdRef.current;
       if (uid) queryClient.refetchQueries({ queryKey: ['rooms', uid] });
     });
-    s.on('online_list', (payload: { userIds?: string[] }) => {
-      setOnlineUserIds(new Set((payload.userIds || []).map((id) => String(id))));
+    s.on('online_list', (payload: { userIds?: string[]; presence?: OnlinePresenceMap }) => {
+      const map = presenceFromList(payload.userIds, payload.presence);
+      setOnlinePresence(map);
+      setOnlineUserIds(new Set(Object.keys(map).filter((id) => map[id].desktop || map[id].mobile)));
     });
-    s.on('user_online', (payload: { userId?: string; userName?: string | null }) => {
-      if (payload.userId) setOnlineUserIds((prev) => new Set([...prev, String(payload.userId)]));
+    s.on('user_online', (payload: {
+      userId?: string;
+      userName?: string | null;
+      device?: 'desktop' | 'mobile';
+      devices?: { desktop: boolean; mobile: boolean };
+    }) => {
+      if (payload.userId) {
+        const uid = String(payload.userId);
+        setOnlinePresence((prev) => mergePresence(prev, uid, payload.devices ?? null, payload.device));
+        setOnlineUserIds((prev) => new Set([...prev, uid]));
+      }
       if (payload.userId && String(payload.userId) !== String(myIdRef.current)) {
         const name = payload.userName?.trim() || '누군가';
         const title = 'EMAX';
@@ -188,12 +213,32 @@ export function useMainSocket({
         }
       }
     });
-    s.on('user_offline', (payload: { userId?: string }) => {
-      if (payload.userId) setOnlineUserIds((prev) => {
+    s.on('user_presence', (payload: {
+      userId?: string;
+      device?: 'desktop' | 'mobile';
+      devices?: { desktop: boolean; mobile: boolean };
+    }) => {
+      if (!payload.userId) return;
+      const uid = String(payload.userId);
+      setOnlinePresence((prev) => mergePresence(prev, uid, payload.devices ?? null, payload.device));
+      setOnlineUserIds((prev) => {
+        const devices = payload.devices;
         const next = new Set(prev);
-        next.delete(String(payload.userId));
+        if (devices && !devices.desktop && !devices.mobile) next.delete(uid);
+        else next.add(uid);
         return next;
       });
+    });
+    s.on('user_offline', (payload: { userId?: string }) => {
+      if (payload.userId) {
+        const uid = String(payload.userId);
+        setOnlinePresence((prev) => removePresence(prev, uid));
+        setOnlineUserIds((prev) => {
+          const next = new Set(prev);
+          next.delete(uid);
+          return next;
+        });
+      }
     });
     s.on('memo', (payload: { memoId?: string; subject?: string; senderName?: string }) => {
       queryClient.invalidateQueries({ queryKey: ['memos'] });
@@ -225,7 +270,7 @@ export function useMainSocket({
       setSocket(null);
       setSocketConnected(false);
     };
-  }, [token, queryClient, myIdRef, recentTopicRoomRef, notificationsSnoozedUntilRef, mutedRoomIdsRef, setOnlineUserIds, setSocket, setSocketConnected, socketRef]);
+  }, [token, queryClient, myIdRef, recentTopicRoomRef, notificationsSnoozedUntilRef, mutedRoomIdsRef, setOnlineUserIds, setOnlinePresence, setSocket, setSocketConnected, socketRef]);
 
   useEffect(() => {
     if (!socket || !socketConnected || !allRooms.length) return;

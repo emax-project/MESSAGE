@@ -379,7 +379,10 @@ export const usersApi = {
 
 export const orgApi = {
   tree: () => api.get('/org/tree') as Promise<OrgCompany[]>,
-  online: () => api.get('/org/online') as Promise<{ userIds: string[] }>,
+  online: () => api.get('/org/online') as Promise<{
+    userIds: string[];
+    presence?: Record<string, { desktop: boolean; mobile: boolean }>;
+  }>,
 };
 
 export type AnnouncementItem = {

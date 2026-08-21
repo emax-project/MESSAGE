@@ -117,6 +117,7 @@ const baseProps = () => ({
     orgStarred: new Set<string>(),
     onToggleOrgStar: vi.fn(),
     onlineUserIds: new Set<string>(),
+    onlinePresence: {},
     myId: 'me',
     myEmail: 'me@emax.com',
     socketConnected: true,

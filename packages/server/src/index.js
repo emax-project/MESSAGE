@@ -203,6 +203,8 @@ io.use(async (socket, next) => {
   if (!payload) return next(new Error('invalid token'));
   socket.userId = payload.userId;
   socket.sessionId = payload.sessionId;
+  const rawDevice = socket.handshake.auth?.device ?? socket.handshake.query?.device;
+  socket.device = rawDevice === 'mobile' ? 'mobile' : 'desktop';
   next();
 });
 

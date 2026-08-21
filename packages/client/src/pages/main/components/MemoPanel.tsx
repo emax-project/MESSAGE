@@ -1,9 +1,11 @@
 import { memo, useMemo, useState } from 'react';
 import type { MemoItem } from '../../../api';
+import UICloseButton from '../../../components/ui/UICloseButton';
 import {
   PanelNoDragWrap,
   PanelTitleRow,
   PanelToolbarRow,
+  usePanelNoDrag,
 } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
 
@@ -102,6 +104,20 @@ function MemoDetail({
   );
 }
 
+function matchesMemoSearch(memo: MemoItem, tab: MemoTab, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const people =
+    tab === 'inbox'
+      ? memo.sender.name
+      : memo.recipients.map((r) => r.user.name).join(' ');
+  return (
+    memo.subject.toLowerCase().includes(q) ||
+    memo.body.toLowerCase().includes(q) ||
+    people.toLowerCase().includes(q)
+  );
+}
+
 function MemoPanel({
   isDark,
   inbox,
@@ -112,10 +128,16 @@ function MemoPanel({
   onDelete,
 }: MemoPanelProps) {
   const wrap = panelWrapStyle(820);
+  const { noDragClass, noDragStyle } = usePanelNoDrag();
   const [tab, setTab] = useState<MemoTab>('inbox');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const list = tab === 'inbox' ? inbox : sent;
+  const filteredList = useMemo(
+    () => list.filter((m) => matchesMemoSearch(m, tab, searchQuery)),
+    [list, tab, searchQuery],
+  );
   const selectedMemo = useMemo(
     () => list.find((m) => m.id === selectedId) ?? null,
     [list, selectedId],
@@ -142,6 +164,14 @@ function MemoPanel({
       </div>
     );
   }
+
+  const emptyMessage = (() => {
+    if (list.length === 0) {
+      return tab === 'inbox' ? '받은 쪽지가 없습니다' : '보낸 쪽지가 없습니다';
+    }
+    if (filteredList.length === 0) return '검색 결과가 없습니다';
+    return null;
+  })();
 
   return (
     <div className={wrap.className} style={wrap.style}>
@@ -181,14 +211,53 @@ function MemoPanel({
         ))}
       </PanelToolbarRow>
 
+      <PanelToolbarRow isDark={isDark}>
+        <div className={cn(noDragClass, 'relative flex-1 min-w-0')} style={noDragStyle}>
+          <span
+            className={cn(
+              'pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2',
+              isDark ? 'text-slate-400' : 'text-slate-400',
+            )}
+            aria-hidden
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+          </span>
+          <input
+            type="search"
+            placeholder="제목, 내용, 이름 검색"
+            aria-label="쪽지 검색"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={cn(
+              'w-full rounded-[6px] border py-1.5 pl-8 pr-2.5 text-[13px] outline-none',
+              isDark ? 'border-slate-600 bg-slate-700 text-slate-200 placeholder:text-slate-400' : 'border-slate-200 bg-slate-100 text-slate-900 placeholder:text-slate-400',
+            )}
+          />
+        </div>
+        {searchQuery.trim().length > 0 && (
+          <PanelNoDragWrap>
+            <UICloseButton
+              size="sm"
+              variant="subtle"
+              onClick={() => setSearchQuery('')}
+              aria-label="검색어 지우기"
+              title="검색어 지우기"
+            />
+          </PanelNoDragWrap>
+        )}
+      </PanelToolbarRow>
+
       <div className="flex-1 min-h-0 overflow-auto">
-        {list.length === 0 ? (
+        {emptyMessage ? (
           <div className={cn('p-8 text-center text-sm', isDark ? 'text-[#a7adb4]' : 'text-[#5e6470]')}>
-            {tab === 'inbox' ? '받은 쪽지가 없습니다' : '보낸 쪽지가 없습니다'}
+            {emptyMessage}
           </div>
         ) : (
           <ul className="list-none m-0 p-0">
-            {list.map((memo) => {
+            {filteredList.map((memo) => {
               const unread = tab === 'inbox' && !memo.readAt;
               const subtitle = tab === 'inbox' ? memo.sender.name : formatRecipients(memo);
               return (

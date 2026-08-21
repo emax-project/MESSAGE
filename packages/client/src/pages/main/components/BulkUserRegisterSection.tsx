@@ -5,6 +5,7 @@ import {
   type BulkRegisterResult,
   type BulkRegisterUserInput,
 } from '../../../api';
+import { cn } from '../../../utils/cn';
 
 const CSV_TEMPLATE =
   'email,name,phone,jobTitle,departmentName,companyName\n' +
@@ -29,6 +30,17 @@ type FormRow = {
   companyName: string;
   departmentName: string;
 };
+
+type FieldKey = Exclude<keyof FormRow, 'key'>;
+
+const FIELDS: { field: FieldKey; label: string; placeholder: string; required?: boolean }[] = [
+  { field: 'email', label: '이메일', placeholder: 'email@emax.com', required: true },
+  { field: 'name', label: '이름', placeholder: '홍길동', required: true },
+  { field: 'phone', label: '연락처', placeholder: '010-1234-5678' },
+  { field: 'jobTitle', label: '직급', placeholder: '대리' },
+  { field: 'companyName', label: '회사', placeholder: '이맥스' },
+  { field: 'departmentName', label: '부서', placeholder: '개발부서' },
+];
 
 function newKey() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -131,9 +143,10 @@ function downloadTemplate() {
 
 type BulkUserRegisterSectionProps = {
   isDark: boolean;
+  isNarrowLayout?: boolean;
 };
 
-function BulkUserRegisterSection({ isDark }: BulkUserRegisterSectionProps) {
+function BulkUserRegisterSection({ isDark, isNarrowLayout = false }: BulkUserRegisterSectionProps) {
   const queryClient = useQueryClient();
   const [defaultPassword, setDefaultPassword] = useState('123456');
   const [rows, setRows] = useState<FormRow[]>(() => [emptyRow()]);
@@ -141,20 +154,18 @@ function BulkUserRegisterSection({ isDark }: BulkUserRegisterSectionProps) {
   const [result, setResult] = useState<BulkRegisterResult | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
 
-  const border = isDark ? '#475569' : '#e2e8f0';
-  const muted = isDark ? '#94a3b8' : '#64748b';
-  const text = isDark ? '#e2e8f0' : '#334155';
-
-  const inputStyle = {
-    width: '100%',
-    padding: '7px 8px',
-    borderRadius: 6,
-    border: `1px solid ${border}`,
-    background: isDark ? '#1e293b' : '#fff',
-    color: text,
-    fontSize: 13,
-    boxSizing: 'border-box' as const,
-  };
+  const border = isDark ? 'border-slate-600' : 'border-slate-200';
+  const muted = isDark ? 'text-slate-400' : 'text-slate-500';
+  const text = isDark ? 'text-slate-200' : 'text-slate-700';
+  const cardBg = isDark ? 'bg-slate-800' : 'bg-white';
+  const sectionBg = isDark ? 'bg-slate-700' : 'bg-slate-50';
+  const inputCls = cn(
+    'w-full rounded-lg border px-3 py-2.5 text-sm outline-none box-border',
+    isNarrowLayout && 'min-h-[44px] text-base',
+    isDark
+      ? 'border-slate-600 bg-slate-900 text-slate-200 placeholder:text-slate-500'
+      : 'border-slate-200 bg-white text-slate-800 placeholder:text-slate-400',
+  );
 
   const updateRow = (key: string, field: keyof FormRow, value: string) => {
     setResult(null);
@@ -230,183 +241,220 @@ function BulkUserRegisterSection({ isDark }: BulkUserRegisterSectionProps) {
 
   const filledCount = toUsers().length;
 
-  return (
-    <div
-      style={{
-        padding: '12px 14px',
-        borderRadius: 10,
-        background: isDark ? '#334155' : '#f8fafc',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-      }}
-    >
-      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>
-        사용자 일괄 등록
-      </h4>
-      <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: muted }}>
-        직접 입력하거나 CSV로 불러온 뒤 등록합니다. 회사·부서명이 없으면 자동 생성됩니다.
-      </p>
+  const secondaryBtnCls = cn(
+    'rounded-lg border px-3.5 py-2.5 text-[13px] font-semibold cursor-pointer',
+    isNarrowLayout && 'flex-1 min-h-[44px]',
+    isDark
+      ? 'border-slate-600 bg-transparent text-slate-200'
+      : 'border-slate-200 bg-transparent text-slate-700',
+  );
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button
-          type="button"
-          onClick={downloadTemplate}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: `1px solid ${border}`,
-            background: 'transparent',
-            color: text,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          CSV 템플릿
-        </button>
-        <label
-          style={{
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: 'none',
-            background: isDark ? '#475569' : '#e2e8f0',
-            color: text,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          CSV 불러오기
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onPickCsv(f);
-              e.target.value = '';
-            }}
-          />
-        </label>
+  const primaryBtnCls = cn(
+    'border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer disabled:opacity-60',
+    isNarrowLayout ? 'w-full min-h-[48px] px-4 py-3 text-[15px]' : 'px-4 py-2',
+  );
+
+  return (
+    <div className={cn('flex flex-col gap-3 rounded-[10px] px-3.5 py-3', sectionBg)}>
+      <div>
+        <h4 className={cn('m-0 text-sm font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
+          사용자 일괄 등록
+        </h4>
+        <p className={cn('mt-1 mb-0 text-xs leading-relaxed', muted)}>
+          {isNarrowLayout
+            ? '한 명씩 카드를 채워 등록하세요. 회사·부서가 없으면 자동 생성됩니다.'
+            : '직접 입력하거나 CSV로 불러온 뒤 등록합니다. 회사·부서명이 없으면 자동 생성됩니다.'}
+        </p>
       </div>
 
-      {csvError && <div style={{ fontSize: 12, color: '#c62828' }}>{csvError}</div>}
-
       <div>
-        <label style={{ display: 'block', fontSize: 12, color: muted, marginBottom: 4 }}>
-          기본 비밀번호
-        </label>
+        <label className={cn('mb-1 block text-xs', muted)}>기본 비밀번호</label>
         <input
           type="text"
           value={defaultPassword}
           onChange={(e) => setDefaultPassword(e.target.value)}
           placeholder="등록 시 사용할 초기 비밀번호"
-          style={{ ...inputStyle, maxWidth: 280 }}
+          autoComplete="new-password"
+          className={cn(inputCls, !isNarrowLayout && 'max-w-[280px]')}
         />
       </div>
 
-      <div
-        style={{
-          overflow: 'auto',
-          borderRadius: 8,
-          border: `1px solid ${border}`,
-          maxHeight: 320,
-        }}
-      >
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 640 }}>
-          <thead>
-            <tr style={{ background: isDark ? '#1e293b' : '#f1f5f9', textAlign: 'left' }}>
-              <th style={{ padding: '8px 6px', color: muted, fontWeight: 600 }}>이메일 *</th>
-              <th style={{ padding: '8px 6px', color: muted, fontWeight: 600 }}>이름 *</th>
-              <th style={{ padding: '8px 6px', color: muted, fontWeight: 600 }}>연락처</th>
-              <th style={{ padding: '8px 6px', color: muted, fontWeight: 600 }}>직급</th>
-              <th style={{ padding: '8px 6px', color: muted, fontWeight: 600 }}>회사</th>
-              <th style={{ padding: '8px 6px', color: muted, fontWeight: 600 }}>부서</th>
-              <th style={{ padding: '8px 6px', width: 40 }} />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.key} style={{ borderTop: `1px solid ${border}` }}>
-                {(
-                  [
-                    ['email', 'email'],
-                    ['name', '이름'],
-                    ['phone', '010-'],
-                    ['jobTitle', '대리'],
-                    ['companyName', '이맥스'],
-                    ['departmentName', '개발부서'],
-                  ] as const
-                ).map(([field, placeholder]) => (
-                  <td key={field} style={{ padding: 4 }}>
+      {isNarrowLayout ? (
+        <div className="flex flex-col gap-3">
+          {rows.map((row, index) => (
+            <div
+              key={row.key}
+              className={cn('rounded-xl border p-3', border, cardBg)}
+            >
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <span className={cn('text-[13px] font-semibold', text)}>
+                  {row.name.trim() || `사용자 ${index + 1}`}
+                </span>
+                {rows.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.key)}
+                    className={cn(
+                      'shrink-0 border-none bg-transparent px-2 py-1 text-xs font-semibold cursor-pointer',
+                      isDark ? 'text-red-400' : 'text-red-600',
+                    )}
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-col gap-2.5">
+                {FIELDS.map(({ field, label, placeholder, required }) => (
+                  <div key={field}>
+                    <label className={cn('mb-1 block text-[11px] font-medium', muted)}>
+                      {label}{required ? ' *' : ''}
+                    </label>
                     <input
-                      type="text"
+                      type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
+                      inputMode={field === 'email' ? 'email' : field === 'phone' ? 'tel' : undefined}
+                      autoCapitalize={field === 'email' ? 'none' : undefined}
+                      autoCorrect="off"
                       value={row[field]}
                       placeholder={placeholder}
                       onChange={(e) => updateRow(row.key, field, e.target.value)}
-                      style={inputStyle}
+                      className={inputCls}
                     />
-                  </td>
+                  </div>
                 ))}
-                <td style={{ padding: 4, textAlign: 'center' }}>
-                  <button
-                    type="button"
-                    title="행 삭제"
-                    onClick={() => removeRow(row.key)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: muted,
-                      cursor: 'pointer',
-                      fontSize: 16,
-                      lineHeight: 1,
-                      padding: 4,
-                    }}
-                  >
-                    ×
-                  </button>
-                </td>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={cn('max-h-80 overflow-auto rounded-lg border', border)}>
+          <table className="w-full min-w-[640px] border-collapse text-xs">
+            <thead>
+              <tr className={cn('text-left', isDark ? 'bg-slate-900' : 'bg-slate-100')}>
+                {FIELDS.map(({ field, label, required }) => (
+                  <th key={field} className={cn('px-1.5 py-2 font-semibold', muted)}>
+                    {label}{required ? ' *' : ''}
+                  </th>
+                ))}
+                <th className="w-10 px-1.5 py-2" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.key} className={cn('border-t', border)}>
+                  {FIELDS.map(({ field, placeholder }) => (
+                    <td key={field} className="p-1">
+                      <input
+                        type="text"
+                        value={row[field]}
+                        placeholder={placeholder}
+                        onChange={(e) => updateRow(row.key, field, e.target.value)}
+                        className={cn(inputCls, 'px-2 py-1.5 text-[13px]')}
+                      />
+                    </td>
+                  ))}
+                  <td className="p-1 text-center">
+                    <button
+                      type="button"
+                      title="행 삭제"
+                      onClick={() => removeRow(row.key)}
+                      className={cn('border-none bg-transparent p-1 text-base leading-none cursor-pointer', muted)}
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className={cn('flex flex-wrap gap-2', isNarrowLayout && 'flex-col')}>
+        <button type="button" onClick={addRow} className={secondaryBtnCls}>
+          + {isNarrowLayout ? '사람 추가' : '행 추가'}
+        </button>
+
+        {!isNarrowLayout && (
+          <>
+            <button type="button" onClick={downloadTemplate} className={secondaryBtnCls}>
+              CSV 템플릿
+            </button>
+            <label
+              className={cn(
+                secondaryBtnCls,
+                'inline-flex items-center justify-center',
+                isDark ? 'bg-slate-600 border-slate-600' : 'bg-slate-200 border-slate-200',
+              )}
+            >
+              CSV 불러오기
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void onPickCsv(f);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </>
+        )}
+
+        {isNarrowLayout && (
+          <details className={cn('rounded-lg border px-3 py-2', border)}>
+            <summary className={cn('cursor-pointer text-[13px] font-semibold list-none', text)}>
+              CSV로 불러오기 (선택)
+            </summary>
+            <p className={cn('mt-2 mb-2 text-[11px] leading-relaxed', muted)}>
+              PC에서 만든 CSV를 가져올 수 있습니다. 모바일에서는 직접 입력이 더 편합니다.
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={downloadTemplate} className={secondaryBtnCls}>
+                템플릿
+              </button>
+              <label
+                className={cn(
+                  secondaryBtnCls,
+                  'inline-flex items-center justify-center',
+                  isDark ? 'bg-slate-600 border-slate-600' : 'bg-slate-200 border-slate-200',
+                )}
+              >
+                파일 선택
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void onPickCsv(f);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+          </details>
+        )}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button
-          type="button"
-          onClick={addRow}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: `1px solid ${border}`,
-            background: 'transparent',
-            color: text,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          + 행 추가
-        </button>
-        <button
-          type="button"
-          className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer disabled:opacity-60"
-          disabled={submitting || filledCount === 0}
-          onClick={() => void onSubmit()}
-        >
-          {submitting ? '등록 중...' : `${filledCount}명 등록`}
-        </button>
-      </div>
+      {csvError && <div className="text-xs text-red-600">{csvError}</div>}
+
+      <button
+        type="button"
+        className={primaryBtnCls}
+        disabled={submitting || filledCount === 0}
+        onClick={() => void onSubmit()}
+      >
+        {submitting ? '등록 중...' : `${filledCount}명 등록`}
+      </button>
 
       {result && (
-        <div style={{ fontSize: 13, color: text }}>
-          <div style={{ marginBottom: 6 }}>
+        <div className={cn('text-[13px]', text)}>
+          <div className="mb-1.5">
             성공 {result.created}명 · 실패 {result.failed}명
           </div>
           {result.errors.length > 0 && (
-            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: muted }}>
+            <ul className={cn('m-0 pl-[18px] text-xs', muted)}>
               {result.errors.map((e) => (
                 <li key={`${e.row}-${e.email}`}>
                   행 {e.row} ({e.email || '—'}): {FAIL_REASON_LABEL[e.reason] || e.reason}

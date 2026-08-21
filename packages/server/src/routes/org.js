@@ -6,11 +6,12 @@ import * as onlineUsers from '../onlineUsers.js';
 export const orgRouter = Router();
 orgRouter.use(authMiddleware);
 
-/** GET /org/online - 현재 로그인(연결) 중인 사용자 ID 목록 */
+/** GET /org/online - 현재 로그인(연결) 중인 사용자 및 디바이스별 상태 */
 orgRouter.get('/online', async (_req, res) => {
   try {
     const userIds = onlineUsers.getAll();
-    return res.json({ userIds });
+    const presence = onlineUsers.getPresenceMap();
+    return res.json({ userIds, presence });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to get online users' });

@@ -27,30 +27,61 @@ export function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
     if (socket.userId) {
       const uid = String(socket.userId);
+      const device = socket.device === 'mobile' ? 'mobile' : 'desktop';
       socket.join(`user:${uid}`);
       const wasOnline = onlineUsers.has(uid);
-      onlineUsers.add(uid);
-      socket.emit('online_list', { userIds: onlineUsers.getAll() });
+      onlineUsers.add(uid, device);
+      const presencePayload = () => ({
+        userIds: onlineUsers.getAll(),
+        presence: onlineUsers.getPresenceMap(),
+      });
+      socket.emit('online_list', presencePayload());
       if (!wasOnline) {
         prisma.user.findUnique({ where: { id: uid }, select: { name: true } })
           .then((user) => {
-            io.emit('user_online', { userId: uid, userName: user?.name ?? null });
+            io.emit('user_online', {
+              userId: uid,
+              userName: user?.name ?? null,
+              device,
+              devices: onlineUsers.getDevices(uid),
+            });
           })
           .catch(() => {
-            io.emit('user_online', { userId: uid, userName: null });
+            io.emit('user_online', {
+              userId: uid,
+              userName: null,
+              device,
+              devices: onlineUsers.getDevices(uid),
+            });
           });
+      } else {
+        io.emit('user_presence', {
+          userId: uid,
+          device,
+          devices: onlineUsers.getDevices(uid),
+        });
       }
     }
     socket.on('get_online_list', () => {
-      socket.emit('online_list', { userIds: onlineUsers.getAll() });
+      socket.emit('online_list', {
+        userIds: onlineUsers.getAll(),
+        presence: onlineUsers.getPresenceMap(),
+      });
     });
     socket.on('disconnect', () => {
       if (socket.userId) {
         const uid = String(socket.userId);
+        const device = socket.device === 'mobile' ? 'mobile' : 'desktop';
         clearViewingRoom(uid);
-        onlineUsers.remove(uid);
+        onlineUsers.remove(uid, device);
         if (!onlineUsers.has(uid)) {
-          io.emit('user_offline', { userId: uid });
+          io.emit('user_offline', { userId: uid, device });
+        } else {
+          io.emit('user_presence', {
+            userId: uid,
+            device,
+            devices: onlineUsers.getDevices(uid),
+          });
         }
       }
     });

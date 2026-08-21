@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { orgApi, memosApi, type OrgUser } from '../api';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
@@ -20,9 +20,11 @@ function MemoComposeModal({ onClose, onSent, initialRecipientIds = [] }: MemoCom
   const showToast = useToastStore((s) => s.show);
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initialRecipientIds));
   const [searchQuery, setSearchQuery] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [loading, setLoading] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { data: orgTree = [], isLoading: orgLoading } = useQuery({
     queryKey: ['org', 'tree'],
@@ -41,20 +43,41 @@ function MemoComposeModal({ onClose, onSent, initialRecipientIds = [] }: MemoCom
     return users;
   }, [orgTree, myId]);
 
-  const searchLower = searchQuery.trim().toLowerCase();
-  const filteredUsers = searchLower
-    ? allUsers.filter(
-        (u) =>
-          u.name.toLowerCase().includes(searchLower) ||
-          (u.email && u.email.toLowerCase().includes(searchLower)),
-      )
-    : allUsers;
+  const usersById = useMemo(() => {
+    const map = new Map<string, OrgUser>();
+    allUsers.forEach((u) => map.set(u.id, u));
+    return map;
+  }, [allUsers]);
 
-  const toggleUser = (userId: string) => {
+  const selectedUsers = useMemo(
+    () => [...selected].map((id) => usersById.get(id)).filter(Boolean) as OrgUser[],
+    [selected, usersById],
+  );
+
+  const searchLower = searchQuery.trim().toLowerCase();
+  const suggestions = useMemo(() => {
+    return allUsers
+      .filter((u) => !selected.has(u.id))
+      .filter((u) => {
+        if (!searchLower) return true;
+        return (
+          u.name.toLowerCase().includes(searchLower) ||
+          (u.email != null && u.email.toLowerCase().includes(searchLower))
+        );
+      })
+      .slice(0, 8);
+  }, [allUsers, selected, searchLower]);
+
+  const addUser = (userId: string) => {
+    setSelected((prev) => new Set(prev).add(userId));
+    setSearchQuery('');
+    searchInputRef.current?.focus();
+  };
+
+  const removeUser = (userId: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(userId)) next.delete(userId);
-      else next.add(userId);
+      next.delete(userId);
       return next;
     });
   };
@@ -101,45 +124,134 @@ function MemoComposeModal({ onClose, onSent, initialRecipientIds = [] }: MemoCom
       <div className="flex flex-col gap-3">
         <div>
           <div className={cn('mb-1.5 text-xs font-semibold', isDark ? 'text-slate-300' : 'text-slate-600')}>
-            받는 사람 ({selected.size})
+            받는 사람
           </div>
-          <UITextInput
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="이름 또는 이메일 검색"
-          />
           <div
             className={cn(
-              'mt-2 max-h-[140px] overflow-auto rounded-lg border p-2',
-              isDark ? 'border-slate-600 bg-slate-900' : 'border-slate-200 bg-slate-50',
+              'relative rounded-xl border px-2.5 py-2 transition-[border-color,box-shadow]',
+              pickerOpen
+                ? 'border-brand-dark ring-1 ring-brand-dark/30'
+                : isDark
+                  ? 'border-slate-600'
+                  : 'border-slate-200',
+              isDark ? 'bg-slate-950' : 'bg-slate-50',
             )}
+            onClick={() => searchInputRef.current?.focus()}
           >
-            {orgLoading ? (
-              <div className={cn('py-4 text-center text-sm', isDark ? 'text-slate-400' : 'text-slate-500')}>로딩 중...</div>
-            ) : filteredUsers.length === 0 ? (
-              <div className={cn('py-4 text-center text-sm', isDark ? 'text-slate-400' : 'text-slate-500')}>선택할 수 있는 사용자가 없습니다</div>
-            ) : (
-              filteredUsers.map((u) => (
-                <label
+            <div className="flex flex-wrap items-center gap-1.5">
+              {selectedUsers.map((u) => (
+                <span
                   key={u.id}
                   className={cn(
-                    'flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer text-sm',
-                    isDark ? 'hover:bg-slate-800' : 'hover:bg-white',
+                    'inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[13px] font-medium',
+                    isDark ? 'bg-slate-700 text-slate-100' : 'bg-white text-slate-800 border border-slate-200',
                   )}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selected.has(u.id)}
-                    onChange={() => toggleUser(u.id)}
-                  />
-                  <span className={cn('font-medium', isDark ? 'text-slate-200' : 'text-slate-800')}>{u.name}</span>
-                  {u.email && (
-                    <span className={cn('text-xs truncate', isDark ? 'text-slate-500' : 'text-slate-400')}>{u.email}</span>
-                  )}
-                </label>
-              ))
+                  <span className="truncate">{u.name}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeUser(u.id);
+                    }}
+                    className={cn(
+                      'shrink-0 border-none bg-transparent p-0 text-sm leading-none cursor-pointer rounded',
+                      isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-700',
+                    )}
+                    aria-label={`${u.name} 제거`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setPickerOpen(true)}
+                onBlur={() => {
+                  // allow click on suggestion before closing
+                  window.setTimeout(() => setPickerOpen(false), 120);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Backspace' && !searchQuery && selectedUsers.length > 0) {
+                    removeUser(selectedUsers[selectedUsers.length - 1].id);
+                  }
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (suggestions[0]) addUser(suggestions[0].id);
+                  }
+                  if (e.key === 'Escape') {
+                    setPickerOpen(false);
+                    searchInputRef.current?.blur();
+                  }
+                }}
+                placeholder={selectedUsers.length === 0 ? '이름 또는 이메일로 추가' : ''}
+                aria-label="받는 사람 검색"
+                className={cn(
+                  'min-w-[140px] flex-1 border-none bg-transparent py-1 text-sm outline-none',
+                  isDark ? 'text-slate-200 placeholder:text-slate-500' : 'text-slate-800 placeholder:text-slate-400',
+                )}
+              />
+            </div>
+
+            {pickerOpen && (
+              <div
+                className={cn(
+                  'absolute left-0 right-0 top-[calc(100%+4px)] z-20 max-h-[200px] overflow-auto rounded-lg border py-1 shadow-lg',
+                  isDark ? 'border-slate-600 bg-slate-800' : 'border-slate-200 bg-white',
+                )}
+              >
+                {orgLoading ? (
+                  <div className={cn('px-3 py-3 text-sm', isDark ? 'text-slate-400' : 'text-slate-500')}>
+                    로딩 중...
+                  </div>
+                ) : suggestions.length === 0 ? (
+                  <div className={cn('px-3 py-3 text-sm', isDark ? 'text-slate-400' : 'text-slate-500')}>
+                    {searchLower ? '검색 결과가 없습니다' : '추가할 사람이 없습니다'}
+                  </div>
+                ) : (
+                  suggestions.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => addUser(u.id)}
+                      className={cn(
+                        'flex w-full items-center gap-2 border-none bg-transparent px-3 py-2 text-left cursor-pointer',
+                        isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-50',
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
+                          isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600',
+                        )}
+                      >
+                        {(u.name?.trim().slice(0, 1) || '?').toUpperCase()}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={cn('block truncate text-sm font-medium', isDark ? 'text-slate-100' : 'text-slate-800')}>
+                          {u.name}
+                        </span>
+                        {u.email && (
+                          <span className={cn('block truncate text-xs', isDark ? 'text-slate-500' : 'text-slate-400')}>
+                            {u.email}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
             )}
           </div>
+          {selectedUsers.length > 0 && (
+            <div className={cn('mt-1.5 text-[11px]', isDark ? 'text-slate-500' : 'text-slate-400')}>
+              {selectedUsers.length}명 선택됨
+            </div>
+          )}
         </div>
 
         <div>

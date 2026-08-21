@@ -27,6 +27,7 @@ import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/comp
 import MainOverlays from './main/components/MainOverlays';
 import { cn } from '../utils/cn';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
+import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 
 const STATUS_OPTIONS = [
   { id: '', label: '설정 안 함' },
@@ -152,6 +153,7 @@ export default function Main() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const [onlinePresence, setOnlinePresence] = useState<OnlinePresenceMap>({});
   const [showMemoCompose, setShowMemoCompose] = useState(false);
   const [memoComposeRecipients, setMemoComposeRecipients] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; user: OrgUser; orgGroupId?: string } | null>(null);
@@ -221,6 +223,7 @@ export default function Main() {
     mutedRoomIdsRef,
     notificationsSnoozedUntilRef,
     setOnlineUserIds,
+    setOnlinePresence,
     setSocketConnected,
     setSocket,
     socketRef,
@@ -348,7 +351,12 @@ export default function Main() {
 
   // --- Effects ---
   useEffect(() => { if (!selectedDate) return; setEventForm((prev) => { const n = normalizeTimeRange(selectedDate, prev.startAt, prev.endAt); return { ...prev, startAt: n.startAt, endAt: n.endAt }; }); }, [selectedDate]);
-  useEffect(() => { if (onlineData?.userIds) setOnlineUserIds(new Set(onlineData.userIds.map((id) => String(id)))); }, [onlineData?.userIds]);
+  useEffect(() => {
+    if (!onlineData) return;
+    const map = presenceFromList(onlineData.userIds, onlineData.presence);
+    setOnlinePresence(map);
+    setOnlineUserIds(new Set(Object.keys(map).filter((id) => map[id].desktop || map[id].mobile)));
+  }, [onlineData]);
   useEffect(() => {
     const unread = getNewestUnreadAnnouncement(announcementItems);
     if (unread?.content?.trim()) {
@@ -786,6 +794,7 @@ export default function Main() {
                 orgStarred,
                 onToggleOrgStar: toggleOrgStar,
                 onlineUserIds,
+                onlinePresence,
                 myId,
                 myEmail,
                 socketConnected: !!socket?.connected,

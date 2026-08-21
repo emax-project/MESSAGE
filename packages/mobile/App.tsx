@@ -87,7 +87,7 @@ function MainTabsWithSocket({ baseUrlReady }: { baseUrlReady: boolean }) {
     if (!token || !baseUrlReady) return;
     const url = getSocketUrl();
     if (!url) return;
-    const s = io(url, { path: '/socket.io', auth: { token }, reconnection: true, reconnectionDelay: 3000 });
+    const s = io(url, { path: '/socket.io', auth: { token, device: 'mobile' }, reconnection: true, reconnectionDelay: 3000 });
     globalSocketRef.current = s;
     setGlobalSocket(s);
     s.on('connect', () => {

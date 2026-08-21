@@ -77,6 +77,7 @@ type RightContentRouterProps = {
     orgStarred: Set<string>;
     onToggleOrgStar: (id: string) => void;
     onlineUserIds: Set<string>;
+    onlinePresence: import('../../../utils/presence').OnlinePresenceMap;
     myId?: string;
     myEmail?: string;
     socketConnected: boolean;
@@ -179,6 +180,7 @@ function RightContentRouter({
             orgStarred={orgProps.orgStarred}
             onToggleOrgStar={orgProps.onToggleOrgStar}
             onlineUserIds={orgProps.onlineUserIds}
+            onlinePresence={orgProps.onlinePresence}
             myId={orgProps.myId}
             myEmail={orgProps.myEmail}
             socketConnected={orgProps.socketConnected}

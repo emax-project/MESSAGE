@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, type Room, type Message, type FileInfo } from '../api';
+import { roomsApi, filesApi, eventsApi, pollsApi, projectsApi, type Room, type Message } from '../api';
 import FileUploadButton from '../components/FileUploadButton';
 import InviteModal from '../components/InviteModal';
 import RoomSettingsModal from '../components/RoomSettingsModal';
@@ -32,12 +32,9 @@ import { cn } from '../utils/cn';
 import ChatBubbleList from './chat-window/components/ChatBubbleList';
 import BoardMessageList from './chat-window/components/BoardMessageList';
 import ThreadPanel from './chat-window/components/ThreadPanel';
-import RightSidebar from './chat-window/components/RightSidebar';
 
 const MAX_DROP_SIZE = 2 * 1024 * 1024 * 1024;
 const SCROLL_BOTTOM_THRESHOLD = 80;
-const RIGHT_SIDEBAR_PANEL_WIDTH = 280;
-const RIGHT_SIDEBAR_ICON_WIDTH = 48;
 
 
 type ChatWindowProps = { embedded?: boolean; onOpenInNewWindow?: () => void };
@@ -76,20 +73,17 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const [taskFromMessage, setTaskFromMessage] = useState<{ title: string; messageId: string } | null>(null);
   const [threadOpen, setThreadOpen] = useState<{ parentId: string; parent: Message; replies: Message[] } | null>(null);
-  const [fileDrawerData, setFileDrawerData] = useState<FileInfo[]>([]);
-  const [rightPanel, setRightPanel] = useState<'none' | 'file' | 'members' | 'pins'>('none');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [messageContext, setMessageContext] = useState<MessageContext | null>(null);
   useEffect(() => {
-    setRightPanel('none');
     setInput('');
     setReplyTo(null);
     setEditingMsg(null);
   }, [roomId]);
   const [boardCommentInputs, setBoardCommentInputs] = useState<Record<string, string>>({});
   const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
-  // 임베디드(모바일 셸)이거나 좁은 창에서는 컴팩트 헤더 + 사이드 패널 오버레이
+  // 임베디드(모바일 셸)이거나 좁은 창에서는 컴팩트 헤더
   const isCompactHeader = embedded || viewportWidth < 980;
   const socketRef = useRef<Socket | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
@@ -509,22 +503,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     }
   };
 
-  const handleOpenFileDrawer = async () => {
-    if (!roomId) return;
-    const isClosing = rightPanel === 'file';
-    if (isClosing) {
-      setRightPanel('none');
-      return;
-    }
-    try {
-      const { files } = await roomsApi.files(roomId);
-      setFileDrawerData(files);
-      setRightPanel('file');
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const viewModeFromState = (location.state as { viewMode?: 'chat' | 'board' })?.viewMode;
   const isBoardView = room?.viewMode === 'board' || viewModeFromListNow === 'board' || viewModeFromState === 'board';
 
@@ -649,7 +627,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
         <div
           className={cn(
             'flex flex-col flex-1 min-w-0 relative',
-            isCompactHeader && 'pr-12',
             isDark ? 'bg-slate-900' : 'bg-white',
           )}
           onDragOver={handleDragOver}
@@ -1172,21 +1149,6 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
 
         <ThreadPanel threadOpen={threadOpen} setThreadOpen={setThreadOpen} isDark={isDark} />
         </div>
-
-        <RightSidebar
-          isDark={isDark}
-          rightPanel={rightPanel}
-          setRightPanel={setRightPanel}
-          handleOpenFileDrawer={handleOpenFileDrawer}
-          fileDrawerData={fileDrawerData}
-          canInvite={canInvite}
-          setInviteOpen={setInviteOpen}
-          roomId={roomId}
-          members={members}
-          panelWidth={RIGHT_SIDEBAR_PANEL_WIDTH}
-          iconWidth={RIGHT_SIDEBAR_ICON_WIDTH}
-          overlay={isCompactHeader}
-        />
       </div>
     </div>
   );
