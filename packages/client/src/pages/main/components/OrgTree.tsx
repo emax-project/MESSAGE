@@ -55,9 +55,9 @@ function ExpandBox({ open, onClick }: { open: boolean; onClick: () => void }) {
 }
 
 export type OrgUserContextMenuHandler = (
-  e: MouseEvent<HTMLButtonElement>,
+  e: MouseEvent,
   user: OrgUser,
-  opts?: { orgGroupId?: string },
+  opts?: { orgGroupId?: string; selectedUsers?: OrgUser[] },
 ) => void;
 
 export type OrgTreeProps = {
@@ -99,6 +99,7 @@ function OrgUserRow({
   myEmail,
   socketConnected,
   selected,
+  selectedUsers,
   onToggleSelect,
   onOpenDirectMessage,
   onUserContextMenu,
@@ -114,6 +115,7 @@ function OrgUserRow({
   myEmail?: string;
   socketConnected: boolean;
   selected: boolean;
+  selectedUsers: OrgUser[];
   onToggleSelect: (userId: string) => void;
   onOpenDirectMessage: (userId: string) => void | Promise<void>;
   onUserContextMenu: OrgUserContextMenuHandler;
@@ -129,6 +131,19 @@ function OrgUserRow({
   const mobileActive = devices ? !!devices.mobile : selfMobile;
   const isOnline = pcActive || mobileActive || onlineUserIds.has(String(u.id)) || (isMe && socketConnected);
 
+  const openContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const multi =
+      selected && selectedUsers.length > 1
+        ? selectedUsers
+        : [u];
+    onUserContextMenu(e, u, {
+      orgGroupId,
+      selectedUsers: multi,
+    });
+  };
+
   return (
     <li className="list-none">
       <div
@@ -140,6 +155,7 @@ function OrgUserRow({
               ? (isDark ? 'bg-slate-700/80' : 'bg-slate-100')
               : 'bg-transparent',
         )}
+        onContextMenu={openContextMenu}
       >
         <label className="flex shrink-0 cursor-pointer items-center" onClick={(e) => e.stopPropagation()}>
           <input
@@ -167,7 +183,7 @@ function OrgUserRow({
               : (isDark ? 'text-slate-500' : 'text-slate-400'),
           )}
           onClick={() => void onOpenDirectMessage(u.id)}
-          onContextMenu={(e) => onUserContextMenu(e, u, orgGroupId ? { orgGroupId } : undefined)}
+          onContextMenu={openContextMenu}
         >
           {u.name}
           {isMe ? ' (나)' : ''}
@@ -233,6 +249,20 @@ function OrgTree({
     });
   };
 
+  const usersById = (() => {
+    const map = new Map<string, OrgUser>();
+    if (view === 'groups') {
+      orgGroups.forEach((g) => g.members.forEach((u) => map.set(u.id, u)));
+    } else {
+      orgTree.forEach((c) => c.departments.forEach((d) => d.users.forEach((u) => map.set(u.id, u))));
+    }
+    return map;
+  })();
+
+  const selectedUsers = [...selectedIds]
+    .map((id) => usersById.get(id))
+    .filter(Boolean) as OrgUser[];
+
   if (orgLoading && view === 'org') {
     return <p className={cn('p-4 text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>로딩 중...</p>;
   }
@@ -258,6 +288,7 @@ function OrgTree({
     myId,
     myEmail,
     socketConnected,
+    selectedUsers,
     onToggleSelect: toggleSelect,
     onOpenDirectMessage,
     onUserContextMenu,

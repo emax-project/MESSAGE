@@ -156,9 +156,9 @@ export default function Main() {
   const [onlinePresence, setOnlinePresence] = useState<OnlinePresenceMap>({});
   const [showMemoCompose, setShowMemoCompose] = useState(false);
   const [memoComposeRecipients, setMemoComposeRecipients] = useState<string[]>([]);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; user: OrgUser; orgGroupId?: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; user: OrgUser; orgGroupId?: string; selectedUsers?: OrgUser[] } | null>(null);
+  const [addToGroupUsers, setAddToGroupUsers] = useState<OrgUser[] | null>(null);
   const [profileModalUser, setProfileModalUser] = useState<OrgUser | null>(null);
-  const [addToGroupUser, setAddToGroupUser] = useState<OrgUser | null>(null);
   const [showCreateOrgGroupModal, setShowCreateOrgGroupModal] = useState(false);
   const [renamingOrgGroup, setRenamingOrgGroup] = useState<OrgGroup | null>(null);
   const [deletingOrgGroup, setDeletingOrgGroup] = useState<OrgGroup | null>(null);
@@ -565,9 +565,19 @@ export default function Main() {
       console.error(err);
     }
   }, [navigate, queryClient]);
-  const handleUserContextMenu = useCallback((e: React.MouseEvent<HTMLButtonElement>, userInfo: OrgUser, opts?: { orgGroupId?: string }) => {
+  const handleUserContextMenu = useCallback((e: React.MouseEvent, userInfo: OrgUser, opts?: { orgGroupId?: string; selectedUsers?: OrgUser[] }) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, user: userInfo, orgGroupId: opts?.orgGroupId });
+    const selectedUsers =
+      opts?.selectedUsers && opts.selectedUsers.length > 0
+        ? opts.selectedUsers
+        : [userInfo];
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      user: userInfo,
+      orgGroupId: opts?.orgGroupId,
+      selectedUsers,
+    });
   }, []);
 
   const handleCreateOrgGroup = useCallback(async (name: string) => {
@@ -629,16 +639,28 @@ export default function Main() {
     }
   }, [orgGroupsRaw, myId, queryClient, navigate]);
 
-  const handleAddToOrgGroup = useCallback(async (groupId: string, userId: string) => {
+  const handleAddToOrgGroup = useCallback(async (groupId: string, userIds: string[]) => {
+    const ids = [...new Set(userIds.map(String))].filter((id) => id && id !== String(myId));
+    if (ids.length === 0) {
+      setAddToGroupUsers(null);
+      return;
+    }
     try {
-      await orgGroupsApi.addMember(groupId, userId);
+      const results = await Promise.allSettled(ids.map((userId) => orgGroupsApi.addMember(groupId, userId)));
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      const ok = results.length - failed;
       queryClient.invalidateQueries({ queryKey: ['org-groups'] });
-      setAddToGroupUser(null);
+      setAddToGroupUsers(null);
+      if (failed > 0 && ok === 0) {
+        alert('그룹에 추가하지 못했습니다.');
+      } else if (failed > 0) {
+        alert(`${ok}명 추가 · ${failed}명 실패`);
+      }
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : '그룹에 추가하지 못했습니다.');
     }
-  }, [queryClient]);
+  }, [queryClient, myId]);
 
   const handleRemoveFromOrgGroup = useCallback(async (groupId: string, userId: string) => {
     try {
@@ -881,8 +903,8 @@ export default function Main() {
         setContextMenu={setContextMenu}
         setProfileModalUser={setProfileModalUser}
         orgGroups={orgGroupsRaw}
-        addToGroupUser={addToGroupUser}
-        setAddToGroupUser={setAddToGroupUser}
+        addToGroupUsers={addToGroupUsers}
+        setAddToGroupUsers={setAddToGroupUsers}
         onAddToOrgGroup={handleAddToOrgGroup}
         onRemoveFromOrgGroup={handleRemoveFromOrgGroup}
         showCreateOrgGroupModal={showCreateOrgGroupModal}

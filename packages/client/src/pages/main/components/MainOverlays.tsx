@@ -8,7 +8,7 @@ import AvatarEditModal from '../../../components/AvatarEditModal';
 import UICloseButton from '../../../components/ui/UICloseButton';
 import { cn } from '../../../utils/cn';
 
-type CtxUserMenu = { x: number; y: number; user: OrgUser; orgGroupId?: string } | null;
+type CtxUserMenu = { x: number; y: number; user: OrgUser; orgGroupId?: string; selectedUsers?: OrgUser[] } | null;
 type CtxRoomMenu = { x: number; y: number; room: Room } | null;
 
 type MainOverlaysProps = {
@@ -32,9 +32,9 @@ type MainOverlaysProps = {
   setContextMenu: Dispatch<SetStateAction<CtxUserMenu>>;
   setProfileModalUser: Dispatch<SetStateAction<OrgUser | null>>;
   orgGroups: OrgGroup[];
-  addToGroupUser: OrgUser | null;
-  setAddToGroupUser: Dispatch<SetStateAction<OrgUser | null>>;
-  onAddToOrgGroup: (groupId: string, userId: string) => void | Promise<void>;
+  addToGroupUsers: OrgUser[] | null;
+  setAddToGroupUsers: Dispatch<SetStateAction<OrgUser[] | null>>;
+  onAddToOrgGroup: (groupId: string, userIds: string[]) => void | Promise<void>;
   onRemoveFromOrgGroup: (groupId: string, userId: string) => void | Promise<void>;
   showCreateOrgGroupModal: boolean;
   setShowCreateOrgGroupModal: Dispatch<SetStateAction<boolean>>;
@@ -78,8 +78,8 @@ export default function MainOverlays({
   setContextMenu,
   setProfileModalUser,
   orgGroups,
-  addToGroupUser,
-  setAddToGroupUser,
+  addToGroupUsers,
+  setAddToGroupUsers,
   onAddToOrgGroup,
   onRemoveFromOrgGroup,
   showCreateOrgGroupModal,
@@ -181,24 +181,32 @@ export default function MainOverlays({
       {showFolderManageModal && <FolderManageModal topicRooms={topicRooms} onClose={() => setShowFolderManageModal(false)} />}
 
       {contextMenu && (() => {
+        const targets = contextMenu.selectedUsers?.length
+          ? contextMenu.selectedUsers
+          : [contextMenu.user];
+        const multiCount = targets.length;
         const estH = contextMenu.orgGroupId ? 140 : 110;
         const top = contextMenu.y + estH > window.innerHeight - 8 ? contextMenu.y - estH : contextMenu.y;
-        const left = Math.min(Math.max(contextMenu.x, 8), window.innerWidth - 160);
+        const left = Math.min(Math.max(contextMenu.x, 8), window.innerWidth - 180);
         return (
           <div className={ctxMenuCls} style={{ left, top }} onClick={(e) => e.stopPropagation()}>
-            <button type="button" className={ctxMenuItemCls} onClick={() => { setProfileModalUser(contextMenu.user); setContextMenu(null); }}>프로필 보기</button>
-            <button type="button" className={ctxMenuItemCls} onClick={() => onSendMemoToUser(contextMenu.user.id)}>쪽지 보내기</button>
+            {multiCount === 1 && (
+              <>
+                <button type="button" className={ctxMenuItemCls} onClick={() => { setProfileModalUser(contextMenu.user); setContextMenu(null); }}>프로필 보기</button>
+                <button type="button" className={ctxMenuItemCls} onClick={() => onSendMemoToUser(contextMenu.user.id)}>쪽지 보내기</button>
+              </>
+            )}
             <button
               type="button"
               className={ctxMenuItemCls}
               onClick={() => {
-                setAddToGroupUser(contextMenu.user);
+                setAddToGroupUsers(targets);
                 setContextMenu(null);
               }}
             >
-              내 그룹에 추가
+              {multiCount > 1 ? `내 그룹에 추가 (${multiCount}명)` : '내 그룹에 추가'}
             </button>
-            {contextMenu.orgGroupId && (
+            {contextMenu.orgGroupId && multiCount === 1 && (
               <button
                 type="button"
                 className={cn(ctxMenuItemCls, 'text-[#c62828]')}
@@ -207,65 +215,97 @@ export default function MainOverlays({
                 그룹에서 제거
               </button>
             )}
+            {contextMenu.orgGroupId && multiCount > 1 && (
+              <button
+                type="button"
+                className={cn(ctxMenuItemCls, 'text-[#c62828]')}
+                onClick={() => {
+                  void (async () => {
+                    for (const u of targets) {
+                      await onRemoveFromOrgGroup(contextMenu.orgGroupId!, u.id);
+                    }
+                  })();
+                }}
+              >
+                그룹에서 제거 ({multiCount}명)
+              </button>
+            )}
           </div>
         );
       })()}
 
-      {addToGroupUser && (
-        <div className={overlayCls} onClick={() => setAddToGroupUser(null)}>
-          <div className={modalCls} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>
-                {addToGroupUser.name} → 그룹 선택
-              </h3>
-              <UICloseButton onClick={() => setAddToGroupUser(null)} />
-            </div>
-            {orgGroups.length === 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <p style={{ margin: 0, fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' }}>
-                  아직 그룹이 없습니다. 먼저 그룹을 만들어 주세요.
-                </p>
-                <button
-                  type="button"
-                  className="w-full py-2 px-4 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-bold cursor-pointer"
-                  onClick={() => {
-                    setAddToGroupUser(null);
-                    onOpenCreateOrgGroupModal();
-                  }}
-                >
-                  + 그룹 만들기
-                </button>
+      {addToGroupUsers && addToGroupUsers.length > 0 && (() => {
+        const targets = addToGroupUsers;
+        const title =
+          targets.length === 1
+            ? `${targets[0].name} → 그룹 선택`
+            : `${targets.length}명 → 그룹 선택`;
+        return (
+          <div className={overlayCls} onClick={() => setAddToGroupUsers(null)}>
+            <div className={modalCls} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>
+                  {title}
+                </h3>
+                <UICloseButton onClick={() => setAddToGroupUsers(null)} />
               </div>
-            ) : (
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                {orgGroups.map((g) => {
-                  const already = g.members.some((m) => m.id === addToGroupUser.id);
-                  return (
-                    <li key={g.id}>
-                      <button
-                        type="button"
-                        disabled={already}
-                        className={cn(
-                          'w-full text-left py-2.5 px-3 rounded-lg border-none cursor-pointer text-[13px] mb-1',
-                          already
-                            ? (isDark ? 'bg-slate-700/50 text-slate-500' : 'bg-slate-100 text-slate-400')
-                            : (isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-slate-50 text-slate-800 hover:bg-slate-100'),
-                        )}
-                        onClick={() => void onAddToOrgGroup(g.id, addToGroupUser.id)}
-                      >
-                        {g.name}
-                        <span style={{ marginLeft: 8, fontSize: 11, opacity: 0.7 }}>
-                          {already ? '이미 포함됨' : `${g.members.length}명`}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+              {targets.length > 1 && (
+                <p style={{ margin: '0 0 10px', fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
+                  {targets.map((u) => u.name).join(', ')}
+                </p>
+              )}
+              {orgGroups.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <p style={{ margin: 0, fontSize: 13, color: isDark ? '#94a3b8' : '#64748b' }}>
+                    아직 그룹이 없습니다. 먼저 그룹을 만들어 주세요.
+                  </p>
+                  <button
+                    type="button"
+                    className="w-full py-2 px-4 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-bold cursor-pointer"
+                    onClick={() => {
+                      setAddToGroupUsers(null);
+                      onOpenCreateOrgGroupModal();
+                    }}
+                  >
+                    + 그룹 만들기
+                  </button>
+                </div>
+              ) : (
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                  {orgGroups.map((g) => {
+                    const alreadyCount = targets.filter((u) => g.members.some((m) => m.id === u.id)).length;
+                    const allAlready = alreadyCount === targets.length;
+                    return (
+                      <li key={g.id}>
+                        <button
+                          type="button"
+                          disabled={allAlready}
+                          className={cn(
+                            'w-full text-left py-2.5 px-3 rounded-lg border-none cursor-pointer text-[13px] mb-1',
+                            allAlready
+                              ? (isDark ? 'bg-slate-700/50 text-slate-500' : 'bg-slate-100 text-slate-400')
+                              : (isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-slate-50 text-slate-800 hover:bg-slate-100'),
+                          )}
+                          onClick={() => void onAddToOrgGroup(g.id, targets.map((u) => u.id))}
+                        >
+                          {g.name}
+                          <span style={{ marginLeft: 8, fontSize: 11, opacity: 0.7 }}>
+                            {allAlready
+                              ? '이미 포함됨'
+                              : alreadyCount > 0
+                                ? `${targets.length - alreadyCount}명 추가 · ${alreadyCount}명 포함됨`
+                                : `${g.members.length}명`}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {roomContextMenu && (() => {
         const estH = 180;
