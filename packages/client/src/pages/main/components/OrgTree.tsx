@@ -165,9 +165,13 @@ function OrgUserRow({
             className="h-3.5 w-3.5 cursor-pointer accent-brand"
           />
         </label>
-        <span className="inline-flex shrink-0 items-center gap-0.5" title={isOnline ? '온라인' : '오프라인'}>
-          <MobileIcon active={mobileActive} />
-          <DesktopIcon active={pcActive} />
+        <span className="inline-flex shrink-0 items-center gap-0.5">
+          <span title={mobileActive ? '모바일 접속 중' : '모바일 오프라인'}>
+            <MobileIcon active={mobileActive} />
+          </span>
+          <span title={pcActive ? 'PC 접속 중' : 'PC 오프라인'}>
+            <DesktopIcon active={pcActive} />
+          </span>
         </span>
         {u.statusMessage && hasStatusIcon(u.statusMessage) && (
           <span className="inline-flex shrink-0" title={u.statusMessage}>
