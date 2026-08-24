@@ -7,6 +7,7 @@ import UITextInput from './ui/UITextInput';
 import UIModal from './ui/UIModal';
 import ModalFooter from './ui/ModalFooter';
 import { cn } from '../utils/cn';
+import { companyUsers } from '../utils/orgTree';
 
 type MemoComposeModalProps = {
   onClose: () => void;
@@ -34,11 +35,9 @@ function MemoComposeModal({ onClose, onSent, initialRecipientIds = [] }: MemoCom
   const allUsers = useMemo(() => {
     const users: OrgUser[] = [];
     (Array.isArray(orgTree) ? orgTree : []).forEach((c) =>
-      (c.departments ?? []).forEach((d) =>
-        (d.users ?? []).forEach((u) => {
-          if (String(u.id) !== String(myId)) users.push(u);
-        }),
-      ),
+      companyUsers(c).forEach((u) => {
+        if (String(u.id) !== String(myId)) users.push(u);
+      }),
     );
     return users;
   }, [orgTree, myId]);

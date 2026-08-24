@@ -26,6 +26,7 @@ import RightContentRouter from './main/components/RightContentRouter';
 import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/components/AnnouncementPanel';
 import MainOverlays from './main/components/MainOverlays';
 import { cn } from '../utils/cn';
+import { companyUsers, filterDepartments } from '../utils/orgTree';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 
@@ -269,16 +270,15 @@ export default function Main() {
   });
   const orgTree = useMemo(() => {
     const tree = orgTreeRaw ?? [];
+    const keepUser = (u: OrgUser) => {
+      const nameMatch = !q || u.name?.toLowerCase().includes(q);
+      const onlineMatch = !showOnlineOnly || onlineUserIds.has(String(u.id));
+      return Boolean(nameMatch && onlineMatch);
+    };
     const filtered = tree.map((company) => ({
       ...company,
-      departments: (company.departments ?? []).map((dept) => ({
-        ...dept,
-        users: (dept.users ?? []).filter((u) => {
-          const nameMatch = !q || u.name?.toLowerCase().includes(q);
-          const onlineMatch = !showOnlineOnly || onlineUserIds.has(String(u.id));
-          return nameMatch && onlineMatch;
-        }),
-      })).filter((dept) => (dept.users?.length ?? 0) > 0),
+      // 하위 부서에 남는 사람이 있으면 상위 부서도 유지된다
+      departments: filterDepartments(company.departments ?? [], keepUser),
     })).filter((company) => (company.departments?.length ?? 0) > 0);
     return filtered
       .map((c) => ({ ...c, departments: [...c.departments].sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0)) }))
@@ -301,7 +301,7 @@ export default function Main() {
   const companyMemberCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const company of orgTreeRaw ?? []) {
-      counts[company.id] = company.departments.reduce((sum, dept) => sum + (dept.users?.length ?? 0), 0);
+      counts[company.id] = companyUsers(company).length;
     }
     return counts;
   }, [orgTreeRaw]);

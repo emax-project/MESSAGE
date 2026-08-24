@@ -13,14 +13,35 @@ model Company {
   departments Department[]
 }
 
+// 직급 추천 목록.
+// 실제 직급 값은 User.jobTitle 문자열에 그대로 남는다(관계가 아니다).
+// 이 표는 아직 아무도 쓰지 않는 직급도 목록에 띄우기 위한 마스터일 뿐이라,
+// 여기 없는 직급을 사용자에게 직접 입력하는 것도 계속 허용된다.
+model JobTitle {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([sortOrder])
+}
+
 model Department {
   id        String  @id @default(cuid())
   name      String
   companyId String
+  // 상위 부서. null이면 회사 바로 아래(최상위) 부서.
+  parentId  String?
+  // 같은 상위 부서 안에서의 조회 순번. 작을수록 먼저 나온다.
+  sortOrder Int      @default(0)
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // 상위 부서가 지워지면 하위 부서는 최상위로 올라간다(연쇄 삭제 방지).
+  parent    Department?  @relation("DepartmentTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Department[] @relation("DepartmentTree")
   users     User[]
 
   @@index([companyId])
+  @@index([parentId])
 }
 
 model User {

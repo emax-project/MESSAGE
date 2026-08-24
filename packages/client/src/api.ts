@@ -175,7 +175,15 @@ export const api = {
 export type User = { id: string; email: string; name: string; phone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; avatarUrl?: string };
 
 export type OrgUser = { id: string; name: string; email: string; phone?: string | null; jobTitle?: string | null; avatarUrl?: string; statusMessage?: string | null };
-export type OrgDepartment = { id: string; name: string; users: OrgUser[] };
+export type OrgDepartment = {
+  id: string;
+  name: string;
+  users: OrgUser[];
+  /** 상위 부서 id. null이면 회사 바로 아래 */
+  parentId?: string | null;
+  /** 하위 부서. 회사 전체를 훑을 땐 utils/orgTree의 헬퍼를 쓸 것 */
+  children: OrgDepartment[];
+};
 export type OrgCompany = { id: string; name: string; departments: OrgDepartment[] };
 
 export type ReactionGroup = { emoji: string; count: number; userIds: string[] };
@@ -345,6 +353,28 @@ export type BulkRegisterResult = {
 };
 
 export const usersApi = {
+  /**
+   * 비밀번호 초기화 (관리자 전용).
+   * 기존 비밀번호를 몰라도 바꿀 수 있고, 대상 사용자의 세션은 모두 끊긴다.
+   */
+  resetPassword: (id: string, password: string) =>
+    api.post(`/users/${id}/reset-password`, { password }) as Promise<{
+      ok: boolean;
+      name: string;
+      email: string;
+    }>,
+  /** 삭제 시 함께 사라지는 데이터 (관리자 전용) */
+  deleteImpact: (id: string) => api.get(`/users/${id}/impact`) as Promise<UserDeleteImpact>,
+  /**
+   * 사용자 삭제 (관리자 전용). 되돌릴 수 없고 보낸 메시지도 함께 지워진다.
+   * confirmMessages에는 화면에서 확인한 메시지 수를 그대로 넘긴다(불일치 시 서버가 중단).
+   */
+  remove: (id: string, confirmMessages: number) =>
+    api.delete(`/users/${id}?confirmMessages=${confirmMessages}`) as Promise<{
+      deleted: boolean;
+      name: string;
+      messageCount: number;
+    }>,
   list: () => api.get('/users') as Promise<User[]>,
   bulkRegister: (data: { defaultPassword?: string; users: BulkRegisterUserInput[] }) =>
     api.post('/users/bulk', data) as Promise<BulkRegisterResult>,
@@ -377,12 +407,98 @@ export const usersApi = {
   },
 };
 
+export type DepartmentItem = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  companyId: string;
+  companyName: string;
+  /** 이 부서에 직접 속한 인원 */
+  userCount: number;
+  /** 저장된 정렬값 */
+  sortOrder: number;
+  /** 화면에 보이는 조회 순번 (같은 상위 부서 안에서 1부터) */
+  order: number;
+  /** 하위 부서까지 합친 인원 */
+  totalUserCount: number;
+  /** 트리 깊이 (0 = 최상위) */
+  depth: number;
+  /** '본부 > 팀 > 파트' 전체 경로 */
+  path: string;
+};
+
+export type JobTitleItem = {
+  name: string;
+  userCount: number;
+  /** 직급 목록에 등록된 값인지. false면 예전에 자유 입력으로 들어간 값 */
+  inMaster: boolean;
+  sortOrder: number;
+  /** 화면에 보이는 조회 순번. 목록에 없는 값은 null */
+  order: number | null;
+};
+
+export type UserDeleteImpact = {
+  id: string;
+  name: string;
+  email: string;
+  /** 함께 삭제될 메시지 수 (Message.sender가 Cascade) */
+  messageCount: number;
+  memoCount: number;
+  roomCount: number;
+  createdRoomCount: number;
+};
+
 export const orgApi = {
   tree: () => api.get('/org/tree') as Promise<OrgCompany[]>,
   online: () => api.get('/org/online') as Promise<{
     userIds: string[];
     presence?: Record<string, { desktop: boolean; mobile: boolean }>;
   }>,
+
+  departments: () => api.get('/org/departments') as Promise<DepartmentItem[]>,
+  createDepartment: (name: string, parentId?: string | null, companyName?: string) =>
+    api.post('/org/departments', { name, parentId, companyName }) as Promise<DepartmentItem>,
+  renameDepartment: (id: string, name: string) =>
+    api.put(`/org/departments/${id}`, { name }) as Promise<{ id: string; name: string }>,
+  /** parentId를 null로 주면 최상위로 올린다. 자기 자신·자기 하위로는 옮길 수 없다. */
+  /** 같은 상위 부서 안에서 순번을 한 칸 이동한다. */
+  reorderDepartment: (id: string, direction: 'up' | 'down') =>
+    api.put(`/org/departments/${id}/order`, { direction }) as Promise<{ moved: boolean }>,
+  moveDepartment: (id: string, parentId: string | null) =>
+    api.put(`/org/departments/${id}`, { parentId }) as Promise<{
+      id: string;
+      name: string;
+      parentId: string | null;
+    }>,
+  /** moveToId를 주면 소속 인원을 그 부서로 옮긴 뒤 삭제한다. */
+  deleteDepartment: (id: string, moveToId?: string) =>
+    api.delete(
+      `/org/departments/${id}${moveToId ? `?moveToId=${encodeURIComponent(moveToId)}` : ''}`,
+    ) as Promise<{
+      deleted: boolean;
+      movedUsers: number;
+      movedTo?: string;
+      /** 한 단계 위로 올라간 하위 부서 수 */
+      promotedChildren: number;
+    }>,
+
+  jobTitles: () => api.get('/org/job-titles') as Promise<JobTitleItem[]>,
+  /** 아무도 쓰지 않아도 목록에 남는 직급을 추가한다. */
+  createJobTitle: (name: string) =>
+    api.post('/org/job-titles', { name }) as Promise<JobTitleItem>,
+  /** 사용 중인 직급은 지울 수 없다(409). 사용자까지 정리하려면 renameJobTitle에 빈 값을 준다. */
+  /** 직급 순번을 한 칸 이동한다. 목록에 등록된 직급만 순서를 가진다. */
+  reorderJobTitle: (name: string, direction: 'up' | 'down') =>
+    api.put('/org/job-titles/order', { name, direction }) as Promise<{ moved: boolean }>,
+  deleteJobTitle: (name: string) =>
+    api.delete(`/org/job-titles/${encodeURIComponent(name)}`) as Promise<{ deleted: boolean }>,
+  /** to를 비우면 해당 직급을 지운다(사용자 직급이 없음 상태가 됨). */
+  renameJobTitle: (from: string, to: string) =>
+    api.put('/org/job-titles', { from, to }) as Promise<{
+      updated: number;
+      from: string;
+      to: string | null;
+    }>,
 };
 
 export type AnnouncementItem = {

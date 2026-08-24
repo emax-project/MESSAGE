@@ -26,6 +26,8 @@ services:
       PORT: 3001
       DATABASE_URL: postgresql://message:message@db:5432/message
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      # 관리자 이메일(쉼표 구분). 비어 있으면 관리자 기능이 아무에게도 열리지 않는다.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       UPLOAD_DIR: /app/uploads
     ports:
       - "3001:3001"

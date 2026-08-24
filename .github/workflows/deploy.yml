@@ -26,6 +26,8 @@ jobs:
         run: docker compose up -d
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          # 저장소 Settings > Secrets에 ADMIN_EMAIL을 등록해야 관리자 기능이 열린다
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
 
       - name: Log result
         run: |

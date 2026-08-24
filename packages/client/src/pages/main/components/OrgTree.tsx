@@ -1,8 +1,9 @@
 import { memo, useState } from 'react';
 import type { MouseEvent } from 'react';
-import type { OrgCompany, OrgGroup, OrgUser } from '../../../api';
+import type { OrgCompany, OrgDepartment, OrgGroup, OrgUser } from '../../../api';
 import type { OnlinePresenceMap } from '../../../utils/presence';
 import { cn } from '../../../utils/cn';
+import { allOrgUsers, companyUsers, departmentUsers } from '../../../utils/orgTree';
 
 const ACTIVE_BLUE = '#3b9eff';
 const INACTIVE_GRAY = '#c5c9d0';
@@ -87,8 +88,7 @@ export type OrgTreeProps = {
   renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
 };
 
-const countCompanyUsers = (company: OrgCompany) =>
-  company.departments.reduce((sum, dept) => sum + dept.users.length, 0);
+const countCompanyUsers = (company: OrgCompany) => companyUsers(company).length;
 
 function OrgUserRow({
   u,
@@ -258,7 +258,7 @@ function OrgTree({
     if (view === 'groups') {
       orgGroups.forEach((g) => g.members.forEach((u) => map.set(u.id, u)));
     } else {
-      orgTree.forEach((c) => c.departments.forEach((d) => d.users.forEach((u) => map.set(u.id, u))));
+      allOrgUsers(orgTree).forEach((u) => map.set(u.id, u));
     }
     return map;
   })();
@@ -398,13 +398,69 @@ function OrgTree({
     return <p className={cn('p-4 text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>표시할 조직이 없습니다.</p>;
   }
 
+  /**
+   * 부서는 하위 부서를 가질 수 있으므로 재귀로 그린다.
+   * 체크박스는 하위 부서 인원까지 포함해 한 번에 선택되게 한다.
+   */
+  const renderDept = (dept: OrgDepartment) => {
+    const deptKey = `dept-${dept.id}`;
+    const deptOpen = treeOpen[deptKey] !== false;
+    const children = dept.children ?? [];
+    // 이 부서 + 모든 하위 부서의 인원
+    const deptIds = departmentUsers(dept).map((u) => u.id);
+    const deptAllSelected = deptIds.length > 0 && deptIds.every((id) => selectedIds.has(id));
+    const hasContent = dept.users.length > 0 || children.length > 0;
+
+    return (
+      <div key={dept.id} className="mt-0.5">
+        <div className="flex items-center gap-1.5 px-1 py-0.5">
+          <ExpandBox open={deptOpen} onClick={() => onToggleTree(deptKey)} />
+          <input
+            type="checkbox"
+            checked={deptAllSelected}
+            onChange={(e) => toggleSelectMany(deptIds, e.target.checked)}
+            className="h-3.5 w-3.5 cursor-pointer accent-brand"
+          />
+          <FolderIcon active={deptOpen} />
+          <button
+            type="button"
+            onClick={() => onToggleTree(deptKey)}
+            className={cn(
+              'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-medium cursor-pointer',
+              deptOpen ? 'text-[#007aff]' : (isDark ? 'text-slate-300' : 'text-slate-600'),
+            )}
+          >
+            {dept.name}
+          </button>
+          {children.length > 0 && (
+            <span className={cn('shrink-0 text-[11px] tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+              {deptIds.length}
+            </span>
+          )}
+        </div>
+        {deptOpen && hasContent && (
+          <div className="ml-[7px] border-l border-dashed border-slate-300 pl-2">
+            {dept.users.length > 0 && (
+              <ul className="m-0 list-none py-0.5 pl-1">
+                {dept.users.map((u) => (
+                  <OrgUserRow key={u.id} u={u} selected={selectedIds.has(u.id)} {...userRowProps} />
+                ))}
+              </ul>
+            )}
+            {children.map((child) => renderDept(child))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="px-2.5 py-1">
       {orgTree.map((company) => {
         const companyKey = `company-${company.id}`;
         const companyOpen = treeOpen[companyKey] !== false;
         const memberCount = companyMemberCounts?.[company.id] ?? countCompanyUsers(company);
-        const companyUserIds = company.departments.flatMap((d) => d.users.map((u) => u.id));
+        const companyUserIds = companyUsers(company).map((u) => u.id);
         const companyAllSelected =
           companyUserIds.length > 0 && companyUserIds.every((id) => selectedIds.has(id));
 
@@ -436,48 +492,7 @@ function OrgTree({
 
             {companyOpen && (
               <div className="ml-[7px] border-l border-dashed border-slate-300 pl-2">
-                {company.departments.map((dept) => {
-                  const deptKey = `dept-${dept.id}`;
-                  const deptOpen = treeOpen[deptKey] !== false;
-                  const deptIds = dept.users.map((u) => u.id);
-                  const deptAllSelected = deptIds.length > 0 && deptIds.every((id) => selectedIds.has(id));
-                  return (
-                    <div key={dept.id} className="mt-0.5">
-                      <div className="flex items-center gap-1.5 px-1 py-0.5">
-                        <ExpandBox open={deptOpen} onClick={() => onToggleTree(deptKey)} />
-                        <input
-                          type="checkbox"
-                          checked={deptAllSelected}
-                          onChange={(e) => toggleSelectMany(deptIds, e.target.checked)}
-                          className="h-3.5 w-3.5 cursor-pointer accent-brand"
-                        />
-                        <FolderIcon active={deptOpen} />
-                        <button
-                          type="button"
-                          onClick={() => onToggleTree(deptKey)}
-                          className={cn(
-                            'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-medium cursor-pointer',
-                            deptOpen ? 'text-[#007aff]' : (isDark ? 'text-slate-300' : 'text-slate-600'),
-                          )}
-                        >
-                          {dept.name}
-                        </button>
-                      </div>
-                      {deptOpen && (
-                        <ul className="m-0 list-none border-l border-dashed border-slate-300 py-0.5 pl-3 ml-[7px]">
-                          {dept.users.map((u) => (
-                            <OrgUserRow
-                              key={u.id}
-                              u={u}
-                              selected={selectedIds.has(u.id)}
-                              {...userRowProps}
-                            />
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
+                {company.departments.map((dept) => renderDept(dept))}
               </div>
             )}
           </div>

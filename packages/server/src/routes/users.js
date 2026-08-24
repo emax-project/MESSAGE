@@ -3,7 +3,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
-import { assertAdmin } from '../lib/admin.js';
+import { assertAdmin, isAdminEmail } from '../lib/admin.js';
 import { avatarUpload, UPLOAD_DIR } from '../upload.js';
 
 export const usersRouter = Router();
@@ -28,16 +28,30 @@ async function resolveDepartmentId(companyName, departmentName, cache) {
     company = await prisma.company.create({ data: { name: companyName } });
   }
 
-  let department = await prisma.department.findFirst({
-    where: {
-      companyId: company.id,
-      name: { equals: departmentName, mode: 'insensitive' },
-    },
-  });
-  if (!department) {
-    department = await prisma.department.create({
-      data: { name: departmentName, companyId: company.id },
+  // 부서는 계층이므로 '본부 > 팀 > 파트' 경로를 받는다.
+  // 구분자가 없으면 단일 이름으로 보고 최상위에서 찾는다.
+  const segments = departmentName
+    .split('>')
+    .map((v) => v.trim())
+    .filter(Boolean);
+  if (segments.length === 0) return null;
+
+  let parentId = null;
+  let department = null;
+  for (const segment of segments) {
+    department = await prisma.department.findFirst({
+      where: {
+        companyId: company.id,
+        parentId,
+        name: { equals: segment, mode: 'insensitive' },
+      },
     });
+    if (!department) {
+      department = await prisma.department.create({
+        data: { name: segment, companyId: company.id, parentId },
+      });
+    }
+    parentId = department.id;
   }
 
   cache.set(key, department.id);
@@ -343,5 +357,124 @@ usersRouter.put('/status', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+/**
+ * GET /users/:id/impact - 이 사용자를 지우면 무엇이 함께 사라지는지.
+ * Message.sender가 onDelete: Cascade라 보낸 메시지가 전부 삭제되고,
+ * 그 메시지에 달린 반응·읽음·고정도 함께 사라진다. 삭제 전에 반드시 보여줄 것.
+ */
+usersRouter.get('/:id/impact', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        _count: {
+          select: {
+            sentMessages: true,
+            sentMemos: true,
+            roomMemberships: true,
+            createdRooms: true,
+          },
+        },
+      },
+    });
+    if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+    return res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      messageCount: user._count.sentMessages,
+      memoCount: user._count.sentMemos,
+      roomCount: user._count.roomMemberships,
+      createdRoomCount: user._count.createdRooms,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to load user impact' });
+  }
+});
+
+/**
+ * DELETE /users/:id - 사용자 삭제 (관리자 전용).
+ * 되돌릴 수 없고 보낸 메시지까지 연쇄 삭제되므로 안전장치를 둔다.
+ * - 자기 자신은 지울 수 없다
+ * - ADMIN_EMAIL 목록의 계정은 지울 수 없다
+ * - ?confirmMessages=<수> 가 서버의 실제 메시지 수와 일치해야 진행한다
+ *   (목록을 띄워둔 사이 대화가 늘어난 경우 실수로 지우는 것을 막는다)
+ */
+usersRouter.delete('/:id', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, email: true, _count: { select: { sentMessages: true } } },
+    });
+    if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+    if (String(target.id) === String(req.userId)) {
+      return res.status(400).json({ error: 'CANNOT_DELETE_SELF' });
+    }
+    if (isAdminEmail(target.email)) {
+      return res.status(400).json({ error: 'CANNOT_DELETE_ADMIN' });
+    }
+
+    // 클라이언트가 본 메시지 수와 서버 현재 값이 다르면 중단한다.
+    // (목록을 띄워둔 사이에 대화가 늘어난 경우 실수로 지우는 것을 막는다)
+    const messageCount = target._count.sentMessages;
+    const confirmed = Number(req.query.confirmMessages);
+    if (!Number.isInteger(confirmed) || confirmed !== messageCount) {
+      return res.status(409).json({ error: 'MESSAGE_COUNT_MISMATCH', messageCount });
+    }
+
+    await prisma.user.delete({ where: { id: target.id } });
+    return res.json({ deleted: true, name: target.name, messageCount });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+/**
+ * POST /users/:id/reset-password - 관리자가 사용자 비밀번호를 초기화한다.
+ * body: { password }
+ * 기존 비밀번호를 몰라도 바꿀 수 있는 대신 관리자만 호출할 수 있고,
+ * 바꾼 뒤에는 그 사용자의 로그인 세션을 모두 끊어 새 비밀번호로 다시 로그인하게 한다.
+ */
+usersRouter.post('/:id/reset-password', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    if (password.length < 4) {
+      return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
+    }
+
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, email: true },
+    });
+    if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+    const hashed = await bcrypt.hash(password, 10);
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: target.id }, data: { password: hashed } }),
+      // 바뀐 비밀번호가 즉시 효력을 갖도록 기존 세션을 모두 정리한다
+      prisma.userSession.deleteMany({ where: { userId: target.id } }),
+    ]);
+
+    console.log(`[admin] 비밀번호 초기화: ${target.email}`);
+    return res.json({ ok: true, name: target.name, email: target.email });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to reset password' });
   }
 });

@@ -1,15 +1,23 @@
-import { memo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { memo, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  orgApi,
   usersApi,
   type BulkRegisterResult,
   type BulkRegisterUserInput,
+  type JobTitleItem,
+  type OrgCompany,
 } from '../../../api';
 import { cn } from '../../../utils/cn';
+import { departmentPaths } from '../../../utils/orgTree';
+import UIComboBox from '../../../components/ui/UIComboBox';
+
 
 const CSV_TEMPLATE =
   'email,name,phone,jobTitle,departmentName,companyName\n' +
-  'hong@emax.com,홍길동,010-1234-5678,대리,개발부서,이맥스\n';
+  'hong@emax.com,홍길동,010-1234-5678,대리,개발부서,이맥스\n' +
+  // 하위 부서는 '>'로 경로를 준다
+  'kim@emax.com,김철수,010-2345-6789,과장,IT사업본부 > 프론트파트,이맥스\n';
 
 const FAIL_REASON_LABEL: Record<string, string> = {
   INVALID_EMAIL: '이메일 형식 오류',
@@ -33,13 +41,22 @@ type FormRow = {
 
 type FieldKey = Exclude<keyof FormRow, 'key'>;
 
-const FIELDS: { field: FieldKey; label: string; placeholder: string; required?: boolean }[] = [
+type SuggestKey = 'jobTitle' | 'companyName' | 'departmentName';
+
+const FIELDS: {
+  field: FieldKey;
+  label: string;
+  placeholder: string;
+  required?: boolean;
+  /** 지정하면 입력+선택 콤보박스로 렌더링 */
+  suggest?: SuggestKey;
+}[] = [
   { field: 'email', label: '이메일', placeholder: 'email@emax.com', required: true },
   { field: 'name', label: '이름', placeholder: '홍길동', required: true },
   { field: 'phone', label: '연락처', placeholder: '010-1234-5678' },
-  { field: 'jobTitle', label: '직급', placeholder: '대리' },
-  { field: 'companyName', label: '회사', placeholder: '이맥스' },
-  { field: 'departmentName', label: '부서', placeholder: '개발부서' },
+  { field: 'jobTitle', label: '직급', placeholder: '대리', suggest: 'jobTitle' },
+  { field: 'companyName', label: '회사', placeholder: '이맥스', suggest: 'companyName' },
+  { field: 'departmentName', label: '부서', placeholder: '개발부서 (하위: 본부 > 팀)', suggest: 'departmentName' },
 ];
 
 function newKey() {
@@ -144,15 +161,57 @@ function downloadTemplate() {
 type BulkUserRegisterSectionProps = {
   isDark: boolean;
   isNarrowLayout?: boolean;
+  /** 탭 안에 들어갈 때: 바깥 카드와 제목을 상위(AdminSection)가 그리므로 생략 */
+  embedded?: boolean;
 };
 
-function BulkUserRegisterSection({ isDark, isNarrowLayout = false }: BulkUserRegisterSectionProps) {
+function BulkUserRegisterSection({
+  isDark,
+  isNarrowLayout = false,
+  embedded = false,
+}: BulkUserRegisterSectionProps) {
   const queryClient = useQueryClient();
   const [defaultPassword, setDefaultPassword] = useState('123456');
   const [rows, setRows] = useState<FormRow[]>(() => [emptyRow()]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BulkRegisterResult | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
+
+  // 이미 Main/InviteModal 등에서 쓰는 캐시를 그대로 재사용합니다.
+  const { data: orgTree = [] } = useQuery<OrgCompany[]>({
+    queryKey: ['org', 'tree'],
+    queryFn: orgApi.tree,
+  });
+
+  const companyOptions = useMemo(
+    () => orgTree.map((c) => c.name).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ko')),
+    [orgTree],
+  );
+
+  // 직급은 '부서 · 직급' 관리 화면과 같은 출처를 본다.
+  // (예전엔 조직도 사용자 값 + 하드코딩 목록에서 만들어서 두 화면이 달라 보였다.)
+  const { data: jobTitles = [] } = useQuery<JobTitleItem[]>({
+    queryKey: ['org', 'job-titles'],
+    queryFn: orgApi.jobTitles,
+  });
+  const jobTitleOptions = useMemo(() => jobTitles.map((j) => j.name), [jobTitles]);
+
+  /** 회사를 고른 행은 그 회사의 부서만, 아직 안 골랐으면 전체 부서를 제안 */
+  const departmentOptionsFor = (companyName: string) => {
+    const target = companyName.trim().toLowerCase();
+    const scoped = target ? orgTree.filter((c) => c.name.trim().toLowerCase() === target) : orgTree;
+    const source = scoped.length > 0 ? scoped : orgTree;
+    // 정렬하지 않는다. 조직도가 이미 관리 화면의 순번대로 내려주므로 그 순서를 그대로 쓴다.
+    const names = new Set<string>();
+    source.forEach((c) => departmentPaths(c.departments).forEach((path) => names.add(path)));
+    return Array.from(names);
+  };
+
+  const optionsFor = (suggest: SuggestKey, row: FormRow) => {
+    if (suggest === 'companyName') return companyOptions;
+    if (suggest === 'jobTitle') return jobTitleOptions;
+    return departmentOptionsFor(row.companyName);
+  };
 
   const border = isDark ? 'border-slate-600' : 'border-slate-200';
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
@@ -255,12 +314,14 @@ function BulkUserRegisterSection({ isDark, isNarrowLayout = false }: BulkUserReg
   );
 
   return (
-    <div className={cn('flex flex-col gap-3 rounded-[10px] px-3.5 py-3', sectionBg)}>
+    <div className={cn('flex flex-col gap-3', !embedded && cn('rounded-[10px] px-3.5 py-3', sectionBg))}>
       <div>
-        <h4 className={cn('m-0 text-sm font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
-          사용자 일괄 등록
-        </h4>
-        <p className={cn('mt-1 mb-0 text-xs leading-relaxed', muted)}>
+        {!embedded && (
+          <h4 className={cn('m-0 text-sm font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
+            사용자 일괄 등록
+          </h4>
+        )}
+        <p className={cn(embedded ? 'mt-0' : 'mt-1', 'mb-0 text-xs leading-relaxed', muted)}>
           {isNarrowLayout
             ? '한 명씩 카드를 채워 등록하세요. 회사·부서가 없으면 자동 생성됩니다.'
             : '직접 입력하거나 CSV로 불러온 뒤 등록합니다. 회사·부서명이 없으면 자동 생성됩니다.'}
@@ -304,21 +365,32 @@ function BulkUserRegisterSection({ isDark, isNarrowLayout = false }: BulkUserReg
                 )}
               </div>
               <div className="flex flex-col gap-2.5">
-                {FIELDS.map(({ field, label, placeholder, required }) => (
+                {FIELDS.map(({ field, label, placeholder, required, suggest }) => (
                   <div key={field}>
                     <label className={cn('mb-1 block text-[11px] font-medium', muted)}>
                       {label}{required ? ' *' : ''}
                     </label>
-                    <input
-                      type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
-                      inputMode={field === 'email' ? 'email' : field === 'phone' ? 'tel' : undefined}
-                      autoCapitalize={field === 'email' ? 'none' : undefined}
-                      autoCorrect="off"
-                      value={row[field]}
-                      placeholder={placeholder}
-                      onChange={(e) => updateRow(row.key, field, e.target.value)}
-                      className={inputCls}
-                    />
+                    {suggest ? (
+                      <UIComboBox
+                        isDark={isDark}
+                        value={row[field]}
+                        options={optionsFor(suggest, row)}
+                        placeholder={placeholder}
+                        className={inputCls}
+                        onChange={(v) => updateRow(row.key, field, v)}
+                      />
+                    ) : (
+                      <input
+                        type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
+                        inputMode={field === 'email' ? 'email' : field === 'phone' ? 'tel' : undefined}
+                        autoCapitalize={field === 'email' ? 'none' : undefined}
+                        autoCorrect="off"
+                        value={row[field]}
+                        placeholder={placeholder}
+                        onChange={(e) => updateRow(row.key, field, e.target.value)}
+                        className={inputCls}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -341,15 +413,26 @@ function BulkUserRegisterSection({ isDark, isNarrowLayout = false }: BulkUserReg
             <tbody>
               {rows.map((row) => (
                 <tr key={row.key} className={cn('border-t', border)}>
-                  {FIELDS.map(({ field, placeholder }) => (
+                  {FIELDS.map(({ field, placeholder, suggest }) => (
                     <td key={field} className="p-1">
-                      <input
-                        type="text"
-                        value={row[field]}
-                        placeholder={placeholder}
-                        onChange={(e) => updateRow(row.key, field, e.target.value)}
-                        className={cn(inputCls, 'px-2 py-1.5 text-[13px]')}
-                      />
+                      {suggest ? (
+                        <UIComboBox
+                          isDark={isDark}
+                          value={row[field]}
+                          options={optionsFor(suggest, row)}
+                          placeholder={placeholder}
+                          className={cn(inputCls, 'px-2 py-1.5 pr-5 text-[13px]')}
+                          onChange={(v) => updateRow(row.key, field, v)}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={row[field]}
+                          placeholder={placeholder}
+                          onChange={(e) => updateRow(row.key, field, e.target.value)}
+                          className={cn(inputCls, 'px-2 py-1.5 text-[13px]')}
+                        />
+                      )}
                     </td>
                   ))}
                   <td className="p-1 text-center">

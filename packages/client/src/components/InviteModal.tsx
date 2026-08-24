@@ -8,6 +8,7 @@ import UIModal from './ui/UIModal';
 import ModalFooter from './ui/ModalFooter';
 import UIChevron from './ui/UIChevron';
 import { cn } from '../utils/cn';
+import { companyUsers, flattenDepartments } from '../utils/orgTree';
 
 type Props = {
   roomId: string;
@@ -36,11 +37,9 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
   const allUsers: { id: string; name: string; email: string }[] = [];
   const safeOrgTree = Array.isArray(orgTree) ? orgTree : [];
   safeOrgTree.forEach((c) =>
-    (c.departments ?? []).forEach((d) =>
-      (d.users ?? []).forEach((u: OrgUser) => {
-        if (!memberSet.has(u.id)) allUsers.push({ id: u.id, name: u.name, email: u.email ?? '' });
-      })
-    )
+    companyUsers(c).forEach((u: OrgUser) => {
+      if (!memberSet.has(u.id)) allUsers.push({ id: u.id, name: u.name, email: u.email ?? '' });
+    })
   );
 
   const searchLower = searchQuery.trim().toLowerCase();
@@ -187,7 +186,7 @@ export default function InviteModal({ roomId, currentMemberIds, onClose, onInvit
               ) : (
                 <div>
                   {safeOrgTree.map((company) => {
-                    const visibleDepts = (company.departments ?? []).filter((dept) =>
+                    const visibleDepts = flattenDepartments(company.departments ?? []).filter((dept) =>
                       (dept.users ?? []).some((u) => {
                         const isMember = memberSet.has(u.id);
                         if (hideJoined && isMember) return false;
