@@ -1,8 +1,9 @@
 import { memo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { orgApi, usersApi, type OrgCompany, type OrgDepartment, type OrgUser } from '../../../api';
+import { orgApi, usersApi, type JobTitleItem, type OrgCompany, type OrgDepartment, type OrgUser } from '../../../api';
 import { cn } from '../../../utils/cn';
 import { companyUsers, departmentUsers } from '../../../utils/orgTree';
+import UIPromptModal from '../../../components/ui/UIPromptModal';
 
 type Props = {
   isDark: boolean;
@@ -23,6 +24,26 @@ function friendlyError(err: unknown): string {
     'Admin only': '관리자만 사용할 수 있습니다.',
   };
   return map[msg] || msg;
+}
+
+/** 직급 지정 */
+function BadgeIcon() {
+  return (
+    <svg
+      width={14}
+      height={14}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
 }
 
 /** 비밀번호 초기화 */
@@ -52,12 +73,20 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  // Electron에서 window.prompt가 동작하지 않아 모달로 값을 받는다
+  const [prompting, setPrompting] = useState<
+    { kind: 'jobTitle' | 'password'; user: OrgUser } | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const { data: orgTree = [] } = useQuery<OrgCompany[]>({
     queryKey: ['org', 'tree'],
     queryFn: orgApi.tree,
+  });
+  const { data: jobTitles = [] } = useQuery<JobTitleItem[]>({
+    queryKey: ['org', 'job-titles'],
+    queryFn: orgApi.jobTitles,
   });
 
   const selectable = (u: OrgUser) => String(u.id) !== String(currentUserId);
@@ -85,19 +114,35 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
       return next;
     });
 
-  const onResetPassword = async (user: OrgUser) => {
+  const applyJobTitle = async (user: OrgUser, raw: string) => {
+    setPrompting(null);
     setError(null);
     setNotice(null);
-    const input = window.prompt(
-      `'${user.name}' (${user.email})의 새 비밀번호를 입력하세요.\n4자 이상. 기존 비밀번호는 몰라도 됩니다.`,
-      '123456',
-    );
-    if (input === null) return;
-    const password = input.trim();
+    const jobTitle = raw.trim() || null;
+    setBusy(true);
+    try {
+      const r = await usersApi.setJobTitle(user.id, jobTitle);
+      queryClient.invalidateQueries({ queryKey: ['org'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setNotice(
+        r.jobTitle ? `'${r.name}'의 직급을 '${r.jobTitle}'로 지정했습니다.` : `'${r.name}'의 직급을 지웠습니다.`,
+      );
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyPasswordReset = async (user: OrgUser, raw: string) => {
+    const password = raw.trim();
     if (password.length < 4) {
       setError('비밀번호는 4자 이상이어야 합니다.');
       return;
     }
+    setPrompting(null);
+    setError(null);
+    setNotice(null);
     if (!window.confirm(`'${user.name}'의 비밀번호를 바꿉니다.\n이 사용자의 로그인 세션이 모두 끊기고 새 비밀번호로 다시 로그인해야 합니다.`)) {
       return;
     }
@@ -222,10 +267,23 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                 {!selectable(u) && <span className={cn('shrink-0 text-[11px]', muted)}>본인</span>}
                 <button
                   type="button"
+                  title="직급 지정"
+                  aria-label={`${u.name} 직급 지정`}
+                  disabled={busy}
+                  onClick={() => setPrompting({ kind: 'jobTitle', user: u })}
+                  className={cn(
+                    'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer disabled:opacity-40',
+                    isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-200',
+                  )}
+                >
+                  <BadgeIcon />
+                </button>
+                <button
+                  type="button"
                   title="비밀번호 초기화"
                   aria-label={`${u.name} 비밀번호 초기화`}
                   disabled={busy}
-                  onClick={() => void onResetPassword(u)}
+                  onClick={() => setPrompting({ kind: 'password', user: u })}
                   className={cn(
                     'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer disabled:opacity-40',
                     isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-200',
@@ -251,7 +309,7 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
           </h4>
         )}
         <p className={cn(embedded ? 'mt-0' : 'mt-1', 'mb-0 text-xs leading-relaxed', muted)}>
-          조직도에서 사용자를 골라 삭제하거나 비밀번호를 초기화합니다. 삭제하면 그 사람이 보낸
+          조직도에서 사용자를 골라 직급 지정·비밀번호 초기화·삭제를 합니다. 삭제하면 그 사람이 보낸
           메시지도 함께 사라지므로 되돌릴 수 없습니다.
         </p>
       </div>
@@ -313,6 +371,34 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
 
       {error && <div className="text-xs text-red-500">{error}</div>}
       {notice && <div className={cn('text-xs', isDark ? 'text-emerald-400' : 'text-emerald-600')}>{notice}</div>}
+
+      {prompting?.kind === 'jobTitle' && (
+        <UIPromptModal
+          isDark={isDark}
+          title="직급 지정"
+          message={`'${prompting.user.name}'의 직급을 고르거나 직접 입력하세요.\n비우고 확인하면 직급이 없어집니다.`}
+          options={jobTitles.map((j) => ({ value: j.name, label: `${j.name} (${j.userCount}명)` }))}
+          defaultValue={prompting.user.jobTitle ?? ''}
+          placeholder="직급명"
+          confirmLabel="지정"
+          allowEmpty
+          onSubmit={(v) => void applyJobTitle(prompting.user, v)}
+          onClose={() => setPrompting(null)}
+        />
+      )}
+
+      {prompting?.kind === 'password' && (
+        <UIPromptModal
+          isDark={isDark}
+          title="비밀번호 초기화"
+          message={`'${prompting.user.name}' (${prompting.user.email})의 새 비밀번호를 입력하세요.\n4자 이상. 기존 비밀번호는 몰라도 됩니다.`}
+          defaultValue="123456"
+          placeholder="새 비밀번호 (4자 이상)"
+          confirmLabel="초기화"
+          onSubmit={(v) => void applyPasswordReset(prompting.user, v)}
+          onClose={() => setPrompting(null)}
+        />
+      )}
     </div>
   );
 }

@@ -319,10 +319,11 @@ usersRouter.delete('/me/device-token', async (req, res) => {
 // Update my profile (phone, jobTitle, statusMessage)
 usersRouter.put('/me', async (req, res) => {
   try {
-    const { phone, jobTitle, statusMessage } = req.body;
+    // 직급은 조직 마스터 값이라 본인이 바꿀 수 없다.
+    // 관리자가 PUT /users/:id/job-title 로 지정한다.
+    const { phone, statusMessage } = req.body;
     const data = {};
     if (phone !== undefined) data.phone = phone && String(phone).trim() ? String(phone).trim().slice(0, 50) : null;
-    if (jobTitle !== undefined) data.jobTitle = jobTitle && String(jobTitle).trim() ? String(jobTitle).trim().slice(0, 30) : null;
     if (statusMessage !== undefined) data.statusMessage = statusMessage && String(statusMessage).trim() ? String(statusMessage).trim().slice(0, 200) : null;
     if (Object.keys(data).length === 0) return res.json({ ok: true });
     await prisma.user.update({
@@ -476,5 +477,32 @@ usersRouter.post('/:id/reset-password', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+/**
+ * PUT /users/:id/job-title - 관리자가 특정 사용자의 직급을 지정한다.
+ * body: { jobTitle }  비우면 직급 없음으로 만든다.
+ * 본인이 직접 바꾸지 못하게 PUT /users/me 에서는 직급을 받지 않는다.
+ */
+usersRouter.put('/:id/job-title', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+
+    const raw = req.body?.jobTitle;
+    const jobTitle =
+      typeof raw === 'string' && raw.trim() ? raw.trim().replace(/\s+/g, ' ').slice(0, 30) : null;
+
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true },
+    });
+    if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+    await prisma.user.update({ where: { id: target.id }, data: { jobTitle } });
+    return res.json({ ok: true, name: target.name, jobTitle });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to update job title' });
   }
 });

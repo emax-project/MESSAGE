@@ -99,3 +99,45 @@ authRouter.post('/logout', authMiddleware, async (req, res) => {
     return res.status(500).json({ error: 'Logout failed' });
   }
 });
+
+/**
+ * PUT /auth/password - 본인 비밀번호 변경.
+ * body: { currentPassword, newPassword }
+ * 관리자 초기화(POST /users/:id/reset-password)와 달리 현재 비밀번호를 확인한다.
+ * 성공하면 지금 쓰는 세션만 남기고 나머지는 정리한다.
+ */
+authRouter.put('/password', authMiddleware, async (req, res) => {
+  try {
+    const currentPassword = typeof req.body?.currentPassword === 'string' ? req.body.currentPassword : '';
+    const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+
+    if (!currentPassword) return res.status(400).json({ error: 'CURRENT_PASSWORD_REQUIRED' });
+    if (newPassword.length < 4) return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
+    if (currentPassword === newPassword) return res.status(400).json({ error: 'PASSWORD_UNCHANGED' });
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, password: true },
+    });
+    if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+    const ok = await bcrypt.compare(currentPassword, user.password);
+    // 401이 아니라 400을 쓴다. 요청 자체는 인증된 상태이고 본문 값이 틀린 것이며,
+    // 클라이언트는 모든 401을 세션 만료로 보고 강제 로그아웃시키기 때문이다.
+    if (!ok) return res.status(400).json({ error: 'CURRENT_PASSWORD_MISMATCH' });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { password: hashed } }),
+      // 지금 창은 그대로 쓰게 두고, 다른 기기에 남은 세션만 끊는다
+      prisma.userSession.deleteMany({
+        where: { userId: user.id, id: { not: req.sessionId } },
+      }),
+    ]);
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to change password' });
+  }
+});

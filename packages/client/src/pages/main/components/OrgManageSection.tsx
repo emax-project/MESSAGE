@@ -2,6 +2,7 @@ import { memo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { orgApi, type DepartmentItem, type JobTitleItem } from '../../../api';
 import { cn } from '../../../utils/cn';
+import UIPromptModal from '../../../components/ui/UIPromptModal';
 
 /** 목록이 비어 있을 때 '기본 직급 채우기'로 한 번에 넣을 값 */
 const DEFAULT_JOB_TITLES = [
@@ -92,6 +93,10 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
   const [editingName, setEditingName] = useState('');
   const [newJob, setNewJob] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Electron에서 window.prompt가 동작하지 않아 모달로 값을 받는다
+  const [prompting, setPrompting] = useState<
+    { kind: 'move' | 'deleteMove'; dept: DepartmentItem } | null
+  >(null);
   const [editingJob, setEditingJob] = useState<string | null>(null);
   const [editingJobName, setEditingJobName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -135,8 +140,8 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
     });
   };
 
-  /** 상위 부서 이동. 자기 자신과 자기 하위는 후보에서 뺀다. */
-  const moveDept = (dept: DepartmentItem) => {
+  /** 자기 자신과 자기 하위는 상위 후보에서 뺀다(순환 방지). */
+  const moveCandidates = (dept: DepartmentItem) => {
     const descendants = new Set<string>([dept.id]);
     let grew = true;
     while (grew) {
@@ -148,18 +153,15 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
         }
       });
     }
-    const candidates = departments.filter((d) => !descendants.has(d.id));
-    const options = [{ id: '', path: '(최상위로)' }, ...candidates];
-    const list = options.map((d, i) => `${i}. ${d.path}`).join('\n');
-    const picked = window.prompt(
-      `'${dept.path}'의 상위 부서를 고르세요.\n번호를 입력하면 그 아래로 옮깁니다.\n\n${list}`,
-    );
-    if (picked === null) return;
-    const chosen = options[Number(picked)];
-    if (!chosen) return;
-    run(() => orgApi.moveDepartment(dept.id, chosen.id || null), () => {
+    return departments.filter((d) => !descendants.has(d.id));
+  };
+
+  const applyMove = (dept: DepartmentItem, targetId: string) => {
+    setPrompting(null);
+    const chosen = departments.find((d) => d.id === targetId);
+    run(() => orgApi.moveDepartment(dept.id, targetId || null), () => {
       setNotice(
-        chosen.id ? `'${dept.name}'을(를) '${chosen.path}' 아래로 옮겼습니다.` : `'${dept.name}'을(를) 최상위로 옮겼습니다.`,
+        chosen ? `'${dept.name}'을(를) '${chosen.path}' 아래로 옮겼습니다.` : `'${dept.name}'을(를) 최상위로 옮겼습니다.`,
       );
     });
   };
@@ -178,23 +180,11 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
 
   const removeDept = (dept: DepartmentItem) => {
     if (dept.userCount > 0) {
-      const others = departments.filter((d) => d.id !== dept.id);
-      if (others.length === 0) {
+      if (departments.filter((d) => d.id !== dept.id).length === 0) {
         setError('소속 인원을 옮길 다른 부서가 없습니다. 부서를 먼저 만들어 주세요.');
         return;
       }
-      const names = others.map((d, i) => `${i + 1}. ${d.path}`).join('\n');
-      const picked = window.prompt(
-        `'${dept.name}'에 ${dept.userCount}명이 있습니다.\n` +
-          `옮길 부서 번호를 입력하세요. (취소하면 삭제하지 않습니다)\n\n${names}`,
-      );
-      const idx = Number(picked) - 1;
-      const dest = others[idx];
-      if (!dest) return;
-      if (!window.confirm(`${dept.userCount}명을 '${dest.name}'로 옮기고 '${dept.name}'를 삭제합니다.`)) return;
-      run(() => orgApi.deleteDepartment(dept.id, dest.id), (r) => {
-        setNotice(`${r.movedUsers}명을 '${r.movedTo}'로 옮기고 '${dept.name}'를 삭제했습니다.`);
-      });
+      setPrompting({ kind: 'deleteMove', dept });
       return;
     }
     const childCount = departments.filter((d) => d.parentId === dept.id).length;
@@ -206,6 +196,16 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
           ? `'${dept.name}'를 삭제하고 하위 부서 ${r.promotedChildren}개를 위로 올렸습니다.`
           : `'${dept.name}' 부서를 삭제했습니다.`,
       );
+    });
+  };
+
+  const applyDeleteWithMove = (dept: DepartmentItem, destId: string) => {
+    const dest = departments.find((d) => d.id === destId);
+    if (!dest) return;
+    setPrompting(null);
+    if (!window.confirm(`${dept.userCount}명을 '${dest.path}'로 옮기고 '${dept.name}'를 삭제합니다.`)) return;
+    run(() => orgApi.deleteDepartment(dept.id, dest.id), (r) => {
+      setNotice(`${r.movedUsers}명을 '${r.movedTo}'로 옮기고 '${dept.name}'를 삭제했습니다.`);
     });
   };
 
@@ -526,7 +526,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                               type="button"
                               title="상위 부서 이동"
                               aria-label={`${d.name} 상위 부서 이동`}
-                              onClick={() => moveDept(d)}
+                              onClick={() => setPrompting({ kind: 'move', dept: d })}
                               className={iconBtn}
                             >
                               <MoveIcon />
@@ -705,6 +705,38 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
 
       {error && <div className="text-xs text-red-500">{error}</div>}
       {notice && <div className={cn('text-xs', isDark ? 'text-emerald-400' : 'text-emerald-600')}>{notice}</div>}
+
+      {prompting?.kind === 'move' && (
+        <UIPromptModal
+          isDark={isDark}
+          title="상위 부서 이동"
+          message={`'${prompting.dept.path}'을(를) 어디 아래로 옮길까요?`}
+          options={[
+            { value: '', label: '(최상위로)' },
+            ...moveCandidates(prompting.dept).map((d) => ({ value: d.id, label: d.path })),
+          ]}
+          allowFreeText={false}
+          allowEmpty
+          confirmLabel="이동"
+          onSubmit={(v) => applyMove(prompting.dept, v)}
+          onClose={() => setPrompting(null)}
+        />
+      )}
+
+      {prompting?.kind === 'deleteMove' && (
+        <UIPromptModal
+          isDark={isDark}
+          title="부서 삭제"
+          message={`'${prompting.dept.path}'에 ${prompting.dept.userCount}명이 있습니다.\n이 인원을 옮길 부서를 고르세요.`}
+          options={departments
+            .filter((d) => d.id !== prompting.dept.id)
+            .map((d) => ({ value: d.id, label: d.path }))}
+          allowFreeText={false}
+          confirmLabel="옮기고 삭제"
+          onSubmit={(v) => applyDeleteWithMove(prompting.dept, v)}
+          onClose={() => setPrompting(null)}
+        />
+      )}
     </div>
   );
 }

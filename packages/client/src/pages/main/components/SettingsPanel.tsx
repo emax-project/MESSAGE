@@ -6,55 +6,228 @@ import { PanelTitleRow } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
 import { useAuthStore } from '../../../store';
 import { usersApi, authApi } from '../../../api';
+import UIModal from '../../../components/ui/UIModal';
 import AdminSection from './AdminSection';
 
 type StatusOption = { id: string; label: string };
 
-function ProfileEditSection({ isDark }: { isDark: boolean }) {
-  const authUser = useAuthStore((s) => s.user);
-  const queryClient = useQueryClient();
-  const [phone, setPhone] = useState(authUser?.phone ?? '');
-  const [jobTitle, setJobTitle] = useState(authUser?.jobTitle ?? '');
+
+/** 본인 비밀번호 변경 모달. 관리자 초기화와 달리 현재 비밀번호를 확인한다. */
+function PasswordChangeModal({ isDark, onClose }: { isDark: boolean; onClose: () => void }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
   const inputStyle = { width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#333', fontSize: 14, boxSizing: 'border-box' as const };
   const labelStyle = { display: 'block', fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 4 };
 
+  const messageFor = (err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    const map: Record<string, string> = {
+      CURRENT_PASSWORD_MISMATCH: '현재 비밀번호가 맞지 않습니다.',
+      CURRENT_PASSWORD_REQUIRED: '현재 비밀번호를 입력해 주세요.',
+      PASSWORD_TOO_SHORT: '새 비밀번호는 4자 이상이어야 합니다.',
+      PASSWORD_UNCHANGED: '지금 쓰는 비밀번호와 같습니다.',
+    };
+    return map[msg] || msg;
+  };
+
+  const submit = async () => {
+    setError(null);
+    if (!current) return setError('현재 비밀번호를 입력해 주세요.');
+    if (next.length < 4) return setError('새 비밀번호는 4자 이상이어야 합니다.');
+    if (next !== confirm) return setError('새 비밀번호가 서로 다릅니다.');
+
+    setSaving(true);
+    try {
+      await authApi.changePassword(current, next);
+      setDone(true);
+      setTimeout(onClose, 1200);
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#333' }}>프로필</h4>
-      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+    <UIModal title="비밀번호 변경" onClose={onClose} width={380}>
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b' }}>
+          바꾸면 다른 기기에 남아 있는 로그인은 끊기고, 지금 이 창은 그대로 쓸 수 있습니다.
+        </p>
+        <div>
+          <label style={labelStyle}>현재 비밀번호</label>
+          <input
+            autoFocus
+            type="password"
+            value={current}
+            autoComplete="current-password"
+            onChange={(e) => { setCurrent(e.target.value); setError(null); }}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>새 비밀번호</label>
+          <input
+            type="password"
+            value={next}
+            autoComplete="new-password"
+            placeholder="4자 이상"
+            onChange={(e) => { setNext(e.target.value); setError(null); }}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>새 비밀번호 확인</label>
+          <input
+            type="password"
+            value={confirm}
+            autoComplete="new-password"
+            onChange={(e) => { setConfirm(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
+            style={inputStyle}
+          />
+        </div>
+        {error && <div style={{ fontSize: 12, color: '#ef4444' }}>{error}</div>}
+        {done && <div style={{ fontSize: 12, color: isDark ? '#34d399' : '#059669' }}>비밀번호를 바꿨습니다.</div>}
+        <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+          <button
+            type="button"
+            className="flex-1 px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer disabled:opacity-60"
+            disabled={saving || done || !current || !next || !confirm}
+            onClick={() => void submit()}
+          >
+            {saving ? '변경 중...' : '변경'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(
+              'px-4 py-2 rounded-lg border text-[13px] font-semibold cursor-pointer',
+              isDark ? 'border-slate-600 bg-transparent text-slate-200' : 'border-slate-200 bg-transparent text-slate-700',
+            )}
+          >
+            닫기
+          </button>
+        </div>
+      </div>
+    </UIModal>
+  );
+}
+
+/** 연락처 수정 모달 */
+function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () => void }) {
+  const authUser = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
+  const [phone, setPhone] = useState(authUser?.phone ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const inputStyle = { width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`, background: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#333', fontSize: 14, boxSizing: 'border-box' as const };
+  const labelStyle = { display: 'block', fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 4 };
+
+  const save = async () => {
+    setError(null);
+    setSaving(true);
+    try {
+      await usersApi.updateProfile({ phone: phone.trim() || null });
+      const { user: u } = await authApi.me();
+      if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
+      queryClient.invalidateQueries({ queryKey: ['org'] });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '프로필 저장에 실패했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <UIModal title="프로필 수정" onClose={onClose} width={380}>
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
         <div>
           <label style={labelStyle}>연락처</label>
-          <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-1234-5678" maxLength={50} style={inputStyle} />
+          <input
+            autoFocus
+            type="text"
+            value={phone}
+            onChange={(e) => { setPhone(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
+            placeholder="010-1234-5678"
+            maxLength={50}
+            style={inputStyle}
+          />
         </div>
-        <div>
-          <label style={labelStyle}>직급</label>
-          <input type="text" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="대리, 과장, 팀장 등" maxLength={30} style={inputStyle} />
+        {error && <div style={{ fontSize: 12, color: '#ef4444' }}>{error}</div>}
+        <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+          <button
+            type="button"
+            className="flex-1 px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer disabled:opacity-60"
+            disabled={saving}
+            onClick={() => void save()}
+          >
+            {saving ? '저장 중...' : '저장'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(
+              'px-4 py-2 rounded-lg border text-[13px] font-semibold cursor-pointer',
+              isDark ? 'border-slate-600 bg-transparent text-slate-200' : 'border-slate-200 bg-transparent text-slate-700',
+            )}
+          >
+            취소
+          </button>
         </div>
-        <button
-          type="button"
-          className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer disabled:opacity-60"
-          disabled={saving}
-          onClick={async () => {
-            setSaving(true);
-            try {
-              await usersApi.updateProfile({ phone: phone.trim() || null, jobTitle: jobTitle.trim() || null });
-              const { user: u } = await authApi.me();
-              if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
-              queryClient.invalidateQueries({ queryKey: ['org'] });
-            } catch (err) {
-              console.error(err);
-              alert('프로필 저장에 실패했습니다.');
-            } finally {
-              setSaving(false);
-            }
-          }}
-        >
-          {saving ? '저장 중...' : '저장'}
-        </button>
       </div>
-    </div>
+    </UIModal>
+  );
+}
+
+/** 아바타 카드 안에 들어가는 내 정보 수정 버튼들. */
+function ProfileActions({ isDark }: { isDark: boolean }) {
+  const [editOpen, setEditOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+
+  const btnStyle = {
+    flex: 1,
+    minWidth: 0,
+    padding: '9px 12px',
+    borderRadius: 10,
+    border: `1px solid ${isDark ? 'rgba(226,232,240,0.16)' : 'rgba(23,32,51,0.10)'}`,
+    background: isDark ? 'rgba(226,232,240,0.06)' : 'rgba(255,255,255,0.72)',
+    color: isDark ? '#dbe4f0' : '#3b4a61',
+    fontSize: 12.5,
+    fontWeight: 600,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        style={btnStyle}
+        className="transition-colors hover:brightness-95"
+        onClick={() => setEditOpen(true)}
+      >
+        프로필 수정
+      </button>
+      <button
+        type="button"
+        style={btnStyle}
+        className="transition-colors hover:brightness-95"
+        onClick={() => setPwOpen(true)}
+      >
+        비밀번호 변경
+      </button>
+      {editOpen && <ProfileEditModal isDark={isDark} onClose={() => setEditOpen(false)} />}
+      {pwOpen && <PasswordChangeModal isDark={isDark} onClose={() => setPwOpen(false)} />}
+    </>
   );
 }
 
@@ -62,7 +235,7 @@ type SettingsPanelProps = {
   panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   isDark: boolean;
   isNarrowLayout: boolean;
-  user: { id: string; name?: string | null; email?: string | null; avatarUrl?: string | null; isAdmin?: boolean } | null | undefined;
+  user: { id: string; name?: string | null; email?: string | null; avatarUrl?: string | null; isAdmin?: boolean; phone?: string | null; jobTitle?: string | null } | null | undefined;
   notificationsSnoozedUntil: number;
   notificationSoundEnabled: boolean;
   snoozeNotifications: (minutes: number) => void;
@@ -130,28 +303,141 @@ function SettingsPanel({
     <div className={wrap.className} style={wrap.style}>
       <PanelTitleRow isDark={isDark} title="설정" />
       <div className="flex-1 min-h-0 overflow-auto flex flex-col gap-3" style={{ padding: isNarrowLayout ? 14 : 24 }}>
-        <div style={{ padding: '20px 16px', borderRadius: 12, background: isDark ? '#334155' : '#f0f4ff', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 96, height: 96, borderRadius: 16, background: isDark ? '#475569' : '#e2e8f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {user?.avatarUrl ? <UserAvatar userId={user.id} name={user.name || ''} avatarUrlPath={user.avatarUrl} imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16 }} initialStyle={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }} /> : <span style={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}>{user?.name?.trim()[0]?.toUpperCase() || '?'}</span>}
-          </div>
-          <div style={{ textAlign: 'center' as const }}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b', marginBottom: 4 }}>{user?.name || '사용자'}</div>
-            <div style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>{user?.email}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
-            <label style={{ padding: '10px 18px', borderRadius: 10, background: isDark ? '#475569' : '#171717', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              사진 변경
-              <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onSelectAvatarFile(f); e.target.value = ''; }} />
+        <div
+          style={{
+            position: 'relative',
+            padding: '26px 20px 20px',
+            borderRadius: 14,
+            border: `1px solid ${isDark ? '#3f4d63' : '#e3e9fb'}`,
+            background: isDark
+              ? 'linear-gradient(160deg, #3a4759 0%, #2f3a4b 100%)'
+              : 'linear-gradient(160deg, #f6f8ff 0%, #eaf0fd 100%)',
+            display: 'flex',
+            flexDirection: 'column' as const,
+            alignItems: 'center',
+            gap: 14,
+          }}
+        >
+          {/* 아바타 + 사진 동작. 버튼을 따로 두지 않고 아바타 위에 얹는다 */}
+          <div style={{ position: 'relative', width: 88, height: 88, flexShrink: 0 }}>
+            <div
+              style={{
+                width: 88,
+                height: 88,
+                borderRadius: 24,
+                background: isDark ? '#4a5769' : '#dfe6f5',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: isDark
+                  ? '0 6px 18px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.06)'
+                  : '0 6px 18px rgba(37,64,128,0.10), inset 0 0 0 1px rgba(255,255,255,0.7)',
+              }}
+            >
+              {user?.avatarUrl ? (
+                <UserAvatar
+                  userId={user.id}
+                  name={user.name || ''}
+                  avatarUrlPath={user.avatarUrl}
+                  imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 24 }}
+                  initialStyle={{ fontSize: 34, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}
+                />
+              ) : (
+                <span style={{ fontSize: 34, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}>
+                  {user?.name?.trim()[0]?.toUpperCase() || '?'}
+                </span>
+              )}
+            </div>
+
+            <label
+              title="사진 변경"
+              className={cn(
+                'absolute flex items-center justify-center rounded-full cursor-pointer transition-transform hover:scale-105',
+              )}
+              style={{
+                right: -2,
+                bottom: -2,
+                width: 30,
+                height: 30,
+                background: isDark ? '#e2e8f0' : '#171717',
+                color: isDark ? '#1e293b' : '#fff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.22)',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M14.5 4h-5L8 6H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-4l-1.5-2Z" />
+                <circle cx="12" cy="12.5" r="3.5" />
+              </svg>
+              <span className="sr-only">사진 변경</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onSelectAvatarFile(f);
+                  e.target.value = '';
+                }}
+              />
             </label>
+
             {user?.avatarUrl && (
-              <button type="button" onClick={() => void onDeleteAvatar()} style={{ padding: '10px 18px', borderRadius: 10, border: `1px solid ${isDark ? '#64748b' : '#e2e8f0'}`, background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', fontSize: 13, cursor: 'pointer' }}>
-                사진 삭제
+              <button
+                type="button"
+                title="사진 삭제"
+                aria-label="사진 삭제"
+                onClick={() => void onDeleteAvatar()}
+                className="absolute flex items-center justify-center rounded-full border-none cursor-pointer transition-transform hover:scale-105"
+                style={{
+                  // 사진 위에 얹히므로 어떤 색 위에서도 읽히도록 어두운 반투명으로 둔다
+                  right: 3,
+                  top: 3,
+                  width: 22,
+                  height: 22,
+                  background: 'rgba(15,23,42,0.55)',
+                  color: '#fff',
+                  backdropFilter: 'blur(2px)',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             )}
           </div>
-        </div>
 
-        <ProfileEditSection isDark={isDark} />
+          {/* 이름 · 직급 · 연락 정보 */}
+          <div style={{ textAlign: 'center' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
+              <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', color: isDark ? '#f1f5f9' : '#172033' }}>
+                {user?.name || '사용자'}
+              </span>
+              {user?.jobTitle && (
+                <span
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    background: isDark ? 'rgba(226,232,240,0.12)' : 'rgba(23,32,51,0.06)',
+                    color: isDark ? '#cbd5e1' : '#475569',
+                  }}
+                >
+                  {user.jobTitle}
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 12.5, color: isDark ? '#9fb0c6' : '#64748b' }}>{user?.email}</div>
+            {user?.phone && (
+              <div style={{ fontSize: 12.5, color: isDark ? '#9fb0c6' : '#64748b' }}>{user.phone}</div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 320 }}>
+            <ProfileActions isDark={isDark} />
+          </div>
+        </div>
 
         {user?.isAdmin && <AdminSection isDark={isDark} isNarrowLayout={isNarrowLayout} currentUserId={user?.id} />}
 

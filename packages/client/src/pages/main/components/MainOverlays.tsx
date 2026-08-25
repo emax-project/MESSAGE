@@ -6,6 +6,7 @@ import DeleteOrgContactGroupModal from '../../../components/DeleteOrgContactGrou
 import FolderManageModal from '../../../components/FolderManageModal';
 import AvatarEditModal from '../../../components/AvatarEditModal';
 import UICloseButton from '../../../components/ui/UICloseButton';
+import UserAvatar from '../../../components/UserAvatar';
 import { cn } from '../../../utils/cn';
 
 type CtxUserMenu = { x: number; y: number; user: OrgUser; orgGroupId?: string; selectedUsers?: OrgUser[] } | null;
@@ -323,21 +324,143 @@ export default function MainOverlays({
         );
       })()}
 
-      {profileModalUser && (
-        <div className={overlayCls} onClick={() => setProfileModalUser(null)}>
-          <div className={modalCls} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>사용자 프로필</h3>
-              <UICloseButton onClick={() => setProfileModalUser(null)} />
+      {profileModalUser && (() => {
+        const isOnline = onlineUserIds.has(String(profileModalUser.id));
+        const metaRow = {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '9px 0',
+          fontSize: 13,
+          color: isDark ? '#cbd5e1' : '#475569',
+        } as const;
+        const iconStyle = { flexShrink: 0, color: isDark ? '#7c8ba1' : '#94a3b8' } as const;
+
+        return (
+          <div className={overlayCls} onClick={() => setProfileModalUser(null)}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className={cn('relative overflow-hidden rounded-2xl shadow-xl', isDark ? 'bg-slate-800' : 'bg-white')}
+              style={{ width: 340, maxWidth: '90%' }}
+            >
+              <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1 }}>
+                <UICloseButton onClick={() => setProfileModalUser(null)} />
+              </div>
+
+              {/* 머리: 얼굴과 이름이 먼저 오도록 */}
+              <div
+                style={{
+                  padding: '26px 20px 20px',
+                  display: 'flex',
+                  flexDirection: 'column' as const,
+                  alignItems: 'center',
+                  gap: 10,
+                  background: isDark
+                    ? 'linear-gradient(160deg, #3a4759 0%, #2f3a4b 100%)'
+                    : 'linear-gradient(160deg, #f6f8ff 0%, #eaf0fd 100%)',
+                  borderBottom: `1px solid ${isDark ? '#3f4d63' : '#e3e9fb'}`,
+                }}
+              >
+                <div style={{ position: 'relative', width: 68, height: 68 }}>
+                  <div
+                    style={{
+                      width: 68,
+                      height: 68,
+                      borderRadius: 20,
+                      overflow: 'hidden',
+                      background: isDark ? '#4a5769' : '#dfe6f5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: isDark
+                        ? '0 5px 14px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.06)'
+                        : '0 5px 14px rgba(37,64,128,0.10), inset 0 0 0 1px rgba(255,255,255,0.7)',
+                    }}
+                  >
+                    {profileModalUser.avatarUrl ? (
+                      <UserAvatar
+                        userId={profileModalUser.id}
+                        name={profileModalUser.name || ''}
+                        avatarUrlPath={profileModalUser.avatarUrl}
+                        imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }}
+                        initialStyle={{ fontSize: 26, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 26, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}>
+                        {profileModalUser.name?.trim()[0]?.toUpperCase() || '?'}
+                      </span>
+                    )}
+                  </div>
+                  {/* 접속 상태는 아바타에 점으로. 별도 항목 한 줄을 아낀다 */}
+                  <span
+                    title={isOnline ? '온라인' : '오프라인'}
+                    style={{
+                      position: 'absolute',
+                      right: -1,
+                      bottom: -1,
+                      width: 17,
+                      height: 17,
+                      borderRadius: 999,
+                      background: isOnline ? '#22c55e' : isDark ? '#64748b' : '#cbd5e1',
+                      boxShadow: `0 0 0 3px ${isDark ? '#354254' : '#f0f4fd'}`,
+                    }}
+                  />
+                </div>
+
+                <div style={{ textAlign: 'center' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
+                    <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', color: isDark ? '#f1f5f9' : '#172033' }}>
+                      {profileModalUser.name}
+                    </span>
+                    {profileModalUser.jobTitle && (
+                      <span
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          background: isDark ? 'rgba(226,232,240,0.12)' : 'rgba(23,32,51,0.06)',
+                          color: isDark ? '#cbd5e1' : '#475569',
+                        }}
+                      >
+                        {profileModalUser.jobTitle}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: isOnline ? '#16a34a' : isDark ? '#7c8ba1' : '#94a3b8' }}>
+                    {isOnline ? '온라인' : '오프라인'}
+                  </span>
+                  {profileModalUser.statusMessage && (
+                    <span style={{ marginTop: 2, fontSize: 12.5, lineHeight: 1.5, color: isDark ? '#9fb0c6' : '#64748b' }}>
+                      “{profileModalUser.statusMessage}”
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 연락 정보 */}
+              <div style={{ padding: '6px 20px 16px' }}>
+                <div style={metaRow}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="m3 7 9 6 9-6" />
+                  </svg>
+                  <span style={{ minWidth: 0, overflowWrap: 'anywhere' as const }}>{profileModalUser.email || '—'}</span>
+                </div>
+                <div style={{ height: 1, background: isDark ? 'rgba(148,163,184,0.14)' : 'rgba(15,23,42,0.06)' }} />
+                <div style={metaRow}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                    <path d="M6 3h3l2 5-2.5 1.5a12 12 0 0 0 5 5L15 12l5 2v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4 5.2 2 2 0 0 1 6 3Z" />
+                  </svg>
+                  <span style={profileModalUser.phone ? undefined : { color: isDark ? '#64748b' : '#94a3b8' }}>
+                    {profileModalUser.phone || '연락처 없음'}
+                  </span>
+                </div>
+              </div>
             </div>
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}><strong>이름</strong> {profileModalUser.name}{profileModalUser.jobTitle ? ` ${profileModalUser.jobTitle}` : ''}</p>
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}><strong>이메일</strong> {profileModalUser.email}</p>
-            {profileModalUser.phone && <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}><strong>연락처</strong> {profileModalUser.phone}</p>}
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}><strong>상태</strong> {onlineUserIds.has(String(profileModalUser.id)) ? <span style={{ color: '#4caf50', fontWeight: 600 }}>● 온라인</span> : <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>○ 오프라인</span>}</p>
-            {profileModalUser.statusMessage && <p style={{ margin: '0 0 12px', fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}><strong>상태 메시지</strong> {profileModalUser.statusMessage}</p>}
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 }

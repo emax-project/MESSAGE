@@ -319,6 +319,12 @@ export type ThreadData = {
 };
 
 export const authApi = {
+  /**
+   * 본인 비밀번호 변경. 현재 비밀번호가 맞아야 한다.
+   * 성공하면 지금 창의 세션은 유지되고 다른 기기의 세션만 끊긴다.
+   */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.put('/auth/password', { currentPassword, newPassword }) as Promise<{ ok: boolean }>,
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }) as Promise<{ user: User; token: string }>,
   register: (email: string, password: string, name: string) =>
@@ -378,8 +384,16 @@ export const usersApi = {
   list: () => api.get('/users') as Promise<User[]>,
   bulkRegister: (data: { defaultPassword?: string; users: BulkRegisterUserInput[] }) =>
     api.post('/users/bulk', data) as Promise<BulkRegisterResult>,
-  updateProfile: (data: { phone?: string | null; jobTitle?: string | null; statusMessage?: string | null }) =>
+  /** 직급은 여기서 바꿀 수 없다. 조직 마스터 값이라 관리자만 setJobTitle로 지정한다. */
+  updateProfile: (data: { phone?: string | null; statusMessage?: string | null }) =>
     api.put('/users/me', data) as Promise<{ ok: boolean }>,
+  /** 특정 사용자의 직급 지정 (관리자 전용). 빈 값이면 직급 없음. */
+  setJobTitle: (id: string, jobTitle: string | null) =>
+    api.put(`/users/${id}/job-title`, { jobTitle }) as Promise<{
+      ok: boolean;
+      name: string;
+      jobTitle: string | null;
+    }>,
   updateStatus: (statusMessage: string) =>
     api.put('/users/status', { statusMessage }) as Promise<{ ok: boolean }>,
   uploadAvatar: (file: File) => {
