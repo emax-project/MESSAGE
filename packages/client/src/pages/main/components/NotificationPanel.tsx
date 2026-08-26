@@ -1,7 +1,7 @@
 import { memo, useState } from 'react';
 import type { AnnouncementItem } from '../../../api';
 import { cn } from '../../../utils/cn';
-import { PanelTitleRow, PanelToolbarRow } from '../../../components/PanelDragHeader';
+import { PanelTitleRow, PanelToolbarRow, panelTitleRowBg } from '../../../components/PanelDragHeader';
 import MentionPanel, { type MentionItem } from './MentionPanel';
 import AnnouncementPanel, { hasUnreadAnnouncements } from './AnnouncementPanel';
 
@@ -68,7 +68,7 @@ function NotificationPanel({
 
   return (
     <div className={wrap.className} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title="알림" />
+      <PanelTitleRow isDark={isDark} title="알림" className={panelTitleRowBg(isDark)} />
 
       <PanelToolbarRow isDark={isDark}>
         <div className="flex flex-wrap gap-2">

@@ -1,7 +1,7 @@
 import { memo, useEffect } from 'react';
 import type { AnnouncementItem } from '../../../api';
 import { cn } from '../../../utils/cn';
-import { PanelTitleRow } from '../../../components/PanelDragHeader';
+import { PanelTitleRow, panelTitleRowBg } from '../../../components/PanelDragHeader';
 
 const SEEN_KEY = 'emax_announcement_seen_at';
 
@@ -242,7 +242,7 @@ function AnnouncementPanel({
 
   return (
     <div className={wrap.className} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title="전체 공지" right={adminActions || undefined} />
+      <PanelTitleRow isDark={isDark} title="전체 공지" className={panelTitleRowBg(isDark)} right={adminActions || undefined} />
       <div className="flex-1 min-h-0 overflow-auto p-5">{body}</div>
     </div>
   );

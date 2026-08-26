@@ -4,7 +4,7 @@ import type { Event } from '../../../api';
 import type { ScheduleCreateOptions } from '../hooks/useMainContentActions';
 import { addMonths, daysInMonth, startOfMonth, toLocalDateKey } from '../utils/date';
 import { cn } from '../../../utils/cn';
-import { PanelTitleRow } from '../../../components/PanelDragHeader';
+import { PanelTitleRow, panelTitleRowBg } from '../../../components/PanelDragHeader';
 
 type EventFormState = {
   title: string;
@@ -559,7 +559,7 @@ function SchedulePanel({
   const wrap = panelWrapStyle(900);
   return (
     <section className={cn(wrap.className, 'relative')} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title="일정" />
+      <PanelTitleRow isDark={isDark} title="일정" className={panelTitleRowBg(isDark)} />
 
       <div
         className={cn(

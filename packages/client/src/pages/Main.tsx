@@ -408,7 +408,12 @@ export default function Main() {
 
   // --- Handlers ---
   const toggleSection = useCallback((key: 'topic' | 'chat') => setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] })), []);
-  const toggleTree = (key: string) => setTreeOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleTree = (key: string) => setTreeOpen((prev) => {
+    // 회사·내 그룹: 기본 펼침 / 부서: 기본 접힘
+    const defaultOpen = key.startsWith('company-') || key.startsWith('orggroup-');
+    const currentlyOpen = prev[key] === undefined ? defaultOpen : !!prev[key];
+    return { ...prev, [key]: !currentlyOpen };
+  });
   const toggleOrgStar = (id: string) => {
     setOrgStarred((prev) => {
       const next = new Set(prev);

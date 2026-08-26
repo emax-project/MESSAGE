@@ -2,7 +2,7 @@ import { memo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import UserAvatar from '../../../components/UserAvatar';
-import { PanelTitleRow } from '../../../components/PanelDragHeader';
+import { PanelTitleRow, panelTitleRowBg } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
 import { useAuthStore } from '../../../store';
 import { usersApi, authApi } from '../../../api';
@@ -301,7 +301,7 @@ function SettingsPanel({
   const wrap = panelWrapStyle(760);
   return (
     <div className={wrap.className} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title="설정" />
+      <PanelTitleRow isDark={isDark} title="설정" className={panelTitleRowBg(isDark)} />
       <div className="flex-1 min-h-0 overflow-auto flex flex-col gap-3" style={{ padding: isNarrowLayout ? 14 : 24 }}>
         <div
           style={{

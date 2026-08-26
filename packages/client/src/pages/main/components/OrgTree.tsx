@@ -5,9 +5,9 @@ import type { OnlinePresenceMap } from '../../../utils/presence';
 import { cn } from '../../../utils/cn';
 import { allOrgUsers, companyUsers, departmentUsers } from '../../../utils/orgTree';
 
-const ACTIVE_BLUE = '#3b9eff';
+const ACTIVE_BLUE = '#5B8DEF';
 const INACTIVE_GRAY = '#c5c9d0';
-const FOLDER_BLUE = '#4da3ff';
+const FOLDER_BLUE = '#5B8DEF';
 
 function FolderIcon({ size = 15, active = true }: { size?: number; active?: boolean }) {
   const color = active ? FOLDER_BLUE : INACTIVE_GRAY;
@@ -39,7 +39,7 @@ function DesktopIcon({ active }: { active: boolean }) {
   );
 }
 
-function ExpandBox({ open, onClick }: { open: boolean; onClick: () => void }) {
+function ExpandBox({ open, onClick, isDark }: { open: boolean; onClick: () => void; isDark: boolean }) {
   return (
     <button
       type="button"
@@ -47,7 +47,12 @@ function ExpandBox({ open, onClick }: { open: boolean; onClick: () => void }) {
         e.stopPropagation();
         onClick();
       }}
-      className="inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border border-slate-400 bg-white p-0 text-[11px] leading-none text-slate-600 cursor-pointer"
+      className={cn(
+        'inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border p-0 text-[11px] leading-none cursor-pointer rounded-[2px]',
+        isDark
+          ? 'border-slate-500 bg-slate-800 text-slate-300'
+          : 'border-slate-300 bg-white text-slate-600',
+      )}
       aria-label={open ? '접기' : '펼치기'}
     >
       {open ? '−' : '+'}
@@ -148,12 +153,10 @@ function OrgUserRow({
     <li className="list-none">
       <div
         className={cn(
-          'flex items-center gap-1.5 rounded px-1.5 py-[3px]',
-          isMe || (isOnline && selected)
-            ? (isDark ? 'bg-blue-500/15' : 'bg-[#e8f4ff]')
-            : selected
-              ? (isDark ? 'bg-slate-700/80' : 'bg-slate-100')
-              : 'bg-transparent',
+          'group flex items-center gap-1.5 rounded px-1.5 py-[3px] transition-colors',
+          selected
+            ? (isDark ? 'bg-brand-dark/20' : 'bg-brand-dark/[0.10]')
+            : (isDark ? 'hover:bg-slate-800/70' : 'hover:bg-[#f3f6fa]'),
         )}
         onContextMenu={openContextMenu}
       >
@@ -184,7 +187,7 @@ function OrgUserRow({
             'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] cursor-pointer',
             isOnline
               ? (isDark ? 'text-slate-100 font-medium' : 'text-slate-800 font-medium')
-              : (isDark ? 'text-slate-500' : 'text-slate-400'),
+              : (isDark ? 'text-slate-300' : 'text-slate-400'),
           )}
           onClick={() => void onOpenDirectMessage(u.id)}
           onContextMenu={openContextMenu}
@@ -277,7 +280,7 @@ function OrgTree({
         <button
           type="button"
           onClick={onRetryOrg}
-          className="cursor-pointer rounded-lg border-none bg-slate-600 px-4 py-2 text-[13px] font-semibold text-white"
+          className="cursor-pointer rounded-lg border-none bg-brand-dark px-4 py-2 text-[13px] font-semibold text-white"
         >
           다시 시도
         </button>
@@ -318,7 +321,7 @@ function OrgTree({
           return (
             <div key={group.id} className="mb-0.5">
               <div className="flex items-center gap-1.5 px-1 py-0.5">
-                <ExpandBox open={groupOpen} onClick={() => onToggleTree(groupKey)} />
+                <ExpandBox isDark={isDark} open={groupOpen} onClick={() => onToggleTree(groupKey)} />
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -331,7 +334,9 @@ function OrgTree({
                   onClick={() => onToggleTree(groupKey)}
                   className={cn(
                     'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-semibold cursor-pointer',
-                    groupOpen ? 'text-[#007aff]' : (isDark ? 'text-slate-100' : 'text-slate-900'),
+                    groupOpen
+                      ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                      : (isDark ? 'text-slate-100' : 'text-slate-900'),
                   )}
                 >
                   {group.name}
@@ -344,7 +349,10 @@ function OrgTree({
                     type="button"
                     title="그룹 채팅 만들기"
                     onClick={() => onCreateChatFromOrgGroup(group)}
-                    className="shrink-0 border-none bg-transparent px-1 text-[11px] font-semibold text-[#007aff] cursor-pointer"
+                    className={cn(
+                      'shrink-0 border-none bg-transparent px-1 text-[11px] font-semibold cursor-pointer',
+                      isDark ? 'text-brand-light' : 'text-brand-dark',
+                    )}
                   >
                     채팅
                   </button>
@@ -369,7 +377,10 @@ function OrgTree({
                 )}
               </div>
               {groupOpen && (
-                <ul className="m-0 list-none border-l border-dashed border-slate-300 py-0.5 pl-3 ml-[7px]">
+                <ul className={cn(
+                  'm-0 list-none border-l border-dashed py-0.5 pl-3 ml-[7px]',
+                  isDark ? 'border-slate-600' : 'border-slate-200',
+                )}>
                   {group.members.length === 0 ? (
                     <li className={cn('px-2 py-1 text-xs', isDark ? 'text-slate-500' : 'text-slate-400')}>
                       멤버 없음 · 조직도 탭에서 우클릭으로 추가
@@ -404,7 +415,7 @@ function OrgTree({
    */
   const renderDept = (dept: OrgDepartment) => {
     const deptKey = `dept-${dept.id}`;
-    const deptOpen = treeOpen[deptKey] !== false;
+    const deptOpen = !!treeOpen[deptKey];
     const children = dept.children ?? [];
     // 이 부서 + 모든 하위 부서의 인원
     const deptIds = departmentUsers(dept).map((u) => u.id);
@@ -414,7 +425,7 @@ function OrgTree({
     return (
       <div key={dept.id} className="mt-0.5">
         <div className="flex items-center gap-1.5 px-1 py-0.5">
-          <ExpandBox open={deptOpen} onClick={() => onToggleTree(deptKey)} />
+          <ExpandBox isDark={isDark} open={deptOpen} onClick={() => onToggleTree(deptKey)} />
           <input
             type="checkbox"
             checked={deptAllSelected}
@@ -427,7 +438,9 @@ function OrgTree({
             onClick={() => onToggleTree(deptKey)}
             className={cn(
               'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-medium cursor-pointer',
-              deptOpen ? 'text-[#007aff]' : (isDark ? 'text-slate-300' : 'text-slate-600'),
+              deptOpen
+                ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                : (isDark ? 'text-slate-300' : 'text-slate-600'),
             )}
           >
             {dept.name}
@@ -439,7 +452,10 @@ function OrgTree({
           )}
         </div>
         {deptOpen && hasContent && (
-          <div className="ml-[7px] border-l border-dashed border-slate-300 pl-2">
+          <div className={cn(
+            'ml-[7px] border-l border-dashed pl-2',
+            isDark ? 'border-slate-600' : 'border-slate-200',
+          )}>
             {dept.users.length > 0 && (
               <ul className="m-0 list-none py-0.5 pl-1">
                 {dept.users.map((u) => (
@@ -467,7 +483,7 @@ function OrgTree({
         return (
           <div key={company.id} className="mb-0.5">
             <div className="flex items-center gap-1.5 px-1 py-0.5">
-              <ExpandBox open={companyOpen} onClick={() => onToggleTree(companyKey)} />
+              <ExpandBox isDark={isDark} open={companyOpen} onClick={() => onToggleTree(companyKey)} />
               <input
                 type="checkbox"
                 checked={companyAllSelected}
@@ -480,7 +496,9 @@ function OrgTree({
                 onClick={() => onToggleTree(companyKey)}
                 className={cn(
                   'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-semibold cursor-pointer',
-                  companyOpen ? 'text-[#007aff]' : (isDark ? 'text-slate-100' : 'text-slate-900'),
+                  companyOpen
+                    ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                    : (isDark ? 'text-slate-100' : 'text-slate-900'),
                 )}
               >
                 {company.name}
@@ -491,7 +509,10 @@ function OrgTree({
             </div>
 
             {companyOpen && (
-              <div className="ml-[7px] border-l border-dashed border-slate-300 pl-2">
+              <div className={cn(
+                'ml-[7px] border-l border-dashed pl-2',
+                isDark ? 'border-slate-600' : 'border-slate-200',
+              )}>
                 {company.departments.map((dept) => renderDept(dept))}
               </div>
             )}

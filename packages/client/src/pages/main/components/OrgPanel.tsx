@@ -7,6 +7,7 @@ import {
   PanelNoDragWrap,
   PanelTitleRow,
   PanelToolbarRow,
+  panelTitleRowBg,
 } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
 
@@ -83,12 +84,12 @@ function OrgPanel({
       type="button"
       onClick={() => setTab(id)}
       className={cn(
-        'px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-none cursor-pointer',
+        'px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-none cursor-pointer transition-colors',
         tab === id
-          ? (isDark ? 'bg-slate-600 text-white' : 'bg-slate-700 text-white')
+          ? 'bg-brand-dark text-white'
           : isDark
-            ? 'bg-transparent text-slate-300'
-            : 'bg-transparent text-slate-600',
+            ? 'bg-transparent text-slate-400 hover:bg-slate-700/60 hover:text-slate-200'
+            : 'bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-800',
       )}
     >
       {label}
@@ -96,13 +97,21 @@ function OrgPanel({
   );
 
   return (
-    <div className={wrap.className} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title={tab === 'org' ? '조직도' : '내 그룹'} compact />
+    <div
+      className={cn(wrap.className, isDark ? 'bg-slate-900' : 'bg-[#f7f8fa]')}
+      style={wrap.style}
+    >
+      <PanelTitleRow
+        isDark={isDark}
+        title={tab === 'org' ? '조직도' : '내 그룹'}
+        compact
+        className={panelTitleRowBg(isDark)}
+      />
 
       <div
         className={cn(
           'flex items-center gap-1 px-3 py-2 border-b',
-          isDark ? 'border-slate-600' : 'border-slate-200',
+          isDark ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200/90 bg-[#f7f8fa]',
         )}
       >
         <PanelNoDragWrap className="flex items-center gap-1">
@@ -111,19 +120,28 @@ function OrgPanel({
         </PanelNoDragWrap>
       </div>
 
-      <PanelToolbarRow isDark={isDark} compact>
+      <PanelToolbarRow
+        isDark={isDark}
+        compact
+        className={isDark ? 'bg-slate-900/80' : 'bg-white/70'}
+      >
         <PanelNoDragWrap className="flex flex-1 min-w-0 items-stretch">
           <span
             className={cn(
               'inline-flex shrink-0 items-center rounded-l-[6px] border border-r-0 px-2.5 text-[12px] font-medium whitespace-nowrap',
-              isDark ? 'border-slate-600 bg-slate-800 text-slate-300' : 'border-slate-200 bg-white text-slate-600',
+              isDark
+                ? 'border-slate-600 bg-slate-800 text-slate-300'
+                : 'border-slate-200 bg-[#f1f4f8] text-slate-600',
             )}
           >
             이름
           </span>
           <div className="relative min-w-0 flex-1">
             <span
-              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+              className={cn(
+                'pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2',
+                isDark ? 'text-slate-500' : 'text-slate-400',
+              )}
               aria-hidden
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -139,9 +157,10 @@ function OrgPanel({
               onChange={(e) => onSearchQueryChange(e.target.value)}
               className={cn(
                 'h-full w-full rounded-r-[6px] border py-1.5 pl-8 pr-8 text-[13px] outline-none',
+                'focus-visible:ring-2 focus-visible:ring-brand-dark/20',
                 isDark
-                  ? 'border-slate-600 bg-slate-700 text-slate-200 placeholder:text-slate-400'
-                  : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400',
+                  ? 'border-slate-600 bg-slate-800 text-slate-200 placeholder:text-slate-500'
+                  : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400',
               )}
             />
             {searchQuery.trim().length > 0 && (
@@ -165,13 +184,20 @@ function OrgPanel({
             onClick={onToggleOnlineOnly}
             title="온라인만 보기"
             className={cn(
-              'shrink-0 flex items-center gap-1 px-2 py-1 border rounded-2xl text-[11px] whitespace-nowrap cursor-pointer',
+              'shrink-0 flex items-center gap-1.5 px-2.5 py-1 border rounded-2xl text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors',
               showOnlineOnly
-                ? 'border-brand bg-brand text-white'
-                : isDark ? 'border-slate-600 bg-transparent text-slate-300' : 'border-slate-200 bg-transparent text-slate-500',
+                ? 'border-brand-dark bg-brand-dark text-white'
+                : isDark
+                  ? 'border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500'
+                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700',
             )}
           >
-            <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.7 }} />
+            <span
+              className={cn(
+                'h-1.5 w-1.5 rounded-full',
+                showOnlineOnly ? 'bg-emerald-300' : 'bg-emerald-500',
+              )}
+            />
             온라인
           </button>
         </PanelNoDragWrap>
@@ -182,8 +208,10 @@ function OrgPanel({
               onClick={onCreateOrgGroup}
               title="내 그룹 만들기"
               className={cn(
-                'shrink-0 px-2 py-1 border rounded-2xl text-[11px] font-semibold whitespace-nowrap cursor-pointer',
-                isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-white text-slate-700',
+                'shrink-0 px-2.5 py-1 border rounded-2xl text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors',
+                isDark
+                  ? 'border-slate-600 bg-slate-800 text-brand-light hover:bg-slate-700'
+                  : 'border-slate-200 bg-white text-brand-dark hover:bg-brand-dark/[0.06]',
               )}
             >
               + 그룹
@@ -192,7 +220,7 @@ function OrgPanel({
         )}
       </PanelToolbarRow>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <div className={cn('flex-1 min-h-0 overflow-y-auto overflow-x-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
         <OrgTree
           isDark={isDark}
           view={tab}
