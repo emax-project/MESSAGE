@@ -3,6 +3,8 @@ import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
 import { assertAdmin } from '../lib/admin.js';
 import * as onlineUsers from '../onlineUsers.js';
+import { getPartnerOrgSource, isPartnerOrgEnabled } from '../lib/partnerMssql.js';
+import { syncPartnerOrg } from '../lib/syncPartnerOrg.js';
 
 const NAME_MAX = 60;
 
@@ -95,6 +97,49 @@ orgRouter.get('/tree', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch org tree' });
+  }
+});
+
+/**
+ * GET /org/partner-sync/status - 거래처 조직 연동 설정 상태
+ */
+orgRouter.get('/partner-sync/status', async (req, res) => {
+  if (!(await assertAdmin(req, res))) return;
+  const source = getPartnerOrgSource();
+  return res.json({
+    enabled: isPartnerOrgEnabled(),
+    source,
+    companyName: process.env.PARTNER_COMPANY_NAME || '파트너',
+    mssqlConfigured: !!(
+      process.env.PARTNER_MSSQL_SERVER
+      && process.env.PARTNER_MSSQL_DATABASE
+      && process.env.PARTNER_MSSQL_USER
+    ),
+  });
+});
+
+/**
+ * POST /org/partner-sync - 거래처 MSSQL(또는 mock) → PG 조직 동기화
+ * body: { dryRun?: boolean }
+ */
+orgRouter.post('/partner-sync', async (req, res) => {
+  if (!(await assertAdmin(req, res))) return;
+  try {
+    if (!isPartnerOrgEnabled()) {
+      return res.status(400).json({
+        error: 'PARTNER_ORG_SOURCE is off. Set PARTNER_ORG_SOURCE=mock|mssql',
+      });
+    }
+    const dryRun = !!(req.body && req.body.dryRun);
+    const result = await syncPartnerOrg({ dryRun });
+    if (!result.ok) return res.status(400).json(result);
+    return res.json(result);
+  } catch (err) {
+    console.error('[partner-sync]', err);
+    return res.status(500).json({
+      error: 'Partner org sync failed',
+      detail: err?.message || String(err),
+    });
   }
 });
 
