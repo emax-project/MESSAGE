@@ -56,6 +56,8 @@ type MainOverlaysProps = {
   profileModalUser: OrgUser | null;
   onlineUserIds: Set<string>;
   onSendMemoToUser: (userId: string) => void;
+  orgFriends: Set<string>;
+  onToggleOrgFriend: (userId: string) => void;
 };
 
 export default function MainOverlays({
@@ -102,6 +104,8 @@ export default function MainOverlays({
   profileModalUser,
   onlineUserIds,
   onSendMemoToUser,
+  orgFriends,
+  onToggleOrgFriend,
 }: MainOverlaysProps) {
   const overlayCls = 'fixed inset-0 z-[10002] bg-black/40 flex items-center justify-center';
   const modalCls = cn(
@@ -186,7 +190,8 @@ export default function MainOverlays({
           ? contextMenu.selectedUsers
           : [contextMenu.user];
         const multiCount = targets.length;
-        const estH = contextMenu.orgGroupId ? 140 : 110;
+        const isFriend = orgFriends.has(String(contextMenu.user.id));
+        const estH = contextMenu.orgGroupId ? 170 : 140;
         const top = contextMenu.y + estH > window.innerHeight - 8 ? contextMenu.y - estH : contextMenu.y;
         const left = Math.min(Math.max(contextMenu.x, 8), window.innerWidth - 180);
         return (
@@ -195,6 +200,16 @@ export default function MainOverlays({
               <>
                 <button type="button" className={ctxMenuItemCls} onClick={() => { setProfileModalUser(contextMenu.user); setContextMenu(null); }}>프로필 보기</button>
                 <button type="button" className={ctxMenuItemCls} onClick={() => onSendMemoToUser(contextMenu.user.id)}>쪽지 보내기</button>
+                <button
+                  type="button"
+                  className={ctxMenuItemCls}
+                  onClick={() => {
+                    onToggleOrgFriend(contextMenu.user.id);
+                    setContextMenu(null);
+                  }}
+                >
+                  {isFriend ? '즐겨찾기 해제' : '즐겨찾기(친구) 추가'}
+                </button>
               </>
             )}
             <button

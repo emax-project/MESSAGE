@@ -5,6 +5,7 @@ import {
   PanelNoDragWrap,
   PanelTitleRow,
   PanelToolbarRow,
+  panelTitleRowBg,
   usePanelNoDrag,
 } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
@@ -25,10 +26,13 @@ function RoomsPanel({
   const { noDragClass, noDragStyle } = usePanelNoDrag();
   const wrap = panelWrapStyle(820);
   return (
-    <div className={wrap.className} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title="대화" />
+    <div
+      className={cn(wrap.className, isDark ? 'bg-slate-900' : 'bg-[#f7f8fa]')}
+      style={wrap.style}
+    >
+      <PanelTitleRow isDark={isDark} title="대화" className={panelTitleRowBg(isDark)} />
 
-      <PanelToolbarRow isDark={isDark}>
+      <PanelToolbarRow isDark={isDark} className={isDark ? 'bg-slate-900/80' : 'bg-white/70'}>
         <input
           type="text"
           placeholder="대화방 검색"
@@ -37,8 +41,10 @@ function RoomsPanel({
           onChange={(e) => onRoomSearchQueryChange(e.target.value)}
           className={cn(
             noDragClass,
-            'flex-1 px-2.5 py-1.5 border rounded-[6px] text-[13px] outline-none min-w-0',
-            isDark ? 'border-slate-600 bg-slate-700 text-slate-200' : 'border-slate-200 bg-slate-100 text-slate-900',
+            'flex-1 px-2.5 py-1.5 border rounded-[6px] text-[13px] outline-none min-w-0 focus-visible:ring-2 focus-visible:ring-brand-dark/20',
+            isDark
+              ? 'border-slate-600 bg-slate-800 text-slate-200 placeholder:text-slate-500'
+              : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400',
           )}
           style={noDragStyle}
         />

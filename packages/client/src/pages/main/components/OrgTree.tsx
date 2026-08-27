@@ -5,9 +5,9 @@ import type { OnlinePresenceMap } from '../../../utils/presence';
 import { cn } from '../../../utils/cn';
 import { allOrgUsers, companyUsers, departmentUsers } from '../../../utils/orgTree';
 
-const ACTIVE_BLUE = '#3b9eff';
+const ACTIVE_BLUE = '#5B8DEF';
 const INACTIVE_GRAY = '#c5c9d0';
-const FOLDER_BLUE = '#4da3ff';
+const FOLDER_BLUE = '#5B8DEF';
 
 function FolderIcon({ size = 15, active = true }: { size?: number; active?: boolean }) {
   const color = active ? FOLDER_BLUE : INACTIVE_GRAY;
@@ -39,7 +39,7 @@ function DesktopIcon({ active }: { active: boolean }) {
   );
 }
 
-function ExpandBox({ open, onClick }: { open: boolean; onClick: () => void }) {
+function ExpandBox({ open, onClick, isDark }: { open: boolean; onClick: () => void; isDark: boolean }) {
   return (
     <button
       type="button"
@@ -47,7 +47,12 @@ function ExpandBox({ open, onClick }: { open: boolean; onClick: () => void }) {
         e.stopPropagation();
         onClick();
       }}
-      className="inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border border-slate-400 bg-white p-0 text-[11px] leading-none text-slate-600 cursor-pointer"
+      className={cn(
+        'inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border p-0 text-[11px] leading-none cursor-pointer rounded-[2px]',
+        isDark
+          ? 'border-slate-500 bg-slate-800 text-slate-300'
+          : 'border-slate-300 bg-white text-slate-600',
+      )}
       aria-label={open ? '접기' : '펼치기'}
     >
       {open ? '−' : '+'}
@@ -61,17 +66,53 @@ export type OrgUserContextMenuHandler = (
   opts?: { orgGroupId?: string; selectedUsers?: OrgUser[] },
 ) => void;
 
+function FriendStar({
+  active,
+  isDark,
+  onClick,
+}: {
+  active: boolean;
+  isDark: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={active ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+      aria-label={active ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={cn(
+        'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer transition-colors',
+        active
+          ? 'text-amber-400'
+          : isDark
+            ? 'text-slate-500 hover:text-slate-300'
+            : 'text-slate-400 hover:text-slate-600',
+      )}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    </button>
+  );
+}
+
 export type OrgTreeProps = {
   isDark: boolean;
   orgLoading: boolean;
   orgError: boolean;
   orgTree: OrgCompany[];
   orgGroups?: OrgGroup[];
-  view?: 'org' | 'groups';
+  view?: 'org' | 'friends' | 'groups';
   companyMemberCounts?: Record<string, number>;
   treeOpen: Record<string, boolean>;
   orgStarred: Set<string>;
   onToggleOrgStar: (id: string) => void;
+  orgFriends: Set<string>;
+  onToggleOrgFriend: (userId: string) => void;
   onlineUserIds: Set<string>;
   onlinePresence?: OnlinePresenceMap;
   myId?: string;
@@ -100,6 +141,8 @@ function OrgUserRow({
   socketConnected,
   selected,
   selectedUsers,
+  isFriend,
+  onToggleFriend,
   onToggleSelect,
   onOpenDirectMessage,
   onUserContextMenu,
@@ -116,6 +159,8 @@ function OrgUserRow({
   socketConnected: boolean;
   selected: boolean;
   selectedUsers: OrgUser[];
+  isFriend: boolean;
+  onToggleFriend: (userId: string) => void;
   onToggleSelect: (userId: string) => void;
   onOpenDirectMessage: (userId: string) => void | Promise<void>;
   onUserContextMenu: OrgUserContextMenuHandler;
@@ -148,12 +193,10 @@ function OrgUserRow({
     <li className="list-none">
       <div
         className={cn(
-          'flex items-center gap-1.5 rounded px-1.5 py-[3px]',
-          isMe || (isOnline && selected)
-            ? (isDark ? 'bg-blue-500/15' : 'bg-[#e8f4ff]')
-            : selected
-              ? (isDark ? 'bg-slate-700/80' : 'bg-slate-100')
-              : 'bg-transparent',
+          'group flex items-center gap-1.5 rounded px-1.5 py-[3px] transition-colors',
+          selected
+            ? (isDark ? 'bg-brand-dark/20' : 'bg-brand-dark/[0.10]')
+            : (isDark ? 'hover:bg-slate-800/70' : 'hover:bg-[#f3f6fa]'),
         )}
         onContextMenu={openContextMenu}
       >
@@ -165,6 +208,7 @@ function OrgUserRow({
             className="h-3.5 w-3.5 cursor-pointer accent-brand"
           />
         </label>
+        <FriendStar active={isFriend} isDark={isDark} onClick={() => onToggleFriend(u.id)} />
         <span className="inline-flex shrink-0 items-center gap-0.5">
           <span title={mobileActive ? '모바일 접속 중' : '모바일 오프라인'}>
             <MobileIcon active={mobileActive} />
@@ -184,7 +228,7 @@ function OrgUserRow({
             'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] cursor-pointer',
             isOnline
               ? (isDark ? 'text-slate-100 font-medium' : 'text-slate-800 font-medium')
-              : (isDark ? 'text-slate-500' : 'text-slate-400'),
+              : (isDark ? 'text-slate-300' : 'text-slate-400'),
           )}
           onClick={() => void onOpenDirectMessage(u.id)}
           onContextMenu={openContextMenu}
@@ -216,6 +260,8 @@ function OrgTree({
   view = 'org',
   companyMemberCounts,
   treeOpen,
+  orgFriends,
+  onToggleOrgFriend,
   onlineUserIds,
   onlinePresence = {},
   myId,
@@ -267,17 +313,17 @@ function OrgTree({
     .map((id) => usersById.get(id))
     .filter(Boolean) as OrgUser[];
 
-  if (orgLoading && view === 'org') {
+  if (orgLoading && view !== 'groups') {
     return <p className={cn('p-4 text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>로딩 중...</p>;
   }
-  if (orgError && view === 'org') {
+  if (orgError && view !== 'groups') {
     return (
       <div className="p-5 text-center">
         <p className="mb-1.5 text-sm font-semibold text-red-600">조직 데이터를 불러올 수 없습니다</p>
         <button
           type="button"
           onClick={onRetryOrg}
-          className="cursor-pointer rounded-lg border-none bg-slate-600 px-4 py-2 text-[13px] font-semibold text-white"
+          className="cursor-pointer rounded-lg border-none bg-brand-dark px-4 py-2 text-[13px] font-semibold text-white"
         >
           다시 시도
         </button>
@@ -294,11 +340,54 @@ function OrgTree({
     socketConnected,
     selectedUsers,
     onToggleSelect: toggleSelect,
+    onToggleFriend: onToggleOrgFriend,
     onOpenDirectMessage,
     onUserContextMenu,
     hasStatusIcon,
     renderStatusIcon,
   };
+
+  if (view === 'friends') {
+    const friends = allOrgUsers(orgTree)
+      .filter((u) => orgFriends.has(String(u.id)))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+
+    if (orgFriends.size === 0) {
+      return (
+        <p className={cn('p-6 text-center text-[13px] leading-relaxed', isDark ? 'text-slate-400' : 'text-slate-500')}>
+          즐겨찾기한 친구가 없습니다.<br />
+          조직도에서 ★ 또는 우클릭으로 추가하세요.
+        </p>
+      );
+    }
+
+    if (friends.length === 0) {
+      return (
+        <p className={cn('p-6 text-center text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>
+          검색·온라인 필터에 맞는 친구가 없습니다.
+        </p>
+      );
+    }
+
+    return (
+      <div className="px-2.5 py-2">
+        <div className={cn('mb-1.5 px-1 text-[12px] tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+          {friends.length}명
+        </div>
+        <ul className="m-0 list-none space-y-0.5 p-0">
+          {friends.map((u) => (
+            <OrgUserRow
+              key={u.id}
+              u={u}
+              selected={selectedIds.has(u.id)}
+              isFriend
+              {...userRowProps}
+            />
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   if (view === 'groups') {
     if (orgGroups.length === 0) {
@@ -318,7 +407,7 @@ function OrgTree({
           return (
             <div key={group.id} className="mb-0.5">
               <div className="flex items-center gap-1.5 px-1 py-0.5">
-                <ExpandBox open={groupOpen} onClick={() => onToggleTree(groupKey)} />
+                <ExpandBox isDark={isDark} open={groupOpen} onClick={() => onToggleTree(groupKey)} />
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -331,7 +420,9 @@ function OrgTree({
                   onClick={() => onToggleTree(groupKey)}
                   className={cn(
                     'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-semibold cursor-pointer',
-                    groupOpen ? 'text-[#007aff]' : (isDark ? 'text-slate-100' : 'text-slate-900'),
+                    groupOpen
+                      ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                      : (isDark ? 'text-slate-100' : 'text-slate-900'),
                   )}
                 >
                   {group.name}
@@ -344,7 +435,10 @@ function OrgTree({
                     type="button"
                     title="그룹 채팅 만들기"
                     onClick={() => onCreateChatFromOrgGroup(group)}
-                    className="shrink-0 border-none bg-transparent px-1 text-[11px] font-semibold text-[#007aff] cursor-pointer"
+                    className={cn(
+                      'shrink-0 border-none bg-transparent px-1 text-[11px] font-semibold cursor-pointer',
+                      isDark ? 'text-brand-light' : 'text-brand-dark',
+                    )}
                   >
                     채팅
                   </button>
@@ -369,7 +463,10 @@ function OrgTree({
                 )}
               </div>
               {groupOpen && (
-                <ul className="m-0 list-none border-l border-dashed border-slate-300 py-0.5 pl-3 ml-[7px]">
+                <ul className={cn(
+                  'm-0 list-none border-l border-dashed py-0.5 pl-3 ml-[7px]',
+                  isDark ? 'border-slate-600' : 'border-slate-200',
+                )}>
                   {group.members.length === 0 ? (
                     <li className={cn('px-2 py-1 text-xs', isDark ? 'text-slate-500' : 'text-slate-400')}>
                       멤버 없음 · 조직도 탭에서 우클릭으로 추가
@@ -381,6 +478,7 @@ function OrgTree({
                         u={u}
                         orgGroupId={group.id}
                         selected={selectedIds.has(u.id)}
+                        isFriend={orgFriends.has(String(u.id))}
                         {...userRowProps}
                       />
                     ))
@@ -404,7 +502,7 @@ function OrgTree({
    */
   const renderDept = (dept: OrgDepartment) => {
     const deptKey = `dept-${dept.id}`;
-    const deptOpen = treeOpen[deptKey] !== false;
+    const deptOpen = !!treeOpen[deptKey];
     const children = dept.children ?? [];
     // 이 부서 + 모든 하위 부서의 인원
     const deptIds = departmentUsers(dept).map((u) => u.id);
@@ -414,7 +512,7 @@ function OrgTree({
     return (
       <div key={dept.id} className="mt-0.5">
         <div className="flex items-center gap-1.5 px-1 py-0.5">
-          <ExpandBox open={deptOpen} onClick={() => onToggleTree(deptKey)} />
+          <ExpandBox isDark={isDark} open={deptOpen} onClick={() => onToggleTree(deptKey)} />
           <input
             type="checkbox"
             checked={deptAllSelected}
@@ -427,7 +525,9 @@ function OrgTree({
             onClick={() => onToggleTree(deptKey)}
             className={cn(
               'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-medium cursor-pointer',
-              deptOpen ? 'text-[#007aff]' : (isDark ? 'text-slate-300' : 'text-slate-600'),
+              deptOpen
+                ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                : (isDark ? 'text-slate-300' : 'text-slate-600'),
             )}
           >
             {dept.name}
@@ -439,11 +539,20 @@ function OrgTree({
           )}
         </div>
         {deptOpen && hasContent && (
-          <div className="ml-[7px] border-l border-dashed border-slate-300 pl-2">
+          <div className={cn(
+            'ml-[7px] border-l border-dashed pl-2',
+            isDark ? 'border-slate-600' : 'border-slate-200',
+          )}>
             {dept.users.length > 0 && (
               <ul className="m-0 list-none py-0.5 pl-1">
                 {dept.users.map((u) => (
-                  <OrgUserRow key={u.id} u={u} selected={selectedIds.has(u.id)} {...userRowProps} />
+                  <OrgUserRow
+                    key={u.id}
+                    u={u}
+                    selected={selectedIds.has(u.id)}
+                    isFriend={orgFriends.has(String(u.id))}
+                    {...userRowProps}
+                  />
                 ))}
               </ul>
             )}
@@ -467,7 +576,7 @@ function OrgTree({
         return (
           <div key={company.id} className="mb-0.5">
             <div className="flex items-center gap-1.5 px-1 py-0.5">
-              <ExpandBox open={companyOpen} onClick={() => onToggleTree(companyKey)} />
+              <ExpandBox isDark={isDark} open={companyOpen} onClick={() => onToggleTree(companyKey)} />
               <input
                 type="checkbox"
                 checked={companyAllSelected}
@@ -480,7 +589,9 @@ function OrgTree({
                 onClick={() => onToggleTree(companyKey)}
                 className={cn(
                   'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-semibold cursor-pointer',
-                  companyOpen ? 'text-[#007aff]' : (isDark ? 'text-slate-100' : 'text-slate-900'),
+                  companyOpen
+                    ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                    : (isDark ? 'text-slate-100' : 'text-slate-900'),
                 )}
               >
                 {company.name}
@@ -491,7 +602,10 @@ function OrgTree({
             </div>
 
             {companyOpen && (
-              <div className="ml-[7px] border-l border-dashed border-slate-300 pl-2">
+              <div className={cn(
+                'ml-[7px] border-l border-dashed pl-2',
+                isDark ? 'border-slate-600' : 'border-slate-200',
+              )}>
                 {company.departments.map((dept) => renderDept(dept))}
               </div>
             )}

@@ -22,6 +22,11 @@ export function panelHeaderBorder(isDark: boolean) {
   return isDark ? 'border-[#3a3f46]' : 'border-[#dde1e6]';
 }
 
+/** 패널 제목 줄 배경 — 조직도·대화 등 공통 톤 */
+export function panelTitleRowBg(isDark: boolean) {
+  return isDark ? 'bg-slate-800' : 'bg-[#e8ecf2]';
+}
+
 type PanelDragHeaderProps = {
   className?: string;
   style?: CSSProperties;
@@ -114,15 +119,17 @@ type PanelTitleRowProps = {
   left?: ReactNode;
   right?: ReactNode;
   compact?: boolean;
+  className?: string;
 };
 
-export function PanelTitleRow({ isDark, title, left, right, compact }: PanelTitleRowProps) {
+export function PanelTitleRow({ isDark, title, left, right, compact, className }: PanelTitleRowProps) {
   return (
     <div
       className={cn(
         PANEL_TITLE_ROW,
         panelHeaderBorder(isDark),
         compact && 'h-[44px] min-h-[44px]',
+        className,
       )}
     >
       {left ? <div className="flex shrink-0 items-center">{left}</div> : null}

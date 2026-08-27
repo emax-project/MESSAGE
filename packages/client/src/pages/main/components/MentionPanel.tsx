@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { PanelTitleRow } from '../../../components/PanelDragHeader';
+import { PanelTitleRow, panelTitleRowBg } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
 
 type MentionMessage = {
@@ -70,7 +70,7 @@ function MentionPanel({
 
   return (
     <div className={wrap.className} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title="멘션" />
+      <PanelTitleRow isDark={isDark} title="멘션" className={panelTitleRowBg(isDark)} />
       <div className="flex-1 min-h-0 overflow-auto">{content}</div>
     </div>
   );

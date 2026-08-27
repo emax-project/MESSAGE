@@ -5,6 +5,7 @@ import {
   PanelNoDragWrap,
   PanelTitleRow,
   PanelToolbarRow,
+  panelTitleRowBg,
   usePanelNoDrag,
 } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
@@ -48,6 +49,7 @@ function MemoDetail({
     <div className="flex flex-1 min-h-0 flex-col">
       <PanelTitleRow
         isDark={isDark}
+        className={panelTitleRowBg(isDark)}
         left={(
           <button
             type="button"
@@ -178,6 +180,7 @@ function MemoPanel({
       <PanelTitleRow
         isDark={isDark}
         title="쪽지"
+        className={panelTitleRowBg(isDark)}
         right={(
           <button
             type="button"
