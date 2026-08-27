@@ -319,20 +319,25 @@ usersRouter.delete('/me/device-token', async (req, res) => {
 // Update my profile (phone, jobTitle, statusMessage)
 usersRouter.put('/me', async (req, res) => {
   try {
-    // 직급은 조직 마스터 값이라 본인이 바꿀 수 없다.
-    // 관리자가 PUT /users/:id/job-title 로 지정한다.
-    const { phone, statusMessage } = req.body;
+    const { phone, statusMessage, extension, statusNote } = req.body;
     const data = {};
     if (phone !== undefined) data.phone = phone && String(phone).trim() ? String(phone).trim().slice(0, 50) : null;
+    if (extension !== undefined) data.extension = extension && String(extension).trim() ? String(extension).trim().slice(0, 30) : null;
     if (statusMessage !== undefined) data.statusMessage = statusMessage && String(statusMessage).trim() ? String(statusMessage).trim().slice(0, 200) : null;
+    if (statusNote !== undefined) data.statusNote = statusNote && String(statusNote).trim() ? String(statusNote).trim().slice(0, 200) : null;
     if (Object.keys(data).length === 0) return res.json({ ok: true });
     await prisma.user.update({
       where: { id: req.userId },
       data,
     });
     const io = req.app.get('io');
-    if (io && (data.statusMessage !== undefined)) {
-      io.emit('user_status_changed', { userId: req.userId, statusMessage: data.statusMessage ?? null });
+    if (io && (data.statusMessage !== undefined || data.statusNote !== undefined || data.extension !== undefined)) {
+      io.emit('user_status_changed', {
+        userId: req.userId,
+        statusMessage: data.statusMessage !== undefined ? (data.statusMessage ?? null) : undefined,
+        statusNote: data.statusNote !== undefined ? (data.statusNote ?? null) : undefined,
+        extension: data.extension !== undefined ? (data.extension ?? null) : undefined,
+      });
     }
     return res.json({ ok: true });
   } catch (err) {

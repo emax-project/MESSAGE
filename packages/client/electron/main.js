@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell, nativeImage, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { pathToFileURL } = require('url');
 
 // Windows: GPU 렌더링 문제로 검은 화면 발생 시 소프트웨어 렌더링 강제
@@ -581,6 +582,70 @@ ipcMain.handle('window-resize', (event, width, height) => {
   if (win && typeof width === 'number' && typeof height === 'number') {
     win.setSize(Math.round(width), Math.round(height));
   }
+});
+
+ipcMain.handle('window-set-always-on-top', (event, flag) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { ok: false };
+  const on = !!flag;
+  win.setAlwaysOnTop(on);
+  return { ok: true, alwaysOnTop: win.isAlwaysOnTop() };
+});
+
+ipcMain.handle('window-get-always-on-top', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return { alwaysOnTop: !!(win && win.isAlwaysOnTop()) };
+});
+
+const DOWNLOAD_PREF_PATH = path.join(app.getPath('userData'), 'download-path.json');
+
+function readDownloadPathPref() {
+  try {
+    const raw = fs.readFileSync(DOWNLOAD_PREF_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.path === 'string' ? parsed.path : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDownloadPathPref(dir) {
+  fs.writeFileSync(DOWNLOAD_PREF_PATH, JSON.stringify({ path: dir || null }, null, 2), 'utf8');
+}
+
+ipcMain.handle('get-download-path', () => ({ path: readDownloadPathPref() }));
+
+ipcMain.handle('pick-download-path', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win || undefined, {
+    title: '첨부파일 저장 폴더 선택',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (result.canceled || !result.filePaths?.[0]) {
+    return { path: readDownloadPathPref(), canceled: true };
+  }
+  writeDownloadPathPref(result.filePaths[0]);
+  return { path: result.filePaths[0], canceled: false };
+});
+
+ipcMain.handle('clear-download-path', () => {
+  writeDownloadPathPref(null);
+  return { path: null };
+});
+
+ipcMain.handle('save-file-to-download-path', async (_, { buffer, filename }) => {
+  const dir = readDownloadPathPref();
+  if (!dir || !filename) return { ok: false, error: 'NO_PATH' };
+  const safeName = String(filename).replace(/[\\/:*?"<>|]/g, '_');
+  let target = path.join(dir, safeName);
+  if (fs.existsSync(target)) {
+    const ext = path.extname(safeName);
+    const base = path.basename(safeName, ext);
+    target = path.join(dir, `${base}-${Date.now()}${ext}`);
+  }
+  const data = Buffer.from(buffer);
+  fs.writeFileSync(target, data);
+  return { ok: true, path: target };
 });
 
 ipcMain.on('app-ready', (event) => {

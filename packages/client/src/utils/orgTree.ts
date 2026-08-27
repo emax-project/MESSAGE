@@ -37,19 +37,23 @@ export function allOrgUsers(orgTree: OrgCompany[]): OrgUser[] {
 /**
  * 부서 트리를 검색·필터 조건으로 거른다.
  * 자기 인원이 조건에 맞지 않아도 하위 부서에 남는 사람이 있으면 유지한다.
- * (그러지 않으면 인원이 없는 상위 본부가 사라지면서 하위 부서까지 통째로 없어진다.)
+ * keepDept 가 true 인 부서는 이름 매칭 등으로 통째로 유지(인원 필터 완화).
  */
 export function filterDepartments(
   departments: OrgDepartment[],
   keepUser: (user: OrgUser) => boolean,
+  keepDept?: (dept: OrgDepartment) => boolean,
 ): OrgDepartment[] {
   return (departments ?? [])
     .map((dept) => {
-      const children = filterDepartments(dept.children ?? [], keepUser);
-      const users = (dept.users ?? []).filter(keepUser);
+      const children = filterDepartments(dept.children ?? [], keepUser, keepDept);
+      const deptMatched = keepDept?.(dept) === true;
+      const users = deptMatched
+        ? (dept.users ?? [])
+        : (dept.users ?? []).filter(keepUser);
       return { ...dept, users, children };
     })
-    .filter((dept) => dept.users.length > 0 || dept.children.length > 0);
+    .filter((dept) => dept.users.length > 0 || dept.children.length > 0 || keepDept?.(dept) === true);
 }
 
 /**

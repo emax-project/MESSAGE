@@ -26,19 +26,33 @@ import RightContentRouter from './main/components/RightContentRouter';
 import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/components/AnnouncementPanel';
 import MainOverlays from './main/components/MainOverlays';
 import { cn } from '../utils/cn';
-import { companyUsers, filterDepartments } from '../utils/orgTree';
+import { companyUsers, filterDepartments, allOrgUsers } from '../utils/orgTree';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 
 const STATUS_OPTIONS = [
-  { id: '', label: '설정 안 함' },
+  { id: '온라인', label: '온라인' },
   { id: '자리 비움', label: '자리 비움' },
+  { id: '다른 용무 중', label: '다른 용무 중' },
   { id: '회의 중', label: '회의 중' },
-  { id: '외근', label: '외근' },
-  { id: '휴가', label: '휴가' },
+  { id: '외근 중', label: '외근 중' },
 ];
 
+const AWAY_MINUTES_KEY = 'emax_away_minutes';
+const ORG_SEARCH_FIELD_KEY = 'emax_org_search_field';
+
+export type OrgSearchField = 'all' | 'name' | 'dept' | 'job' | 'email' | 'extension' | 'phone';
+
 function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
+  // 온라인: 초록 점
+  if (status === '온라인') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
+        <circle cx="8" cy="8" r="7" fill="#22c55e" />
+        <circle cx="8" cy="8" r="3" fill="white" />
+      </svg>
+    );
+  }
   // 자리 비움: 주황 시계
   if (status === '자리 비움') {
     return (
@@ -47,6 +61,15 @@ function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
         <circle cx="8" cy="8" r="3.5" fill="none" stroke="white" strokeWidth="1.3" />
         <line x1="8" y1="8" x2="8" y2="5.3" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
         <line x1="8" y1="8" x2="10" y2="8" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  // 다른 용무 중: 보라 바
+  if (status === '다른 용무 중') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
+        <circle cx="8" cy="8" r="7" fill="#8b5cf6" />
+        <rect x="4.5" y="7" width="7" height="2" rx="1" fill="white" />
       </svg>
     );
   }
@@ -60,8 +83,8 @@ function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
       </svg>
     );
   }
-  // 외근: 갈색/빨간 자동차
-  if (status === '외근') {
+  // 외근/외근 중: 빨간 자동차
+  if (status === '외근 중' || status === '외근') {
     return (
       <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
         <circle cx="8" cy="8" r="7" fill="#ef4444" />
@@ -72,20 +95,12 @@ function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
       </svg>
     );
   }
-  // 휴가: 초록 야자수 / 태양
+  // 휴가(레거시): 초록 태양
   if (status === '휴가') {
     return (
       <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
         <circle cx="8" cy="8" r="7" fill="#22c55e" />
         <circle cx="8" cy="7" r="2.3" fill="white" opacity="0.95" />
-        <line x1="8" y1="4.2" x2="8" y2="3" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="8" y1="9.8" x2="8" y2="11" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="5.2" y1="7" x2="4" y2="7" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="10.8" y1="7" x2="12" y2="7" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="6.1" y1="5.1" x2="5.3" y2="4.3" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="9.9" y1="8.9" x2="10.7" y2="9.7" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="9.9" y1="5.1" x2="10.7" y2="4.3" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="6.1" y1="8.9" x2="5.3" y2="9.7" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
       </svg>
     );
   }
@@ -127,6 +142,33 @@ export default function Main() {
   // --- Layout state ---
   const [activePanel, setActivePanel] = useState<'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings'>('none');
   const [searchQuery, setSearchQuery] = useState('');
+  const [orgSearchField, setOrgSearchField] = useState<OrgSearchField>(() => {
+    try {
+      const raw = localStorage.getItem(ORG_SEARCH_FIELD_KEY);
+      if (raw === 'all' || raw === 'name' || raw === 'dept' || raw === 'job' || raw === 'email' || raw === 'extension' || raw === 'phone') return raw;
+    } catch { /* ignore */ }
+    return 'all';
+  });
+  const [awayMinutes, setAwayMinutes] = useState(() => {
+    try {
+      const n = Number(localStorage.getItem(AWAY_MINUTES_KEY));
+      return Number.isFinite(n) && n > 0 ? n : 10;
+    } catch {
+      return 10;
+    }
+  });
+  const [alwaysOnTop, setAlwaysOnTop] = useState(false);
+  const [downloadPath, setDownloadPath] = useState<string | null>(null);
+  const [statusNote, setStatusNote] = useState('');
+  const [extensionInput, setExtensionInput] = useState('');
+  const [orgViewMode, setOrgViewMode] = useState<'combined' | 'split'>(() => {
+    try {
+      return localStorage.getItem('emax_org_view_mode') === 'split' ? 'split' : 'combined';
+    } catch {
+      return 'combined';
+    }
+  });
+  const autoAwayRef = useRef(false);
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [sectionOpen, setSectionOpen] = useState<{ topic: boolean; chat: boolean }>({ topic: true, chat: true });
@@ -281,32 +323,65 @@ export default function Main() {
   const orgTree = useMemo(() => {
     const tree = orgTreeRaw ?? [];
     const keepUser = (u: OrgUser) => {
-      const nameMatch = !q || u.name?.toLowerCase().includes(q);
       const onlineMatch = !showOnlineOnly || onlineUserIds.has(String(u.id));
-      return Boolean(nameMatch && onlineMatch);
+      if (!onlineMatch) return false;
+      if (!q) return true;
+      if (orgSearchField === 'name') return !!u.name?.toLowerCase().includes(q);
+      if (orgSearchField === 'job') return !!u.jobTitle?.toLowerCase().includes(q);
+      if (orgSearchField === 'email') return !!u.email?.toLowerCase().includes(q);
+      if (orgSearchField === 'extension') return !!u.extension?.toLowerCase().includes(q);
+      if (orgSearchField === 'phone') return !!u.phone?.toLowerCase().includes(q);
+      if (orgSearchField === 'dept') return true; // 부서 매칭은 keepDept에서
+      // all
+      return !!(
+        u.name?.toLowerCase().includes(q)
+        || u.email?.toLowerCase().includes(q)
+        || u.phone?.toLowerCase().includes(q)
+        || u.extension?.toLowerCase().includes(q)
+        || u.jobTitle?.toLowerCase().includes(q)
+      );
+    };
+    const keepDept = (d: { name?: string }) => {
+      if (!q) return false;
+      if (orgSearchField === 'dept' || orgSearchField === 'all') {
+        return !!d.name?.toLowerCase().includes(q);
+      }
+      return false;
     };
     const filtered = tree.map((company) => ({
       ...company,
-      // 하위 부서에 남는 사람이 있으면 상위 부서도 유지된다
-      departments: filterDepartments(company.departments ?? [], keepUser),
+      departments: filterDepartments(company.departments ?? [], keepUser, keepDept),
     })).filter((company) => (company.departments?.length ?? 0) > 0);
     return filtered
       .map((c) => ({ ...c, departments: [...c.departments].sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0)) }))
       .sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0));
-  }, [orgTreeRaw, q, showOnlineOnly, onlineUserIds, orgStarred]);
+  }, [orgTreeRaw, q, showOnlineOnly, onlineUserIds, orgStarred, orgSearchField]);
 
   const orgGroups = useMemo(() => {
     return (orgGroupsRaw ?? [])
       .map((g) => ({
         ...g,
         members: (g.members ?? []).filter((u) => {
-          const nameMatch = !q || u.name?.toLowerCase().includes(q);
           const onlineMatch = !showOnlineOnly || onlineUserIds.has(String(u.id));
-          return nameMatch && onlineMatch;
+          if (!onlineMatch) return false;
+          if (!q) return true;
+          if (orgSearchField === 'name') return !!u.name?.toLowerCase().includes(q);
+          if (orgSearchField === 'job') return !!u.jobTitle?.toLowerCase().includes(q);
+          if (orgSearchField === 'email') return !!u.email?.toLowerCase().includes(q);
+          if (orgSearchField === 'extension') return !!u.extension?.toLowerCase().includes(q);
+          if (orgSearchField === 'phone') return !!u.phone?.toLowerCase().includes(q);
+          if (orgSearchField === 'dept') return true;
+          return !!(
+            u.name?.toLowerCase().includes(q)
+            || u.email?.toLowerCase().includes(q)
+            || u.phone?.toLowerCase().includes(q)
+            || u.extension?.toLowerCase().includes(q)
+            || u.jobTitle?.toLowerCase().includes(q)
+          );
         }),
       }))
       .filter((g) => (!q && !showOnlineOnly) || g.members.length > 0);
-  }, [orgGroupsRaw, q, showOnlineOnly, onlineUserIds]);
+  }, [orgGroupsRaw, q, showOnlineOnly, onlineUserIds, orgSearchField]);
 
   const companyMemberCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -386,7 +461,67 @@ export default function Main() {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [contextMenu, roomContextMenu, profileModalUser, showAnnouncementModal]);
-  useEffect(() => { if (statusSyncedRef.current || !myId) return; for (const company of (Array.isArray(orgTreeRaw) ? orgTreeRaw : [])) { for (const dept of (company.departments ?? [])) { const me = (dept.users ?? []).find((u) => String(u.id) === String(myId)); if (me) { setStatusInput(me.statusMessage || ''); statusSyncedRef.current = true; return; } } } }, [orgTreeRaw, myId]);
+  useEffect(() => {
+    if (statusSyncedRef.current || !myId) return;
+    const me = allOrgUsers(Array.isArray(orgTreeRaw) ? orgTreeRaw : []).find((u) => String(u.id) === String(myId));
+    if (me) {
+      setStatusInput(me.statusMessage || '온라인');
+      setStatusNote(me.statusNote || '');
+      setExtensionInput(me.extension || '');
+      statusSyncedRef.current = true;
+    }
+  }, [orgTreeRaw, myId]);
+
+  // 자리비움 자동 전환 (설정 분 동안 입력 없으면)
+  useEffect(() => {
+    const minutes = awayMinutes;
+    if (!minutes || minutes <= 0) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const arm = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const cur = statusInput || '온라인';
+        if (cur === '온라인' || cur === '') {
+          autoAwayRef.current = true;
+          void handleSetStatus('자리 비움');
+        }
+      }, minutes * 60 * 1000);
+    };
+    const onActivity = () => {
+      if (autoAwayRef.current && statusInput === '자리 비움') {
+        autoAwayRef.current = false;
+        void handleSetStatus('온라인');
+      }
+      arm();
+    };
+    arm();
+    const evs = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'wheel'] as const;
+    evs.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    return () => {
+      if (timer) clearTimeout(timer);
+      evs.forEach((e) => window.removeEventListener(e, onActivity));
+    };
+    // handleSetStatus is stable enough via closure; include statusInput for restore
+  }, [awayMinutes, statusInput]);
+
+  useEffect(() => {
+    try { localStorage.setItem(AWAY_MINUTES_KEY, String(awayMinutes)); } catch { /* ignore */ }
+  }, [awayMinutes]);
+
+  useEffect(() => {
+    try { localStorage.setItem(ORG_SEARCH_FIELD_KEY, orgSearchField); } catch { /* ignore */ }
+  }, [orgSearchField]);
+
+  useEffect(() => {
+    try { localStorage.setItem('emax_org_view_mode', orgViewMode); } catch { /* ignore */ }
+  }, [orgViewMode]);
+
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api?.getAlwaysOnTop) return;
+    void api.getAlwaysOnTop().then((r) => setAlwaysOnTop(!!r?.alwaysOnTop));
+    void api.getDownloadPath?.().then((r) => setDownloadPath(r?.path ?? null));
+  }, []);
 
   // 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 카톡처럼 N 표시
   useEffect(() => {
@@ -445,7 +580,50 @@ export default function Main() {
   const handleToggleFavorite = async (room: Room) => { try { await roomsApi.toggleFavorite(room.id, !room.isFavorite); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
   const handleToggleMuteRoom = (roomId: string) => { toggleMuteRoom(roomId); setRoomContextMenu(null); };
   const handleLeaveRoom = async (roomId: string) => { if (!confirm('채팅방을 나가시겠습니까?')) { setRoomContextMenu(null); return; } try { await roomsApi.leave(roomId); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
-  const handleSetStatus = async (msg: string) => { try { await usersApi.updateStatus(msg); setStatusInput(msg); queryClient.invalidateQueries({ queryKey: ['org'] }); } catch (err) { console.error(err); } };
+  const handleSetStatus = async (msg: string) => {
+    try {
+      await usersApi.updateStatus(msg);
+      setStatusInput(msg);
+      if (msg !== '자리 비움') autoAwayRef.current = false;
+      queryClient.invalidateQueries({ queryKey: ['org'] });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  const handleSaveStatusProfile = async () => {
+    try {
+      await usersApi.updateProfile({
+        statusNote: statusNote.trim() || null,
+        extension: extensionInput.trim() || null,
+      });
+      queryClient.invalidateQueries({ queryKey: ['org'] });
+      useToastStore.getState().show('저장되었습니다', 'success');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  const handleToggleAlwaysOnTop = async () => {
+    const next = !alwaysOnTop;
+    const r = await window.electronAPI?.setAlwaysOnTop?.(next);
+    setAlwaysOnTop(!!(r?.alwaysOnTop ?? next));
+  };
+  const handlePickDownloadPath = async () => {
+    const r = await window.electronAPI?.pickDownloadPath?.();
+    if (!r?.canceled) setDownloadPath(r?.path ?? null);
+  };
+  const handleClearDownloadPath = async () => {
+    await window.electronAPI?.clearDownloadPath?.();
+    setDownloadPath(null);
+  };
+  const handleOrgSearchFieldChange = (field: OrgSearchField) => setOrgSearchField(field);
+  const handleOrgViewModeChange = (mode: 'combined' | 'split') => setOrgViewMode(mode);
+  const handleSendMailToUsers = (users: OrgUser[]) => {
+    const emails = users.map((u) => u.email).filter(Boolean);
+    if (emails.length === 0) return;
+    const href = `mailto:${emails.join(',')}`;
+    if (window.electronAPI?.openExternal) void window.electronAPI.openExternal(href);
+    else window.open(href, '_blank');
+  };
   const handleSelectAvatarFile = useCallback((file: File) => setAvatarEditFile(file), []);
   const handleDeleteAvatar = useCallback(async () => {
     try {
@@ -576,7 +754,10 @@ export default function Main() {
     setActivePanel('memo');
     handleOpenMemoCompose([userId]);
   }, [handleOpenMemoCompose]);
-  const hasStatusIcon = useCallback((status?: string | null) => !!status && STATUS_OPTIONS.some((o) => o.id === status), []);
+  const hasStatusIcon = useCallback((status?: string | null) => {
+    if (!status) return false;
+    return STATUS_OPTIONS.some((o) => o.id === status) || status === '외근' || status === '휴가';
+  }, []);
   const handleToggleOnlineOnly = useCallback(() => {
     setShowOnlineOnly((v) => !v);
   }, []);
@@ -830,6 +1011,10 @@ export default function Main() {
               orgProps={{
                 searchQuery,
                 onSearchQueryChange: setSearchQuery,
+                orgSearchField,
+                onOrgSearchFieldChange: handleOrgSearchFieldChange,
+                orgViewMode,
+                onOrgViewModeChange: handleOrgViewModeChange,
                 showOnlineOnly,
                 onToggleOnlineOnly: handleToggleOnlineOnly,
                 orgLoading,
@@ -892,6 +1077,18 @@ export default function Main() {
                 handleOpenUpdateDownload,
                 handleOpenReleasesPage,
                 statusInput,
+                statusNote,
+                onStatusNoteChange: setStatusNote,
+                extensionInput,
+                onExtensionChange: setExtensionInput,
+                onSaveStatusProfile: () => void handleSaveStatusProfile(),
+                awayMinutes,
+                onAwayMinutesChange: setAwayMinutes,
+                alwaysOnTop,
+                onToggleAlwaysOnTop: () => void handleToggleAlwaysOnTop(),
+                downloadPath,
+                onPickDownloadPath: () => void handlePickDownloadPath(),
+                onClearDownloadPath: () => void handleClearDownloadPath(),
                 statusOptions: STATUS_OPTIONS,
                 renderStatusIcon: (status, size = 18) => <StatusIcon status={status} size={size} />,
                 handleSetStatus,
@@ -953,6 +1150,12 @@ export default function Main() {
         profileModalUser={profileModalUser}
         onlineUserIds={onlineUserIds}
         onSendMemoToUser={handleSendMemoToUser}
+        onSendMemoToUsers={(ids) => {
+          setMemoComposeRecipients(ids);
+          setShowMemoCompose(true);
+          setContextMenu(null);
+        }}
+        onSendMailToUsers={handleSendMailToUsers}
         orgFriends={orgFriends}
         onToggleOrgFriend={toggleOrgFriend}
       />

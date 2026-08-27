@@ -58,4 +58,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('update-downloaded', listener);
   },
   fetchUserAvatar: (userId, baseUrl, token) => ipcRenderer.invoke('fetch-user-avatar', { userId, baseUrl, token }),
+  setAlwaysOnTop: (flag) => ipcRenderer.invoke('window-set-always-on-top', flag),
+  getAlwaysOnTop: () => ipcRenderer.invoke('window-get-always-on-top'),
+  getDownloadPath: () => ipcRenderer.invoke('get-download-path'),
+  pickDownloadPath: () => ipcRenderer.invoke('pick-download-path'),
+  clearDownloadPath: () => ipcRenderer.invoke('clear-download-path'),
+  saveFileToDownloadPath: (buffer, filename) => ipcRenderer.invoke('save-file-to-download-path', { buffer, filename }),
 });

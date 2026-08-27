@@ -47,7 +47,7 @@ orgRouter.get('/tree', async (req, res) => {
           include: {
             users: {
               orderBy: { name: 'asc' },
-              select: { id: true, name: true, email: true, phone: true, jobTitle: true, statusMessage: true, avatarUrl: true, updatedAt: true },
+              select: { id: true, name: true, email: true, phone: true, extension: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true },
             },
           },
         },
@@ -93,7 +93,7 @@ orgRouter.get('/tree', async (req, res) => {
     if (!allUserIds.has(myId)) {
       const me = await prisma.user.findUnique({
         where: { id: myId },
-        select: { id: true, name: true, email: true, phone: true, jobTitle: true, statusMessage: true, avatarUrl: true, updatedAt: true },
+        select: { id: true, name: true, email: true, phone: true, extension: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true },
       });
       if (me && tree.length > 0 && (tree[0]?.departments?.length ?? 0) > 0) {
         const firstDept = tree[0].departments[0];

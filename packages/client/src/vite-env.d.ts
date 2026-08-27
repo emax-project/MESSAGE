@@ -46,5 +46,11 @@ interface Window {
     onUpdateDownloaded: (handler: () => void) => () => void;
     fetchUserAvatar: (userId: string, baseUrl: string, token: string) => Promise<string | null>;
     fetchRoomAvatar?: (roomId: string, baseUrl: string, token: string) => Promise<string | null>;
+    setAlwaysOnTop?: (flag: boolean) => Promise<{ ok?: boolean; alwaysOnTop?: boolean }>;
+    getAlwaysOnTop?: () => Promise<{ alwaysOnTop?: boolean }>;
+    getDownloadPath?: () => Promise<{ path: string | null }>;
+    pickDownloadPath?: () => Promise<{ path: string | null; canceled?: boolean }>;
+    clearDownloadPath?: () => Promise<{ path: string | null }>;
+    saveFileToDownloadPath?: (buffer: ArrayBuffer | Uint8Array, filename: string) => Promise<{ ok: boolean; path?: string; error?: string }>;
   };
 }

@@ -56,6 +56,8 @@ type MainOverlaysProps = {
   profileModalUser: OrgUser | null;
   onlineUserIds: Set<string>;
   onSendMemoToUser: (userId: string) => void;
+  onSendMemoToUsers?: (userIds: string[]) => void;
+  onSendMailToUsers?: (users: OrgUser[]) => void;
   orgFriends: Set<string>;
   onToggleOrgFriend: (userId: string) => void;
 };
@@ -104,6 +106,8 @@ export default function MainOverlays({
   profileModalUser,
   onlineUserIds,
   onSendMemoToUser,
+  onSendMemoToUsers,
+  onSendMailToUsers,
   orgFriends,
   onToggleOrgFriend,
 }: MainOverlaysProps) {
@@ -211,6 +215,42 @@ export default function MainOverlays({
                   {isFriend ? '즐겨찾기 해제' : '즐겨찾기(친구) 추가'}
                 </button>
               </>
+            )}
+            {multiCount > 1 && (
+              <>
+                <button
+                  type="button"
+                  className={ctxMenuItemCls}
+                  onClick={() => {
+                    onSendMemoToUsers?.(targets.map((u) => u.id));
+                    setContextMenu(null);
+                  }}
+                >
+                  쪽지 보내기 ({multiCount}명)
+                </button>
+                <button
+                  type="button"
+                  className={ctxMenuItemCls}
+                  onClick={() => {
+                    onSendMailToUsers?.(targets);
+                    setContextMenu(null);
+                  }}
+                >
+                  메일 보내기 ({multiCount}명)
+                </button>
+              </>
+            )}
+            {multiCount === 1 && onSendMailToUsers && (
+              <button
+                type="button"
+                className={ctxMenuItemCls}
+                onClick={() => {
+                  onSendMailToUsers([contextMenu.user]);
+                  setContextMenu(null);
+                }}
+              >
+                메일 보내기
+              </button>
             )}
             <button
               type="button"

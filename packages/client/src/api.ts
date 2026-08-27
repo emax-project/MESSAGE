@@ -172,9 +172,9 @@ export const api = {
   },
 };
 
-export type User = { id: string; email: string; name: string; phone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; avatarUrl?: string };
+export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; avatarUrl?: string };
 
-export type OrgUser = { id: string; name: string; email: string; phone?: string | null; jobTitle?: string | null; avatarUrl?: string; statusMessage?: string | null };
+export type OrgUser = { id: string; name: string; email: string; phone?: string | null; extension?: string | null; jobTitle?: string | null; avatarUrl?: string; statusMessage?: string | null; statusNote?: string | null };
 export type OrgDepartment = {
   id: string;
   name: string;
@@ -385,7 +385,7 @@ export const usersApi = {
   bulkRegister: (data: { defaultPassword?: string; users: BulkRegisterUserInput[] }) =>
     api.post('/users/bulk', data) as Promise<BulkRegisterResult>,
   /** 직급은 여기서 바꿀 수 없다. 조직 마스터 값이라 관리자만 setJobTitle로 지정한다. */
-  updateProfile: (data: { phone?: string | null; statusMessage?: string | null }) =>
+  updateProfile: (data: { phone?: string | null; extension?: string | null; statusMessage?: string | null; statusNote?: string | null }) =>
     api.put('/users/me', data) as Promise<{ ok: boolean }>,
   /** 특정 사용자의 직급 지정 (관리자 전용). 빈 값이면 직급 없음. */
   setJobTitle: (id: string, jobTitle: string | null) =>
@@ -635,6 +635,14 @@ export const filesApi = {
         } catch {
           // keep filename from param
         }
+      }
+    }
+    if (window.electronAPI?.saveFileToDownloadPath && window.electronAPI.getDownloadPath) {
+      const pref = await window.electronAPI.getDownloadPath();
+      if (pref?.path) {
+        const buf = await blob.arrayBuffer();
+        const saved = await window.electronAPI.saveFileToDownloadPath(buf, downloadName);
+        if (saved?.ok) return;
       }
     }
     const url = URL.createObjectURL(blob);

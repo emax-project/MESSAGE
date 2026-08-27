@@ -66,6 +66,10 @@ type RightContentRouterProps = {
   orgProps: {
     searchQuery: string;
     onSearchQueryChange: (value: string) => void;
+    orgSearchField?: import('./OrgPanel').OrgSearchField;
+    onOrgSearchFieldChange?: (field: import('./OrgPanel').OrgSearchField) => void;
+    orgViewMode?: 'combined' | 'split';
+    onOrgViewModeChange?: (mode: 'combined' | 'split') => void;
     showOnlineOnly: boolean;
     onToggleOnlineOnly: () => void;
     orgLoading: boolean;
@@ -128,6 +132,18 @@ type RightContentRouterProps = {
     handleOpenUpdateDownload: () => void | Promise<void>;
     handleOpenReleasesPage: () => void;
     statusInput: string;
+    statusNote?: string;
+    onStatusNoteChange?: (value: string) => void;
+    extensionInput?: string;
+    onExtensionChange?: (value: string) => void;
+    onSaveStatusProfile?: () => void;
+    awayMinutes?: number;
+    onAwayMinutesChange?: (minutes: number) => void;
+    alwaysOnTop?: boolean;
+    onToggleAlwaysOnTop?: () => void;
+    downloadPath?: string | null;
+    onPickDownloadPath?: () => void;
+    onClearDownloadPath?: () => void;
     statusOptions: { id: string; label: string }[];
     renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
     handleSetStatus: (msg: string) => void | Promise<void>;
@@ -171,6 +187,10 @@ function RightContentRouter({
             panelWrapStyle={panelWrapStyle}
             searchQuery={orgProps.searchQuery}
             onSearchQueryChange={orgProps.onSearchQueryChange}
+            orgSearchField={orgProps.orgSearchField}
+            onOrgSearchFieldChange={orgProps.onOrgSearchFieldChange}
+            orgViewMode={orgProps.orgViewMode}
+            onOrgViewModeChange={orgProps.onOrgViewModeChange}
             showOnlineOnly={orgProps.showOnlineOnly}
             onToggleOnlineOnly={orgProps.onToggleOnlineOnly}
             orgLoading={orgProps.orgLoading}
@@ -297,6 +317,18 @@ function RightContentRouter({
             handleOpenUpdateDownload={settingsProps.handleOpenUpdateDownload}
             handleOpenReleasesPage={settingsProps.handleOpenReleasesPage}
             statusInput={settingsProps.statusInput}
+            statusNote={settingsProps.statusNote}
+            onStatusNoteChange={settingsProps.onStatusNoteChange}
+            extensionInput={settingsProps.extensionInput}
+            onExtensionChange={settingsProps.onExtensionChange}
+            onSaveStatusProfile={settingsProps.onSaveStatusProfile}
+            awayMinutes={settingsProps.awayMinutes}
+            onAwayMinutesChange={settingsProps.onAwayMinutesChange}
+            alwaysOnTop={settingsProps.alwaysOnTop}
+            onToggleAlwaysOnTop={settingsProps.onToggleAlwaysOnTop}
+            downloadPath={settingsProps.downloadPath}
+            onPickDownloadPath={settingsProps.onPickDownloadPath}
+            onClearDownloadPath={settingsProps.onClearDownloadPath}
             statusOptions={settingsProps.statusOptions}
             renderStatusIcon={settingsProps.renderStatusIcon}
             handleSetStatus={settingsProps.handleSetStatus}

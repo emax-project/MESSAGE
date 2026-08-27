@@ -254,6 +254,18 @@ type SettingsPanelProps = {
   handleOpenUpdateDownload: () => void | Promise<void>;
   handleOpenReleasesPage: () => void;
   statusInput: string;
+  statusNote?: string;
+  onStatusNoteChange?: (value: string) => void;
+  extensionInput?: string;
+  onExtensionChange?: (value: string) => void;
+  onSaveStatusProfile?: () => void;
+  awayMinutes?: number;
+  onAwayMinutesChange?: (minutes: number) => void;
+  alwaysOnTop?: boolean;
+  onToggleAlwaysOnTop?: () => void;
+  downloadPath?: string | null;
+  onPickDownloadPath?: () => void;
+  onClearDownloadPath?: () => void;
   statusOptions: StatusOption[];
   renderStatusIcon: (status: string, size?: number) => ReactNode;
   handleSetStatus: (msg: string) => Promise<void> | void;
@@ -288,6 +300,18 @@ function SettingsPanel({
   handleOpenUpdateDownload,
   handleOpenReleasesPage,
   statusInput,
+  statusNote = '',
+  onStatusNoteChange,
+  extensionInput = '',
+  onExtensionChange,
+  onSaveStatusProfile,
+  awayMinutes = 10,
+  onAwayMinutesChange,
+  alwaysOnTop = false,
+  onToggleAlwaysOnTop,
+  downloadPath = null,
+  onPickDownloadPath,
+  onClearDownloadPath,
   statusOptions,
   renderStatusIcon,
   handleSetStatus,
@@ -465,11 +489,51 @@ function SettingsPanel({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10, padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
-          <span style={{ fontSize: 14, fontWeight: 500, color: isDark ? '#e2e8f0' : '#0f172a' }}>다크 모드</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>다크 모드</span>
           <button type="button" onClick={toggleDark} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: isDark ? '#171717' : '#e2e8f0', cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
             <span style={{ position: 'absolute' as const, top: 3, left: isDark ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
           </button>
         </div>
+
+        {hasElectron && onToggleAlwaysOnTop && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10, padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>항상 위에 고정</span>
+            <button type="button" onClick={onToggleAlwaysOnTop} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: alwaysOnTop ? '#171717' : (isDark ? '#475569' : '#e2e8f0'), cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
+              <span style={{ position: 'absolute' as const, top: 3, left: alwaysOnTop ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+            </button>
+          </div>
+        )}
+
+        <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>자리비움 자동 전환</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+            <select
+              value={awayMinutes}
+              onChange={(e) => onAwayMinutesChange?.(Number(e.target.value))}
+              className={cn('rounded-lg border px-2.5 py-1.5 text-[13px] font-semibold', isDark ? 'border-slate-600 bg-slate-800 text-slate-200' : 'border-slate-200 bg-white text-slate-800')}
+            >
+              {[5, 10, 15, 30, 60].map((m) => (
+                <option key={m} value={m}>{m}분</option>
+              ))}
+            </select>
+            <span style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>입력 없으면 자리비움으로 전환</span>
+          </div>
+        </div>
+
+        {hasElectron && (
+          <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>첨부파일 저장 경로</div>
+            <div style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', wordBreak: 'break-all' as const }}>
+              {downloadPath || '브라우저 기본 다운로드 폴더'}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+              <button type="button" className="px-3 py-1.5 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[12px] font-bold cursor-pointer" onClick={onPickDownloadPath}>폴더 선택</button>
+              {downloadPath && (
+                <button type="button" className={cn('px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer border', isDark ? 'border-slate-600 bg-slate-800 text-slate-200' : 'border-slate-200 bg-white text-slate-700')} onClick={onClearDownloadPath}>초기화</button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
           <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>업데이트</h4>
@@ -530,7 +594,7 @@ function SettingsPanel({
         </div>
 
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>상태</h4>
+          <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>상태</h4>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
             {statusOptions.map((opt) => {
               const isSelected = statusInput === opt.id;
@@ -554,10 +618,35 @@ function SettingsPanel({
                     {isSelected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0f172a', display: 'block' }} />}
                   </span>
                   {opt.id ? renderStatusIcon(opt.id, 18) : <span style={{ width: 18, height: 18, display: 'block' }} />}
-                  <span style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#334155', fontWeight: isSelected ? 600 : 400 }}>{opt.label}</span>
+                  <span style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#334155', fontWeight: isSelected ? 700 : 500 }}>{opt.label}</span>
                 </button>
               );
             })}
+          </div>
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: isDark ? '#94a3b8' : '#64748b' }}>상태 메시지</label>
+            <input
+              value={statusNote}
+              onChange={(e) => onStatusNoteChange?.(e.target.value)}
+              placeholder="상태 메시지 입력"
+              maxLength={200}
+              className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-900')}
+            />
+            <label style={{ fontSize: 12, fontWeight: 700, color: isDark ? '#94a3b8' : '#64748b' }}>사내 내선번호</label>
+            <input
+              value={extensionInput}
+              onChange={(e) => onExtensionChange?.(e.target.value)}
+              placeholder="내선번호"
+              maxLength={30}
+              className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-900')}
+            />
+            <button
+              type="button"
+              onClick={onSaveStatusProfile}
+              className="self-start px-3 py-1.5 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[12px] font-bold cursor-pointer"
+            >
+              메시지·내선 저장
+            </button>
           </div>
         </div>
 

@@ -107,6 +107,10 @@ const baseProps = () => ({
   orgProps: {
     searchQuery: '',
     onSearchQueryChange: vi.fn(),
+    orgSearchField: 'all' as const,
+    onOrgSearchFieldChange: vi.fn(),
+    orgViewMode: 'combined' as const,
+    onOrgViewModeChange: vi.fn(),
     showOnlineOnly: false,
     onToggleOnlineOnly: vi.fn(),
     orgLoading: false,

@@ -55,13 +55,15 @@ model User {
   email           String        @unique
   password        String
   name            String
-  phone           String?       // 연락처
+  phone           String?       // 연락처(휴대폰)
+  extension       String?       // 사내 내선번호
   jobTitle        String?       // 직급 (대리, 과장, 팀장 등)
   avatarUrl       String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   departmentId    String?
-  statusMessage   String?
+  statusMessage   String?       // 프레즌스 상태(온라인/자리비움 등)
+  statusNote      String?       // 자유 상태 메시지
   /// 거래처 MSSQL 사원 PK (hr_employee_master_id)
   externalEmpId   String?       @unique
   bookmarks       Bookmark[]
