@@ -1,6 +1,7 @@
 // 빈 문자열이면 같은 origin 사용(배포 시 같은 서버에서 API·웹 서빙), 없으면 로컬 개발용
+/** 거래처 사외용 기본 API (UTM: 121.143.3.163:3001 → 192.168.123.210:3001) */
 const DEFAULT_BASE =
-  import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'http://203.254.98.92:3001');
+  import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'http://121.143.3.163:3001');
 
 const API_URL_KEY = 'emax_api_url';
 

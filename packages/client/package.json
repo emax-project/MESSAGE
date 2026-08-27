@@ -67,8 +67,8 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.emax.message",
-    "productName": "EMAX",
+    "appId": "com.csintech.message",
+    "productName": "CSIN-Tech",
     "electronVersion": "33.2.0",
     "directories": {
       "output": "release"
@@ -98,7 +98,7 @@
         "nsis"
       ],
       "icon": "build/icons/icon.ico",
-      "artifactName": "EMAX-Setup-${version}.${ext}"
+      "artifactName": "CSIN-Tech-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,

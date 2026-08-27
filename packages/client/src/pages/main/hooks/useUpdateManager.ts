@@ -81,7 +81,7 @@ export function useUpdateManager({ hasElectron, electronPlatform, activePanel, s
     if (!hasElectron || !window.electronAPI?.quitAndInstall) return;
     if (requiresManualInstall) {
       await handleOpenUpdateDownload();
-      showToast?.('DMG를 다운로드한 뒤 Applications 폴더에 EMAX를 다시 설치해 주세요.', 'info');
+      showToast?.('DMG를 다운로드한 뒤 Applications 폴더에 CSIN-Tech를 다시 설치해 주세요.', 'info');
       return;
     }
     const result = await window.electronAPI.quitAndInstall();

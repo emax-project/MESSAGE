@@ -176,7 +176,7 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId, iconDataUr
 </head>
 <body>
   <div class="toast">
-    <span class="toast-brand">EMAX</span>
+    <span class="toast-brand">CSIN-Tech</span>
     <div class="toast-row">
       <div class="toast-left">
         ${iconHtml}
@@ -295,10 +295,10 @@ function getReleaseDownloadUrl(version) {
   if (!v) return 'https://github.com/emax-project/MESSAGE/releases/latest';
   if (process.platform === 'darwin') {
     const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
-    return `${RELEASE_DOWNLOAD_BASE}/v${v}/EMAX-${v}-${arch}.dmg`;
+    return `${RELEASE_DOWNLOAD_BASE}/v${v}/CSIN-Tech-${v}-${arch}.dmg`;
   }
   if (process.platform === 'win32') {
-    return `${RELEASE_DOWNLOAD_BASE}/v${v}/EMAX-Setup-${v}.exe`;
+    return `${RELEASE_DOWNLOAD_BASE}/v${v}/CSIN-Tech-Setup-${v}.exe`;
   }
   return `https://github.com/emax-project/MESSAGE/releases/tag/v${v}`;
 }
@@ -527,7 +527,7 @@ function createTray() {
   const size = process.platform === 'darwin' ? 22 : 16;
   const trayIcon = img.isEmpty() ? null : img.resize({ width: size, height: size });
   tray = new Tray(trayIcon && !trayIcon.isEmpty() ? trayIcon : iconPath);
-  tray.setToolTip('EMAX');
+  tray.setToolTip('CSIN-Tech');
   const menu = Menu.buildFromTemplate([
     {
       label: '로그아웃',
@@ -659,7 +659,7 @@ ipcMain.on('emax-get-initial-route', (event) => {
 });
 
 ipcMain.handle('show-notification', (_, { title, body, roomId, icon, imagePreview }) => {
-  showCustomNotification(title || 'EMAX', body || '', { roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null });
+  showCustomNotification(title || 'CSIN-Tech', body || '', { roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null });
 });
 
 // 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 새 메시지 있으면 N 표시
@@ -835,7 +835,7 @@ function setupAutoUpdate() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('update-available', () => {
-    showCustomNotification('EMAX 업데이트', '새 버전을 다운로드 중입니다. 완료 후 앱을 재시작하면 적용됩니다.', { persistent: true, progress: 0 });
+    showCustomNotification('CSIN-Tech 업데이트', '새 버전을 다운로드 중입니다. 완료 후 앱을 재시작하면 적용됩니다.', { persistent: true, progress: 0 });
   });
   autoUpdater.on('download-progress', (progress) => {
     updateNotificationProgress(progress.percent);
@@ -845,7 +845,7 @@ function setupAutoUpdate() {
     updateDownloadedPending = true;
     const isMac = process.platform === 'darwin';
     showCustomNotification(
-      'EMAX 업데이트 준비됨',
+      'CSIN-Tech 업데이트 준비됨',
       isMac
         ? '설정에서 DMG를 다운로드해 Applications에 다시 설치해 주세요.'
         : '3초 후 앱이 자동으로 재시작됩니다.',
@@ -890,7 +890,7 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   if (process.platform === 'win32') {
-    app.setAppUserModelId('com.emax.message');
+    app.setAppUserModelId('com.csintech.message');
   }
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(iconPath);
@@ -928,11 +928,11 @@ app.whenReady().then(() => {
                   const v = r?.updateInfo?.version;
                   const current = app.getVersion();
                   const body = v ? (v === current ? '이미 최신 버전입니다.' : `새 버전 ${v}이(가) 있습니다. 다운로드 후 앱을 재시작하면 적용됩니다.`) : '업데이트 정보를 확인했습니다.';
-                  showCustomNotification('EMAX', body);
+                  showCustomNotification('CSIN-Tech', body);
                 })
                 .catch((e) => {
                   console.error('Update check failed:', e);
-                  showCustomNotification('EMAX', '업데이트 확인에 실패했습니다. 네트워크를 확인하거나 나중에 다시 시도해 주세요.');
+                  showCustomNotification('CSIN-Tech', '업데이트 확인에 실패했습니다. 네트워크를 확인하거나 나중에 다시 시도해 주세요.');
                 });
             }
           },

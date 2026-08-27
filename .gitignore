@@ -5,6 +5,7 @@ node_modules/
 .env
 .env.*
 !.env.example
+!.env.partner.example
 
 # Build / dist
 packages/client/dist/
@@ -36,3 +37,4 @@ packages/server/prisma/*.db-journal
 
 # DB 덤프 (데이터 포함, 저장소에 올리지 않음)
 scripts/dump_*.sql
+secrets/

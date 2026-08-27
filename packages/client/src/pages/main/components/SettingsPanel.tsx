@@ -539,7 +539,7 @@ function SettingsPanel({
           <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>업데이트</h4>
           {!hasElectron ? (
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b' }}>
-              업데이트 확인은 .dmg / .exe로 설치한 EMAX 데스크톱 앱에서만 가능합니다.
+              업데이트 확인은 .dmg / .exe로 설치한 CSIN-Tech 데스크톱 앱에서만 가능합니다.
               브라우저(localhost)나 개발 서버 창에서는 표시되지 않습니다.
             </p>
           ) : !canCheckUpdates ? (
@@ -549,7 +549,7 @@ function SettingsPanel({
               </span>
               <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b' }}>
                 npm run dev:app 개발 창에서는 업데이트 확인이 불가합니다.
-                Applications에 설치한 EMAX 앱을 실행하거나, 아래에서 릴리즈 페이지에서 .dmg를 받으세요.
+                Applications에 설치한 CSIN-Tech 앱을 실행하거나, 아래에서 릴리즈 페이지에서 .dmg를 받으세요.
                 (설치된 앱이 이미 실행 중이면 dev Electron 창이 열리지 않을 수 있습니다.)
               </p>
               <button
@@ -586,7 +586,7 @@ function SettingsPanel({
               </div>
               {updateStatus === 'ready' && requiresManualInstall && (
                 <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: isDark ? '#94a3b8' : '#64748b' }}>
-                  macOS는 코드 서명이 없어 자동 설치가 되지 않습니다. DMG를 받아 Applications 폴더의 EMAX를 교체해 설치해 주세요.
+                  macOS는 코드 서명이 없어 자동 설치가 되지 않습니다. DMG를 받아 Applications 폴더의 CSIN-Tech를 교체해 설치해 주세요.
                 </p>
               )}
             </div>

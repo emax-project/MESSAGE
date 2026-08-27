@@ -21,6 +21,7 @@ RUN npm install --omit=dev
 COPY packages/server/prisma ./prisma
 RUN npx prisma generate
 COPY packages/server/src ./src
+COPY packages/server/scripts ./scripts
 COPY --from=client-builder /app/packages/client/dist ./client-dist
 EXPOSE 3001
 CMD ["sh", "-c", "npx prisma db push && node src/index.js"]

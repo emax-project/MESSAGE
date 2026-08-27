@@ -38,9 +38,17 @@ npm run partner:org:sync
 - `POST /org/partner-sync` body `{ "createMissingUsers": true }`
 
 ## 실제 MSSQL
-1. 서버 공인 IP를 거래처 방화벽에 등록 (`203.254.98.92` → `121.143.3.163:9213`)
-2. `.env` 에 `PARTNER_ORG_SOURCE=mssql` + `PARTNER_MSSQL_*` 설정
-   - 외부 포트 **`9213`** = MS-SQL (내부 `1433`). `9210`은 WEB RDP이므로 사용하지 않음
+1. 접속 경로
+   - **이맥스 등 외부에서 검증**: 공인 IP를 거래처 방화벽에 등록 후 `121.143.3.163:9213` (내부 `192.168.123.211:1433`)
+   - **거래처 망에 메신저 배포 시**: 같은 망에서 `192.168.123.211:1433` 직접 사용 (9213 불필요)
+   - `9210`은 WEB RDP(GW 서버)이며 MS-SQL·메신저 API 포트가 아님
+2. `.env` / Docker `environment` 에 `PARTNER_ORG_SOURCE=mssql` + `PARTNER_MSSQL_*` 설정
 3. `npm run partner:org:sync` (부서만 / 기존 계정 매핑)
 4. 계정까지 만들려면: `npm run partner:org:sync:users`
 5. 로그인: 거래처 이메일 + `PARTNER_DEFAULT_PASSWORD`(기본 `123456`)
+
+운영 이관(서버 설치·이름 변경·검증): [`docs/partner-network-migration.md`](../../../docs/partner-network-migration.md)
+
+## Docker 배포 메모
+- 이미지에 `packages/server/scripts` 포함 (`partner:org:sync` CLI)
+- compose에 `PARTNER_*` 전달. 거래처 서버는 `.env.partner.example` → `.env` 후 `./scripts/deploy-partner-server.sh`

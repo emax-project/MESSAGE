@@ -48,7 +48,7 @@ export function useNotificationPrefs(showToast: ShowToast) {
       }
       showToast('알림 일시 중지가 해제되었습니다', 'info');
       try {
-        const title = 'EMAX';
+        const title = 'CSIN-Tech';
         const body = '알림 일시 중지가 해제되었습니다';
         if (window.electronAPI?.showNotification) {
           window.electronAPI.showNotification(title, body);
