@@ -31,7 +31,15 @@ orgRouter.get('/online', async (_req, res) => {
 /** GET /org/tree - 회사 > 부서(계층) > 사용자 트리. 로그인한 나는 없으면 첫 부서에 포함 */
 orgRouter.get('/tree', async (req, res) => {
   try {
+    // 거래처 MSSQL 연동 중이면 해당 회사(externalCode)만 조직도에 노출
+    const partnerCode = (process.env.PARTNER_COMPANY_EXTERNAL_CODE || '').trim();
+    const companyWhere =
+      getPartnerOrgSource() === 'mssql' && partnerCode
+        ? { externalCode: partnerCode }
+        : undefined;
+
     const companies = await prisma.company.findMany({
+      where: companyWhere,
       orderBy: { name: 'asc' },
       include: {
         departments: {
@@ -120,7 +128,7 @@ orgRouter.get('/partner-sync/status', async (req, res) => {
 
 /**
  * POST /org/partner-sync - 거래처 MSSQL(또는 mock) → PG 조직 동기화
- * body: { dryRun?: boolean }
+ * body: { dryRun?: boolean, createMissingUsers?: boolean, defaultPassword?: string }
  */
 orgRouter.post('/partner-sync', async (req, res) => {
   if (!(await assertAdmin(req, res))) return;
@@ -131,7 +139,10 @@ orgRouter.post('/partner-sync', async (req, res) => {
       });
     }
     const dryRun = !!(req.body && req.body.dryRun);
-    const result = await syncPartnerOrg({ dryRun });
+    const createMissingUsers = !!(req.body && req.body.createMissingUsers);
+    const defaultPassword =
+      typeof req.body?.defaultPassword === 'string' ? req.body.defaultPassword : undefined;
+    const result = await syncPartnerOrg({ dryRun, createMissingUsers, defaultPassword });
     if (!result.ok) return res.status(400).json(result);
     return res.json(result);
   } catch (err) {

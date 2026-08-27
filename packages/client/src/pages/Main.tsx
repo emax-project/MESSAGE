@@ -151,6 +151,16 @@ export default function Main() {
   const [orgStarred, setOrgStarred] = useState<Set<string>>(() => {
     try { const raw = localStorage.getItem('emax_org_favorites'); if (!raw) return new Set(); const arr = JSON.parse(raw); return new Set(Array.isArray(arr) ? arr.map(String) : []); } catch { return new Set(); }
   });
+  const [orgFriends, setOrgFriends] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('emax_org_friends');
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return new Set(Array.isArray(arr) ? arr.map(String) : []);
+    } catch {
+      return new Set();
+    }
+  });
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
@@ -422,6 +432,16 @@ export default function Main() {
       return next;
     });
   };
+  const toggleOrgFriend = useCallback((userId: string) => {
+    setOrgFriends((prev) => {
+      const next = new Set(prev);
+      const id = String(userId);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try { localStorage.setItem('emax_org_friends', JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
   const handleToggleFavorite = async (room: Room) => { try { await roomsApi.toggleFavorite(room.id, !room.isFavorite); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
   const handleToggleMuteRoom = (roomId: string) => { toggleMuteRoom(roomId); setRoomContextMenu(null); };
   const handleLeaveRoom = async (roomId: string) => { if (!confirm('채팅방을 나가시겠습니까?')) { setRoomContextMenu(null); return; } try { await roomsApi.leave(roomId); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
@@ -820,6 +840,8 @@ export default function Main() {
                 treeOpen,
                 orgStarred,
                 onToggleOrgStar: toggleOrgStar,
+                orgFriends,
+                onToggleOrgFriend: toggleOrgFriend,
                 onlineUserIds,
                 onlinePresence,
                 myId,
@@ -931,6 +953,8 @@ export default function Main() {
         profileModalUser={profileModalUser}
         onlineUserIds={onlineUserIds}
         onSendMemoToUser={handleSendMemoToUser}
+        orgFriends={orgFriends}
+        onToggleOrgFriend={toggleOrgFriend}
       />
 
       {showMemoCompose && (

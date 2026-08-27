@@ -11,7 +11,7 @@ import {
 } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
 
-type OrgTab = 'org' | 'groups';
+type OrgTab = 'org' | 'friends' | 'groups';
 
 type OrgPanelProps = {
   isDark: boolean;
@@ -28,6 +28,8 @@ type OrgPanelProps = {
   treeOpen: Record<string, boolean>;
   orgStarred: Set<string>;
   onToggleOrgStar: (id: string) => void;
+  orgFriends: Set<string>;
+  onToggleOrgFriend: (userId: string) => void;
   onlineUserIds: Set<string>;
   onlinePresence?: OnlinePresenceMap;
   myId?: string;
@@ -60,6 +62,8 @@ function OrgPanel({
   treeOpen,
   orgStarred,
   onToggleOrgStar,
+  orgFriends,
+  onToggleOrgFriend,
   onlineUserIds,
   onlinePresence = {},
   myId,
@@ -78,6 +82,9 @@ function OrgPanel({
 }: OrgPanelProps) {
   const wrap = panelWrapStyle(820);
   const [tab, setTab] = useState<OrgTab>('org');
+
+  const title =
+    tab === 'org' ? '조직도' : tab === 'friends' ? '즐겨찾기(친구)' : '내 그룹';
 
   const tabBtn = (id: OrgTab, label: string) => (
     <button
@@ -103,7 +110,7 @@ function OrgPanel({
     >
       <PanelTitleRow
         isDark={isDark}
-        title={tab === 'org' ? '조직도' : '내 그룹'}
+        title={title}
         compact
         className={panelTitleRowBg(isDark)}
       />
@@ -114,8 +121,9 @@ function OrgPanel({
           isDark ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200/90 bg-[#f7f8fa]',
         )}
       >
-        <PanelNoDragWrap className="flex items-center gap-1">
+        <PanelNoDragWrap className="flex flex-wrap items-center gap-1">
           {tabBtn('org', '조직도')}
+          {tabBtn('friends', '즐겨찾기(친구)')}
           {tabBtn('groups', '내 그룹')}
         </PanelNoDragWrap>
       </div>
@@ -232,6 +240,8 @@ function OrgPanel({
           treeOpen={treeOpen}
           orgStarred={orgStarred}
           onToggleOrgStar={onToggleOrgStar}
+          orgFriends={orgFriends}
+          onToggleOrgFriend={onToggleOrgFriend}
           onlineUserIds={onlineUserIds}
           onlinePresence={onlinePresence}
           myId={myId}

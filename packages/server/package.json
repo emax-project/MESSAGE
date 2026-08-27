@@ -21,7 +21,9 @@
     "db:seed:announcement": "node scripts/seed-announcement.js",
     "check:avatar": "node scripts/check-avatar.js",
     "partner:org:sync": "node scripts/sync-partner-org.js",
-    "partner:org:sync:dry": "node scripts/sync-partner-org.js --dry-run"
+    "partner:org:sync:dry": "node scripts/sync-partner-org.js --dry-run",
+    "partner:org:sync:users": "node scripts/sync-partner-org.js --create-users",
+    "partner:org:sync:users:dry": "node scripts/sync-partner-org.js --create-users --dry-run"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

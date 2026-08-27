@@ -116,6 +116,8 @@ const baseProps = () => ({
     treeOpen: {},
     orgStarred: new Set<string>(),
     onToggleOrgStar: vi.fn(),
+    orgFriends: new Set<string>(),
+    onToggleOrgFriend: vi.fn(),
     onlineUserIds: new Set<string>(),
     onlinePresence: {},
     myId: 'me',

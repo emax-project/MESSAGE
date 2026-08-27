@@ -76,6 +76,8 @@ type RightContentRouterProps = {
     treeOpen: Record<string, boolean>;
     orgStarred: Set<string>;
     onToggleOrgStar: (id: string) => void;
+    orgFriends: Set<string>;
+    onToggleOrgFriend: (userId: string) => void;
     onlineUserIds: Set<string>;
     onlinePresence: import('../../../utils/presence').OnlinePresenceMap;
     myId?: string;
@@ -179,6 +181,8 @@ function RightContentRouter({
             treeOpen={orgProps.treeOpen}
             orgStarred={orgProps.orgStarred}
             onToggleOrgStar={orgProps.onToggleOrgStar}
+            orgFriends={orgProps.orgFriends}
+            onToggleOrgFriend={orgProps.onToggleOrgFriend}
             onlineUserIds={orgProps.onlineUserIds}
             onlinePresence={orgProps.onlinePresence}
             myId={orgProps.myId}

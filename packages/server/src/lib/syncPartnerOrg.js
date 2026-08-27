@@ -1,10 +1,14 @@
 /**
- * 거래처 조직 → PostgreSQL Company/Department 동기화 + User 부서 매핑(이메일/외부사원ID).
- * 메신저 계정은 자동 생성하지 않는다(보안). 이미 있는 User만 departmentId 갱신.
+ * 거래처 조직 → PostgreSQL Company/Department 동기화 + User 부서 매핑(이메일).
+ * 기본: 이미 있는 User만 departmentId 갱신.
+ * createMissingUsers=true 이면 이메일·이름이 있는 재직자를 메신저 계정으로 생성 후 매핑.
  */
+import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { fetchPartnerOrg } from './partnerOrg.js';
 import { isPartnerOrgEnabled, getPartnerOrgSource } from './partnerMssql.js';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function partnerCompanyName() {
   return (process.env.PARTNER_COMPANY_NAME || '파트너').trim() || '파트너';
@@ -17,11 +21,19 @@ function partnerCompanyExternalCode(departments) {
   return bs || 'PARTNER';
 }
 
+function partnerDefaultPassword(optsPassword) {
+  const fromOpt = typeof optsPassword === 'string' ? optsPassword.trim() : '';
+  if (fromOpt) return fromOpt;
+  const fromEnv = (process.env.PARTNER_DEFAULT_PASSWORD || '').trim();
+  return fromEnv || '123456';
+}
+
 /**
- * @param {{ dryRun?: boolean }} [opts]
+ * @param {{ dryRun?: boolean, createMissingUsers?: boolean, defaultPassword?: string }} [opts]
  */
 export async function syncPartnerOrg(opts = {}) {
   const dryRun = !!opts.dryRun;
+  const createMissingUsers = !!opts.createMissingUsers;
   if (!isPartnerOrgEnabled()) {
     return {
       ok: false,
@@ -33,21 +45,34 @@ export async function syncPartnerOrg(opts = {}) {
   const { departments, employees, source } = await fetchPartnerOrg();
   const companyExt = partnerCompanyExternalCode(departments);
   const companyName = partnerCompanyName();
+  const defaultPassword = partnerDefaultPassword(opts.defaultPassword);
 
   const stats = {
     source,
     dryRun,
+    createMissingUsers,
     companyExternalCode: companyExt,
     departmentsFetched: departments.length,
     employeesFetched: employees.length,
     departmentsUpserted: 0,
     usersMatched: 0,
+    usersCreated: 0,
     usersUpdated: 0,
     usersUnmatched: 0,
+    usersSkippedInvalidEmail: 0,
     unmatchedEmails: /** @type {string[]} */ ([]),
+    createdEmails: /** @type {string[]} */ ([]),
     employeesWithoutEmail: 0,
     employeesWithoutDept: 0,
   };
+
+  if (createMissingUsers && (!defaultPassword || defaultPassword.length < 4)) {
+    return {
+      ok: false,
+      error: 'defaultPassword / PARTNER_DEFAULT_PASSWORD must be at least 4 characters',
+      ...stats,
+    };
+  }
 
   if (dryRun) {
     const emails = employees.filter((e) => e.email).map((e) => e.email);
@@ -63,9 +88,16 @@ export async function syncPartnerOrg(opts = {}) {
         stats.employeesWithoutEmail += 1;
         continue;
       }
+      if (!EMAIL_RE.test(e.email)) {
+        stats.usersSkippedInvalidEmail += 1;
+        continue;
+      }
       if (!e.deptCode) stats.employeesWithoutDept += 1;
       if (existingSet.has(e.email)) stats.usersMatched += 1;
-      else {
+      else if (createMissingUsers && e.name) {
+        stats.usersCreated += 1;
+        if (stats.createdEmails.length < 50) stats.createdEmails.push(e.email);
+      } else {
         stats.usersUnmatched += 1;
         if (stats.unmatchedEmails.length < 50) stats.unmatchedEmails.push(e.email);
       }
@@ -120,7 +152,7 @@ export async function syncPartnerOrg(opts = {}) {
     });
   }
 
-  // 이메일로 User 매칭
+  // 이메일로 User 매칭 (+ 옵션: 없는 계정 생성)
   const emails = [...new Set(employees.map((e) => e.email).filter(Boolean))];
   const users = emails.length
     ? await prisma.user.findMany({
@@ -130,20 +162,73 @@ export async function syncPartnerOrg(opts = {}) {
     : [];
   const userByEmail = new Map(users.map((u) => [u.email.toLowerCase(), u]));
 
+  let passwordHash = null;
+  if (createMissingUsers) {
+    passwordHash = await bcrypt.hash(defaultPassword, 10);
+  }
+
   for (const e of employees) {
     if (!e.email) {
       stats.employeesWithoutEmail += 1;
       continue;
     }
-    if (!e.deptCode) stats.employeesWithoutDept += 1;
-
-    const user = userByEmail.get(e.email);
-    if (!user) {
-      stats.usersUnmatched += 1;
-      if (stats.unmatchedEmails.length < 50) stats.unmatchedEmails.push(e.email);
+    if (!EMAIL_RE.test(e.email)) {
+      stats.usersSkippedInvalidEmail += 1;
       continue;
     }
-    stats.usersMatched += 1;
+    if (!e.deptCode) stats.employeesWithoutDept += 1;
+
+    let user = userByEmail.get(e.email);
+    if (!user) {
+      if (!createMissingUsers || !e.name) {
+        stats.usersUnmatched += 1;
+        if (stats.unmatchedEmails.length < 50) stats.unmatchedEmails.push(e.email);
+        continue;
+      }
+      const departmentId = e.deptCode ? deptIdByCode.get(e.deptCode) ?? null : null;
+      const jobTitle = e.dutyCode || e.positionCode || null;
+      try {
+        user = await prisma.user.create({
+          data: {
+            email: e.email,
+            name: e.name,
+            password: passwordHash,
+            phone: e.phone,
+            jobTitle,
+            departmentId,
+            externalEmpId: e.masterId,
+          },
+          select: { id: true, email: true, departmentId: true, name: true, phone: true, jobTitle: true, externalEmpId: true },
+        });
+        userByEmail.set(e.email, user);
+        stats.usersCreated += 1;
+        stats.usersMatched += 1;
+        if (stats.createdEmails.length < 50) stats.createdEmails.push(e.email);
+      } catch (err) {
+        if (err?.code === 'P2002') {
+          // 이메일/externalEmpId 충돌 — 이메일로 재조회 후 갱신 시도
+          user = await prisma.user.findUnique({
+            where: { email: e.email },
+            select: { id: true, email: true, departmentId: true, name: true, phone: true, jobTitle: true, externalEmpId: true },
+          });
+          if (!user) {
+            console.error('[syncPartnerOrg] create user conflict', e.email, err?.message || err);
+            stats.usersUnmatched += 1;
+            if (stats.unmatchedEmails.length < 50) stats.unmatchedEmails.push(e.email);
+            continue;
+          }
+          userByEmail.set(e.email, user);
+          stats.usersMatched += 1;
+        } else {
+          console.error('[syncPartnerOrg] create user failed', e.email, err?.message || err);
+          stats.usersUnmatched += 1;
+          if (stats.unmatchedEmails.length < 50) stats.unmatchedEmails.push(e.email);
+          continue;
+        }
+      }
+    } else {
+      stats.usersMatched += 1;
+    }
 
     const departmentId = e.deptCode ? deptIdByCode.get(e.deptCode) ?? null : null;
     const jobTitle = e.dutyCode || e.positionCode || user.jobTitle || null;
@@ -165,6 +250,7 @@ export async function syncPartnerOrg(opts = {}) {
     if (changed) {
       await prisma.user.update({ where: { id: user.id }, data });
       stats.usersUpdated += 1;
+      userByEmail.set(e.email, { ...user, ...data });
     }
   }
 

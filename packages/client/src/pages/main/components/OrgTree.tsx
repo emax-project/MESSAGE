@@ -66,17 +66,53 @@ export type OrgUserContextMenuHandler = (
   opts?: { orgGroupId?: string; selectedUsers?: OrgUser[] },
 ) => void;
 
+function FriendStar({
+  active,
+  isDark,
+  onClick,
+}: {
+  active: boolean;
+  isDark: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={active ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+      aria-label={active ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={cn(
+        'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer transition-colors',
+        active
+          ? 'text-amber-400'
+          : isDark
+            ? 'text-slate-500 hover:text-slate-300'
+            : 'text-slate-400 hover:text-slate-600',
+      )}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    </button>
+  );
+}
+
 export type OrgTreeProps = {
   isDark: boolean;
   orgLoading: boolean;
   orgError: boolean;
   orgTree: OrgCompany[];
   orgGroups?: OrgGroup[];
-  view?: 'org' | 'groups';
+  view?: 'org' | 'friends' | 'groups';
   companyMemberCounts?: Record<string, number>;
   treeOpen: Record<string, boolean>;
   orgStarred: Set<string>;
   onToggleOrgStar: (id: string) => void;
+  orgFriends: Set<string>;
+  onToggleOrgFriend: (userId: string) => void;
   onlineUserIds: Set<string>;
   onlinePresence?: OnlinePresenceMap;
   myId?: string;
@@ -105,6 +141,8 @@ function OrgUserRow({
   socketConnected,
   selected,
   selectedUsers,
+  isFriend,
+  onToggleFriend,
   onToggleSelect,
   onOpenDirectMessage,
   onUserContextMenu,
@@ -121,6 +159,8 @@ function OrgUserRow({
   socketConnected: boolean;
   selected: boolean;
   selectedUsers: OrgUser[];
+  isFriend: boolean;
+  onToggleFriend: (userId: string) => void;
   onToggleSelect: (userId: string) => void;
   onOpenDirectMessage: (userId: string) => void | Promise<void>;
   onUserContextMenu: OrgUserContextMenuHandler;
@@ -168,6 +208,7 @@ function OrgUserRow({
             className="h-3.5 w-3.5 cursor-pointer accent-brand"
           />
         </label>
+        <FriendStar active={isFriend} isDark={isDark} onClick={() => onToggleFriend(u.id)} />
         <span className="inline-flex shrink-0 items-center gap-0.5">
           <span title={mobileActive ? '모바일 접속 중' : '모바일 오프라인'}>
             <MobileIcon active={mobileActive} />
@@ -219,6 +260,8 @@ function OrgTree({
   view = 'org',
   companyMemberCounts,
   treeOpen,
+  orgFriends,
+  onToggleOrgFriend,
   onlineUserIds,
   onlinePresence = {},
   myId,
@@ -270,10 +313,10 @@ function OrgTree({
     .map((id) => usersById.get(id))
     .filter(Boolean) as OrgUser[];
 
-  if (orgLoading && view === 'org') {
+  if (orgLoading && view !== 'groups') {
     return <p className={cn('p-4 text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>로딩 중...</p>;
   }
-  if (orgError && view === 'org') {
+  if (orgError && view !== 'groups') {
     return (
       <div className="p-5 text-center">
         <p className="mb-1.5 text-sm font-semibold text-red-600">조직 데이터를 불러올 수 없습니다</p>
@@ -297,11 +340,54 @@ function OrgTree({
     socketConnected,
     selectedUsers,
     onToggleSelect: toggleSelect,
+    onToggleFriend: onToggleOrgFriend,
     onOpenDirectMessage,
     onUserContextMenu,
     hasStatusIcon,
     renderStatusIcon,
   };
+
+  if (view === 'friends') {
+    const friends = allOrgUsers(orgTree)
+      .filter((u) => orgFriends.has(String(u.id)))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+
+    if (orgFriends.size === 0) {
+      return (
+        <p className={cn('p-6 text-center text-[13px] leading-relaxed', isDark ? 'text-slate-400' : 'text-slate-500')}>
+          즐겨찾기한 친구가 없습니다.<br />
+          조직도에서 ★ 또는 우클릭으로 추가하세요.
+        </p>
+      );
+    }
+
+    if (friends.length === 0) {
+      return (
+        <p className={cn('p-6 text-center text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>
+          검색·온라인 필터에 맞는 친구가 없습니다.
+        </p>
+      );
+    }
+
+    return (
+      <div className="px-2.5 py-2">
+        <div className={cn('mb-1.5 px-1 text-[12px] tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+          {friends.length}명
+        </div>
+        <ul className="m-0 list-none space-y-0.5 p-0">
+          {friends.map((u) => (
+            <OrgUserRow
+              key={u.id}
+              u={u}
+              selected={selectedIds.has(u.id)}
+              isFriend
+              {...userRowProps}
+            />
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   if (view === 'groups') {
     if (orgGroups.length === 0) {
@@ -392,6 +478,7 @@ function OrgTree({
                         u={u}
                         orgGroupId={group.id}
                         selected={selectedIds.has(u.id)}
+                        isFriend={orgFriends.has(String(u.id))}
                         {...userRowProps}
                       />
                     ))
@@ -459,7 +546,13 @@ function OrgTree({
             {dept.users.length > 0 && (
               <ul className="m-0 list-none py-0.5 pl-1">
                 {dept.users.map((u) => (
-                  <OrgUserRow key={u.id} u={u} selected={selectedIds.has(u.id)} {...userRowProps} />
+                  <OrgUserRow
+                    key={u.id}
+                    u={u}
+                    selected={selectedIds.has(u.id)}
+                    isFriend={orgFriends.has(String(u.id))}
+                    {...userRowProps}
+                  />
                 ))}
               </ul>
             )}
