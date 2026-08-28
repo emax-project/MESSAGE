@@ -242,8 +242,9 @@ async function main() {
   await prisma.$connect();
   await runMigrations();
   startCleanupJob();
-  httpServer.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+  const host = process.env.HOST || '0.0.0.0';
+  httpServer.listen(PORT, host, () => {
+    console.log(`Server running at http://${host}:${PORT}`);
   });
 }
 

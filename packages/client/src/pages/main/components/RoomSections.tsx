@@ -76,7 +76,7 @@ function RoomSections({
           type="button"
           className={cn(
             'flex items-center justify-between w-full py-[7px] px-3 border-none cursor-pointer text-left',
-            isDark ? 'bg-white/[0.04]' : 'bg-slate-500/[0.06]',
+            isDark ? 'bg-white/[0.04]' : 'bg-white',
           )}
           onClick={() => toggleSection('topic')}
         >
@@ -184,7 +184,7 @@ function RoomSections({
           type="button"
           className={cn(
             'flex items-center justify-between w-full py-[7px] px-3 border-none cursor-pointer text-left',
-            isDark ? 'bg-white/[0.04]' : 'bg-slate-500/[0.06]',
+            isDark ? 'bg-white/[0.04]' : 'bg-white',
           )}
           onClick={() => toggleSection('chat')}
         >

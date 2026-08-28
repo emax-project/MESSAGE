@@ -27,12 +27,12 @@ function RoomsPanel({
   const wrap = panelWrapStyle(820);
   return (
     <div
-      className={cn(wrap.className, isDark ? 'bg-slate-900' : 'bg-[#f7f8fa]')}
+      className={cn(wrap.className, isDark ? 'bg-slate-900' : 'bg-white')}
       style={wrap.style}
     >
       <PanelTitleRow isDark={isDark} title="대화" className={panelTitleRowBg(isDark)} />
 
-      <PanelToolbarRow isDark={isDark} className={isDark ? 'bg-slate-900/80' : 'bg-white/70'}>
+      <PanelToolbarRow isDark={isDark} className={isDark ? 'bg-slate-900/80' : 'bg-white'}>
         <input
           type="text"
           placeholder="대화방 검색"

@@ -42,7 +42,7 @@ export default function Login() {
   const [rememberEmail, setRememberEmail] = useState(remembered.remember);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [serverUrl, setServerUrl] = useState(() => getBaseUrl() || 'http://121.143.3.163:3001');
+  const [serverUrl, setServerUrl] = useState(() => getBaseUrl() || (typeof window !== 'undefined' && !window.electronAPI ? '' : 'http://192.168.123.210:3001'));
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
 
@@ -50,13 +50,17 @@ export default function Login() {
     window.electronAPI?.windowResize?.(APP_MAX_WIDTH, APP_WINDOW_HEIGHT);
   }, []);
   useEffect(() => {
-    setServerUrl(getBaseUrl() || '');
+    const base = getBaseUrl();
+    setServerUrl(base || (window.electronAPI ? 'http://192.168.123.210:3001' : ''));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
+    else if (!window.electronAPI) {
+      try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
+    }
     setLoading(true);
     try {
       const { user, token } = await authApi.login(email, password);
@@ -74,7 +78,7 @@ export default function Login() {
       navigate('/', { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
-      const isNetwork = /fetch|network|connection|refused/i.test(msg) || msg === '';
+      const isNetwork = /fetch|network|connection|refused|Failed to fetch|INVALID_HTTP/i.test(msg) || msg === '';
       setError(isNetwork ? '서버에 연결할 수 없습니다. 아래에서 서버 주소를 확인·수정 후 다시 시도해 주세요.' : msg || '로그인 실패');
     } finally {
       setLoading(false);
@@ -138,19 +142,22 @@ export default function Login() {
               />
               <span className="text-[13px] text-[#64748b]">아이디 저장</span>
             </label>
-            {isElectron && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-[#64748b]">서버 주소</label>
-                <UITextInput
-                  type="url"
-                  placeholder="http://121.143.3.163:3001"
-                  value={serverUrl}
-                  onChange={(e) => setServerUrl(e.target.value)}
-                  onBlur={() => { if (serverUrl.trim()) setBaseUrl(serverUrl.trim()); }}
-                  className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#94a3b8]"
-                />
-              </div>
-            )}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-medium text-[#64748b]">서버 주소</label>
+              <UITextInput
+                type="url"
+                placeholder="비우면 현재 사이트 주소 사용 (예: http://192.168.123.210:3001)"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                onBlur={() => {
+                  if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
+                  else if (!window.electronAPI) {
+                    try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
+                  }
+                }}
+                className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#94a3b8]"
+              />
+            </div>
             {error && (
               <p className="px-3 py-2 rounded-xl text-[13px] text-red-600 bg-red-50/80">
                 {error}
