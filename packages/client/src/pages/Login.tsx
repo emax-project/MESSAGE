@@ -42,7 +42,7 @@ export default function Login() {
   const [rememberEmail, setRememberEmail] = useState(remembered.remember);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [serverUrl, setServerUrl] = useState(() => getBaseUrl() || (typeof window !== 'undefined' && !window.electronAPI ? '' : 'http://192.168.123.210:3001'));
+  const [serverUrl, setServerUrl] = useState(() => getBaseUrl() || (typeof window !== 'undefined' && !window.electronAPI ? '' : 'http://121.143.3.163:3030'));
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
 
@@ -51,7 +51,7 @@ export default function Login() {
   }, []);
   useEffect(() => {
     const base = getBaseUrl();
-    setServerUrl(base || (window.electronAPI ? 'http://192.168.123.210:3001' : ''));
+    setServerUrl(base || (window.electronAPI ? 'http://121.143.3.163:3030' : ''));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -146,7 +146,7 @@ export default function Login() {
               <label className="text-[13px] font-medium text-[#64748b]">서버 주소</label>
               <UITextInput
                 type="url"
-                placeholder="비우면 현재 사이트 주소 사용 (예: http://192.168.123.210:3001)"
+                placeholder="비우면 현재 사이트 주소 사용 (예: http://121.143.3.163:3030)"
                 value={serverUrl}
                 onChange={(e) => setServerUrl(e.target.value)}
                 onBlur={() => {

@@ -47,5 +47,5 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "==> done"
 Write-Host "사내: http://192.168.123.210:3001/"
-Write-Host "사외: http://121.143.3.163:3001/  (UTM 3001→210:3001 — 대장에 이미 있음)"
-Write-Host "클라이언트 기본 URL: http://121.143.3.163:3001"
+Write-Host "사외: http://121.143.3.163:3030/  (UTM 1442: 3030→210:3001)"
+Write-Host "클라이언트 기본 URL: http://121.143.3.163:3030"

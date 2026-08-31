@@ -36,5 +36,5 @@ docker compose exec -T server npm run partner:org:sync:users || \
 
 echo "==> done"
 echo "사내 확인: curl http://192.168.123.210:3001/"
-echo "사외 확인: UTM 3001 오픈 후 curl http://121.143.3.163:3001/"
-echo "클라이언트: CSIN-Tech-Setup-*.exe (기본 API http://121.143.3.163:3001)"
+echo "사외 확인: curl http://121.143.3.163:3030/health"
+echo "클라이언트: CSIN-Tech-Setup-*.exe (기본 API http://121.143.3.163:3030)"
