@@ -81,7 +81,11 @@ curl -s http://127.0.0.1:3001/health   # 또는 루트 HTML 응답 확인
 | `PARTNER_MSSQL_PORT` | `1433` | |
 | `PARTNER_MSSQL_DATABASE` | `CSI_GW` | |
 | `PARTNER_MSSQL_USER` / `PASSWORD` | 거래처 제공 계정 | `#` 포함 시 따옴표 |
-| `PARTNER_DEFAULT_PASSWORD` | 초기 비번 (배포 후 변경 안내) | |
+| `PARTNER_DEFAULT_PASSWORD` | 초기 비번 (배포 후 변경 안내) | LDAP 켜면 로그인에 쓰이지 않음 |
+| `LDAP_ENABLED` | `true` (거래처 망) | Synology LDAP. 상세 [`ldap.md`](../packages/server/docs/ldap.md) |
+| `LDAP_URL` | `ldaps://ldap.csin.kr:636` | hosts에 `ldap.csin.kr → 192.168.123.247` |
+| `LDAP_BIND_DN` / `LDAP_BIND_PASSWORD` | 거래처 제공 Bind 계정 | 첨부 LDAP 연동정보 |
+| `LDAP_LOCAL_EXCEPTIONS` | 비상/외부 계정 | `ADMIN_EMAIL`은 자동 예외 |
 
 상세 조인/CLI: [`packages/server/docs/partner-org-sync.md`](../packages/server/docs/partner-org-sync.md)
 
@@ -93,7 +97,8 @@ docker compose exec server npm run partner:org:sync:users  # 계정 생성 포�
 ```
 
 - [ ] `/org` 트리에 CSIN만 노출되는지
-- [ ] 샘플 계정 로그인 (이메일 + 초기 비번)
+- [ ] 샘플 계정 로그인 (이메일 또는 uid + LDAP 비밀번호)
+- [ ] `GET /health/ldap` → `{ "ok": true, "enabled": true, "bound": true }`
 
 ---
 

@@ -63,7 +63,7 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const { user, token } = await authApi.login(email, password);
+      const { user, token, mustChangePassword } = await authApi.login(email, password);
       try {
         if (rememberEmail) {
           localStorage.setItem(REMEMBER_EMAIL_KEY, '1');
@@ -73,7 +73,7 @@ export default function Login() {
           localStorage.removeItem(SAVED_EMAIL_KEY);
         }
       } catch { /* ignore */ }
-      setAuth(user, token);
+      setAuth(user, token, { mustChangePassword: !!mustChangePassword });
       window.electronAPI?.showNotification('로그인', `${user.name}님 로그인되었습니다.`);
       navigate('/', { replace: true });
     } catch (err) {
@@ -105,12 +105,12 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
             <div className="relative">
               <UITextInput
-                type="email"
-                placeholder="이메일 주소"
+                type="text"
+                placeholder="아이디 또는 이메일 (예: wtkim)"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete="username"
                 className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#94a3b8]"
               />
             </div>

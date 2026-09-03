@@ -103,16 +103,16 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>이메일</Text>
+          <Text style={styles.label}>아이디 또는 이메일</Text>
           <TextInput
             style={styles.input}
-            placeholder="name@company.com"
+            placeholder="wtkim 또는 wtkim@csin.kr"
             placeholderTextColor="#a0a5bc"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             autoCorrect={false}
-            keyboardType="email-address"
+            keyboardType="default"
           />
         </View>
 

@@ -45,7 +45,8 @@ npm run partner:org:sync
 2. `.env` / Docker `environment` 에 `PARTNER_ORG_SOURCE=mssql` + `PARTNER_MSSQL_*` 설정
 3. `npm run partner:org:sync` (부서만 / 기존 계정 매핑)
 4. 계정까지 만들려면: `npm run partner:org:sync:users`
-5. 로그인: 거래처 이메일 + `PARTNER_DEFAULT_PASSWORD`(기본 `123456`)
+5. 로그인: LDAP가 꺼져 있으면 거래처 이메일 + `PARTNER_DEFAULT_PASSWORD`(기본 `123456`).
+   LDAP를 켜면(`LDAP_ENABLED=true`) 로컬 초기 비밀번호는 쓰지 않고 Synology `uid`로 인증한다. 자세한 내용은 [`ldap.md`](./ldap.md).
 
 운영 이관(서버 설치·이름 변경·검증): [`docs/partner-network-migration.md`](../../../docs/partner-network-migration.md)
 

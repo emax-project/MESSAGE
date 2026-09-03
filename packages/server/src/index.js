@@ -47,6 +47,8 @@ import { authMiddleware, verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
 import { UPLOAD_DIR } from './upload.js';
 import { startCleanupJob } from './cleanup.js';
+import { checkLdapConnection, isLdapEnabled } from './lib/ldap.js';
+
 
 const app = express();
 const httpServer = createServer(app);
@@ -121,6 +123,10 @@ app.get('/health/db', async (_, res) => {
   } catch (e) {
     return res.status(503).json({ ok: false, db: 'disconnected', error: e?.message });
   }
+});
+app.get('/health/ldap', async (_, res) => {
+  const result = await checkLdapConnection();
+  return res.status(result.ok ? 200 : 503).json(result);
 });
 
 // API 안내 (예전처럼 "이 주소는 API 서버입니다" 화면이 필요할 때)
@@ -245,6 +251,7 @@ async function main() {
   const host = process.env.HOST || '0.0.0.0';
   httpServer.listen(PORT, host, () => {
     console.log(`Server running at http://${host}:${PORT}`);
+    console.log(`[startup] LDAP: ${isLdapEnabled() ? 'enabled' : 'disabled'}`);
   });
 }
 

@@ -5,6 +5,8 @@ import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
 import { assertAdmin, isAdminEmail } from '../lib/admin.js';
 import { avatarUpload, UPLOAD_DIR } from '../upload.js';
+import { isLdapEnabled, isLocalExceptionEmail, loginIdentifierToUid, resetLdapPassword } from '../lib/ldap.js';
+import { validatePassword } from '../lib/passwordPolicy.js';
 
 export const usersRouter = Router();
 
@@ -460,15 +462,24 @@ usersRouter.post('/:id/reset-password', async (req, res) => {
     if (!(await assertAdmin(req, res))) return;
 
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    if (password.length < 4) {
-      return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
-    }
+    const policyError = validatePassword(password);
+    if (policyError) return res.status(400).json({ error: policyError });
 
     const target = await prisma.user.findUnique({
       where: { id: req.params.id },
       select: { id: true, name: true, email: true },
     });
     if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+    if (isLdapEnabled() && !isLocalExceptionEmail(target.email)) {
+      try {
+        await resetLdapPassword(loginIdentifierToUid(target.email), password, { forceChange: true });
+      } catch (err) {
+        const code = err?.ldapCode || err?.message || 'LDAP_ERROR';
+        const status = err?.status || (code === 'PASSWORD_POLICY' || code === 'LDAP_USER_NOT_FOUND' ? 400 : 503);
+        return res.status(status).json({ error: code });
+      }
+    }
 
     const hashed = await bcrypt.hash(password, 10);
     await prisma.$transaction([

@@ -44,7 +44,8 @@ export default function Register() {
       setAuth(user, token);
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : '회원가입 실패');
+      const msg = err instanceof Error ? err.message : '회원가입 실패';
+      setError(msg === 'REGISTER_DISABLED' ? 'LDAP 연동 중에는 회원가입을 사용할 수 없습니다. 관리자에게 계정을 요청해 주세요.' : msg);
     } finally {
       setLoading(false);
     }

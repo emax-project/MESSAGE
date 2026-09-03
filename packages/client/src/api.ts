@@ -173,7 +173,17 @@ export const api = {
   },
 };
 
-export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; avatarUrl?: string };
+export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
+
+export type PasswordPolicy = {
+  ldapEnabled: boolean;
+  minLength: number;
+  requireUpper: boolean;
+  requireLower: boolean;
+  requireDigit: boolean;
+  requireSpecial: boolean;
+  hint: string;
+};
 
 export type OrgUser = { id: string; name: string; email: string; phone?: string | null; extension?: string | null; jobTitle?: string | null; avatarUrl?: string; statusMessage?: string | null; statusNote?: string | null };
 export type OrgDepartment = {
@@ -326,8 +336,9 @@ export const authApi = {
    */
   changePassword: (currentPassword: string, newPassword: string) =>
     api.put('/auth/password', { currentPassword, newPassword }) as Promise<{ ok: boolean }>,
+  passwordPolicy: () => api.get('/auth/password-policy') as Promise<PasswordPolicy>,
   login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }) as Promise<{ user: User; token: string }>,
+    api.post('/auth/login', { email, password }) as Promise<{ user: User; token: string; mustChangePassword?: boolean }>,
   register: (email: string, password: string, name: string) =>
     api.post('/auth/register', { email, password, name }) as Promise<{ user: User; token: string }>,
   me: () => api.get('/auth/me') as Promise<{ user: User }>,

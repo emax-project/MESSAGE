@@ -5,7 +5,9 @@ import { authApi, type User } from './api';
 type AuthState = {
   user: User | null;
   token: string | null;
-  setAuth: (user: User | null, token: string | null) => void;
+  mustChangePassword: boolean;
+  setAuth: (user: User | null, token: string | null, opts?: { mustChangePassword?: boolean }) => void;
+  setMustChangePassword: (value: boolean) => void;
   logout: () => void;
 };
 
@@ -14,15 +16,22 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
-      setAuth: (user, token) => {
+      mustChangePassword: false,
+      setAuth: (user, token, opts) => {
         if (token) localStorage.setItem('token', token);
         else localStorage.removeItem('token');
-        set({ user, token });
+        set((s) => ({
+          user,
+          token,
+          mustChangePassword:
+            opts && 'mustChangePassword' in opts ? !!opts.mustChangePassword : s.mustChangePassword,
+        }));
       },
+      setMustChangePassword: (value) => set({ mustChangePassword: value }),
       logout: () => {
         authApi.logout().catch(() => {});
         localStorage.removeItem('token');
-        set({ user: null, token: null });
+        set({ user: null, token: null, mustChangePassword: false });
       },
     }),
     { name: 'auth' }

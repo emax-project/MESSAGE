@@ -3,11 +3,62 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { authMiddleware, signToken } from '../auth.js';
 import { isAdminEmail } from '../lib/admin.js';
+import {
+  authenticateLdap,
+  getLdapEmailDomain,
+  isLdapEnabled,
+  isLocalExceptionEmail,
+  loginIdentifierToUid,
+  changeLdapPassword,
+} from '../lib/ldap.js';
+import { getPasswordPolicy, validatePassword } from '../lib/passwordPolicy.js';
 
 export const authRouter = Router();
 
+async function findLocalUserForLogin(identifier) {
+  const raw = String(identifier || '').trim();
+  if (!raw) return null;
+  const candidates = [];
+  const add = (email) => {
+    if (email && !candidates.includes(email)) candidates.push(email);
+  };
+  add(raw);
+  add(raw.toLowerCase());
+  if (!raw.includes('@')) {
+    const domain = getLdapEmailDomain();
+    add(`${raw}@${domain}`);
+    add(`${raw.toLowerCase()}@${domain}`);
+  }
+  for (const email of candidates) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) return user;
+  }
+  return null;
+}
+
+function loginErrorStatus(code) {
+  if (code === 'LDAP_UNAVAILABLE' || code === 'LDAP_NOT_CONFIGURED' || code === 'LDAP_ERROR') return 503;
+  if (code === 'ACCOUNT_LOCKED') return 423;
+  return 401;
+}
+
+function loginErrorMessage(code) {
+  if (code === 'ACCOUNT_LOCKED') return '로그인 시도가 많아 계정이 잠겼습니다. 잠시 후 다시 시도해 주세요.';
+  if (code === 'LDAP_UNAVAILABLE' || code === 'LDAP_NOT_CONFIGURED' || code === 'LDAP_ERROR') {
+    return 'LDAP 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.';
+  }
+  return 'Invalid email or password';
+}
+
+authRouter.get('/password-policy', (_req, res) => {
+  return res.json(getPasswordPolicy());
+});
+
 authRouter.post('/register', async (req, res) => {
   try {
+    if (isLdapEnabled()) {
+      return res.status(403).json({ error: 'REGISTER_DISABLED' });
+    }
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'email, password, name required' });
@@ -37,14 +88,37 @@ authRouter.post('/register', async (req, res) => {
 
 authRouter.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
+    const identifier = typeof req.body?.email === 'string' ? req.body.email : req.body?.username;
+    const password = req.body?.password;
+    if (!identifier || !password) {
       return res.status(400).json({ error: 'email and password required' });
     }
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    const user = await findLocalUserForLogin(identifier);
+    if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
+
+    let mustChangePassword = false;
+    const useLdap = isLdapEnabled() && !isLocalExceptionEmail(user.email);
+
+    if (useLdap) {
+      const uid = loginIdentifierToUid(user.email) || loginIdentifierToUid(identifier);
+      let result;
+      try {
+        result = await authenticateLdap(uid, password);
+      } catch (err) {
+        const code = err?.ldapCode || err?.message || 'LDAP_ERROR';
+        console.error('[auth/login] ldap', code, err?.message);
+        return res.status(loginErrorStatus(code)).json({ error: loginErrorMessage(code) });
+      }
+      if (!result.ok) {
+        return res.status(loginErrorStatus(result.reason)).json({ error: loginErrorMessage(result.reason) });
+      }
+      mustChangePassword = !!result.mustChangePassword;
+    } else if (!(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
     await prisma.userSession.deleteMany({ where: { userId: user.id } });
     const session = await prisma.userSession.create({ data: { userId: user.id } });
     const token = signToken({ userId: user.id, sessionId: session.id });
@@ -55,8 +129,10 @@ authRouter.post('/login', async (req, res) => {
         name: user.name,
         createdAt: user.createdAt,
         isAdmin: isAdminEmail(user.email),
+        mustChangePassword,
       },
       token,
+      mustChangePassword,
     });
   } catch (err) {
     console.error('[auth/login]', err);
@@ -112,19 +188,30 @@ authRouter.put('/password', authMiddleware, async (req, res) => {
     const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
 
     if (!currentPassword) return res.status(400).json({ error: 'CURRENT_PASSWORD_REQUIRED' });
-    if (newPassword.length < 4) return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
+    const policyError = validatePassword(newPassword);
+    if (policyError) return res.status(400).json({ error: policyError });
     if (currentPassword === newPassword) return res.status(400).json({ error: 'PASSWORD_UNCHANGED' });
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, password: true },
+      select: { id: true, email: true, password: true },
     });
     if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
 
-    const ok = await bcrypt.compare(currentPassword, user.password);
-    // 401이 아니라 400을 쓴다. 요청 자체는 인증된 상태이고 본문 값이 틀린 것이며,
-    // 클라이언트는 모든 401을 세션 만료로 보고 강제 로그아웃시키기 때문이다.
-    if (!ok) return res.status(400).json({ error: 'CURRENT_PASSWORD_MISMATCH' });
+    if (isLdapEnabled() && !isLocalExceptionEmail(user.email)) {
+      try {
+        await changeLdapPassword(loginIdentifierToUid(user.email), currentPassword, newPassword);
+      } catch (err) {
+        const code = err?.ldapCode || err?.message || 'LDAP_ERROR';
+        const status = err?.status || (code === 'CURRENT_PASSWORD_MISMATCH' || code === 'PASSWORD_POLICY' ? 400 : 503);
+        return res.status(status).json({ error: code });
+      }
+    } else {
+      const ok = await bcrypt.compare(currentPassword, user.password);
+      // 401이 아니라 400을 쓴다. 요청 자체는 인증된 상태이고 본문 값이 틀린 것이며,
+      // 클라이언트는 모든 401을 세션 만료로 보고 강제 로그아웃시키기 때문이다.
+      if (!ok) return res.status(400).json({ error: 'CURRENT_PASSWORD_MISMATCH' });
+    }
 
     const hashed = await bcrypt.hash(newPassword, 10);
     await prisma.$transaction([

@@ -19,7 +19,10 @@ function friendlyError(err: unknown): string {
     CANNOT_DELETE_SELF: '자기 자신은 삭제할 수 없습니다.',
     CANNOT_DELETE_ADMIN: '관리자 계정은 삭제할 수 없습니다.',
     USER_NOT_FOUND: '사용자를 찾을 수 없습니다.',
-    PASSWORD_TOO_SHORT: '비밀번호는 4자 이상이어야 합니다.',
+    PASSWORD_TOO_SHORT: '비밀번호가 너무 짧습니다. LDAP 연동 시 12자 이상이어야 합니다.',
+    PASSWORD_POLICY: '비밀번호 정책(12자, 대소문자·숫자·특수문자)을 확인해 주세요.',
+    LDAP_USER_NOT_FOUND: 'LDAP에서 해당 계정을 찾을 수 없습니다.',
+    LDAP_UNAVAILABLE: 'LDAP 서버에 연결할 수 없습니다.',
     MESSAGE_COUNT_MISMATCH: '화면을 띄운 사이 대화가 늘었습니다. 새로고침 후 다시 시도하세요.',
     'Admin only': '관리자만 사용할 수 있습니다.',
   };
@@ -137,7 +140,7 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
   const applyPasswordReset = async (user: OrgUser, raw: string) => {
     const password = raw.trim();
     if (password.length < 4) {
-      setError('비밀번호는 4자 이상이어야 합니다.');
+      setError('비밀번호가 너무 짧습니다.');
       return;
     }
     setPrompting(null);
@@ -391,9 +394,9 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
         <UIPromptModal
           isDark={isDark}
           title="비밀번호 초기화"
-          message={`'${prompting.user.name}' (${prompting.user.email})의 새 비밀번호를 입력하세요.\n4자 이상. 기존 비밀번호는 몰라도 됩니다.`}
-          defaultValue="123456"
-          placeholder="새 비밀번호 (4자 이상)"
+          message={`'${prompting.user.name}' (${prompting.user.email})의 새 비밀번호를 입력하세요.\nLDAP 연동 시 12자 이상, 대소문자·숫자·특수문자 포함. 기존 비밀번호는 몰라도 됩니다.`}
+          defaultValue=""
+          placeholder="새 비밀번호"
           confirmLabel="초기화"
           onSubmit={(v) => void applyPasswordReset(prompting.user, v)}
           onClose={() => setPrompting(null)}

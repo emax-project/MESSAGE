@@ -7,7 +7,7 @@ Electron + Node.js 기반 회사용 메신저 (맥/윈도우).
 | 용도 | 설명 |
 |------|------|
 | **DB (PostgreSQL)** | 사용자, 채팅방, 메시지 저장. 채팅 목록("목록을 불러올 수 없습니다" 오류는 DB 없으면 발생) |
-| **API 서버** | 로그인, 채팅 등 처리 |
+| **API 서버** | 로그인, 채팅 등 처리. 거래처 배포 시 Synology LDAP 인증 가능 (`packages/server/docs/ldap.md`) |
 
 ## Docker로 DB + 서버 실행
 

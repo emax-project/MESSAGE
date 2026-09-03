@@ -25,6 +25,7 @@ import { type MemoItem } from './main/components/MemoPanel';
 import RightContentRouter from './main/components/RightContentRouter';
 import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/components/AnnouncementPanel';
 import MainOverlays from './main/components/MainOverlays';
+import PasswordChangeModal from './main/components/PasswordChangeModal';
 import { cn } from '../utils/cn';
 import { companyUsers, filterDepartments, allOrgUsers } from '../utils/orgTree';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
@@ -129,6 +130,8 @@ export default function Main() {
     return () => clearTimeout(t);
   }, [token]);
   const user = useAuthStore((s) => s.user);
+  const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
+  const setMustChangePassword = useAuthStore((s) => s.setMustChangePassword);
   const myId = user?.id;
   const myEmail = user?.email;
   const logout = useAuthStore((s) => s.logout);
@@ -1165,6 +1168,15 @@ export default function Main() {
           initialRecipientIds={memoComposeRecipients}
           onClose={() => setShowMemoCompose(false)}
           onSent={handleMemoSent}
+        />
+      )}
+
+      {mustChangePassword && (
+        <PasswordChangeModal
+          isDark={isDark}
+          forced
+          onClose={() => {}}
+          onSuccess={() => setMustChangePassword(false)}
         />
       )}
 

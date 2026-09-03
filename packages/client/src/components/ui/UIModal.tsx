@@ -4,11 +4,13 @@ import UICloseButton from './UICloseButton';
 
 type Props = {
   children: React.ReactNode;
-  onClose: () => void;
+  onClose?: () => void;
   width?: number;
   title?: string;
   overlayPosition?: 'fixed' | 'absolute';
   zIndex?: number;
+  /** false면 바깥 클릭·닫기 버튼을 끈다 (초기 비밀번호 강제 변경 등) */
+  closable?: boolean;
 };
 
 export default function UIModal({
@@ -18,8 +20,10 @@ export default function UIModal({
   title,
   overlayPosition = 'fixed',
   zIndex = 10001,
+  closable = true,
 }: Props) {
   const isDark = useThemeStore((s) => s.isDark);
+  const close = closable ? onClose : undefined;
 
   return (
     <div
@@ -28,7 +32,7 @@ export default function UIModal({
         overlayPosition === 'fixed' ? 'fixed' : 'absolute',
       )}
       style={{ zIndex }}
-      onClick={onClose}
+      onClick={close}
     >
       <div
         className={cn(
@@ -55,7 +59,7 @@ export default function UIModal({
             >
               {title}
             </h3>
-            <UICloseButton onClick={onClose} />
+            {close && <UICloseButton onClick={close} />}
           </div>
         )}
         <div className="min-h-0 overflow-auto p-5">{children}</div>
