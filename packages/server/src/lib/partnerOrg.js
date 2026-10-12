@@ -158,6 +158,86 @@ async function fetchEmployeesFromMssql(pool, asOf = yyyymmdd()) {
 }
 
 /**
+ * TPA코리아 등 EPS ERP 계열 스키마 (HRA100/HRA150/HRA200).
+ * CSIN의 DEPT_TREE_V/HR_EMPLOYEE_* 와는 완전히 다른 테이블 구조라 별도 경로로 둔다.
+ *   - HRA200: 부서 마스터 (dept_cd, dept_nm, up_dept, bs_cd)
+ *   - HRA100: 직원 마스터 (emp_no, emp_nm, dept_cd, retr_dt == NULL 이면 재직)
+ *   - HRA150: 직원 개인정보 (emp_no, email) — 실제론 대부분 비어있어서 이메일이 없으면
+ *     emp_no 기반으로 로그인용 가상 이메일을 만들어 쓴다 (PARTNER_SYNTHETIC_EMAIL_DOMAIN).
+ * 사업장(bs_cd)으로 회사를 구분하므로 PARTNER_TPA_BS_CD로 어느 사업장 데이터를 쓸지 지정한다.
+ */
+const SYNTHETIC_EMAIL_DOMAIN = (process.env.PARTNER_SYNTHETIC_EMAIL_DOMAIN || 'tpakorea.local').trim();
+
+async function fetchDepartmentsFromTpaEps(pool, bsCd) {
+  const req = pool.request();
+  req.input('bsCd', sql.VarChar(20), bsCd);
+  const result = await req.query(`
+    SELECT dept_cd AS deptCode, dept_nm AS deptName, up_dept AS upDept, bs_cd AS businessCode
+    FROM HRA200
+    WHERE bs_cd = @bsCd
+  `);
+  const rows = (result.recordset || []).map((r) => ({
+    deptCode: String(r.deptCode || '').trim(),
+    deptName: String(r.deptName || '').trim() || String(r.deptCode || '').trim(),
+    upDept: r.upDept == null || String(r.upDept).trim() === '' ? null : String(r.upDept).trim(),
+    businessCode: r.businessCode == null ? null : String(r.businessCode).trim(),
+  })).filter((d) => d.deptCode);
+
+  // HRA200엔 레벨(깊이) 컬럼이 없어서 up_dept 체인을 따라가며 직접 계산한다.
+  const byCode = new Map(rows.map((d) => [d.deptCode, d]));
+  const levelCache = new Map();
+  function levelOf(code, seen = new Set()) {
+    if (levelCache.has(code)) return levelCache.get(code);
+    const d = byCode.get(code);
+    if (!d || !d.upDept || d.upDept === code || seen.has(code)) {
+      levelCache.set(code, 1);
+      return 1;
+    }
+    seen.add(code);
+    const lv = levelOf(d.upDept, seen) + 1;
+    levelCache.set(code, lv);
+    return lv;
+  }
+  return rows.map((d) => ({ ...d, level: levelOf(d.deptCode) }));
+}
+
+async function fetchEmployeesFromTpaEps(pool, bsCd) {
+  const req = pool.request();
+  req.input('bsCd', sql.VarChar(20), bsCd);
+  const result = await req.query(`
+    SELECT
+      a.emp_no    AS empNo,
+      a.emp_nm    AS name,
+      a.dept_cd   AS deptCode,
+      a.duty_bc   AS dutyCode,
+      a.rank_bc   AS rankCode,
+      b.email     AS email,
+      b.mobile    AS phone
+    FROM HRA100 a
+    LEFT JOIN HRA150 b ON b.emp_no = a.emp_no
+    WHERE a.retr_dt IS NULL
+      AND a.bs_cd = @bsCd
+  `);
+  return (result.recordset || []).map((r) => {
+    const empNo = String(r.empNo || '').trim();
+    const rawEmail = r.email == null ? '' : String(r.email).trim();
+    const email = rawEmail ? rawEmail.toLowerCase() : (empNo ? `${empNo}@${SYNTHETIC_EMAIL_DOMAIN}`.toLowerCase() : null);
+    return {
+      masterId: empNo,
+      empNo: empNo || null,
+      name: String(r.name || '').trim() || empNo,
+      email,
+      phone: r.phone == null || String(r.phone).trim() === '' ? null : String(r.phone).trim(),
+      deptCode: r.deptCode == null || String(r.deptCode).trim() === '' ? null : String(r.deptCode).trim(),
+      positionCode: null,
+      dutyCode: r.dutyCode == null || String(r.dutyCode).trim() === '' ? null : String(r.dutyCode).trim(),
+      rankCode: r.rankCode == null || String(r.rankCode).trim() === '' ? null : String(r.rankCode).trim(),
+      jobTitle: null,
+    };
+  }).filter((e) => e.empNo);
+}
+
+/**
  * @returns {Promise<{ departments: PartnerDept[], employees: PartnerEmployee[], source: string }>}
  */
 export async function fetchPartnerOrg() {
@@ -169,7 +249,19 @@ export async function fetchPartnerOrg() {
     return getMockPartnerOrg();
   }
 
+  const schema = (process.env.PARTNER_MSSQL_SCHEMA || 'csin').trim().toLowerCase();
   const pool = await getPartnerPool();
+
+  if (schema === 'tpa_eps') {
+    const bsCd = (process.env.PARTNER_TPA_BS_CD || '').trim();
+    if (!bsCd) throw new Error('PARTNER_TPA_BS_CD required for PARTNER_MSSQL_SCHEMA=tpa_eps');
+    const [departments, employees] = await Promise.all([
+      fetchDepartmentsFromTpaEps(pool, bsCd),
+      fetchEmployeesFromTpaEps(pool, bsCd),
+    ]);
+    return { departments, employees, source: 'mssql' };
+  }
+
   const [departments, employees, titleMap] = await Promise.all([
     fetchDepartmentsFromMssql(pool),
     fetchEmployeesFromMssql(pool),
