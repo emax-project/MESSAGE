@@ -142,10 +142,10 @@ app.get('/api-info', (_, res) => {
   res.type('html').send(`
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>CSIN-Tech API</title></head>
+<head><meta charset="utf-8"><title>TPA-Korea API</title></head>
 <body style="font-family:sans-serif;max-width:560px;margin:2rem auto;padding:0 1rem;">
-  <h1>CSIN-Tech 메신저 API</h1>
-  <p>이 주소는 <strong>API 서버</strong>입니다. 채팅·로그인은 <strong>CSIN-Tech 데스크톱 앱</strong> 또는 브라우저에서 <a href="/">/</a> 로 접속해 주세요.</p>
+  <h1>TPA-Korea 메신저 API</h1>
+  <p>이 주소는 <strong>API 서버</strong>입니다. 채팅·로그인은 <strong>TPA-Korea 데스크톱 앱</strong> 또는 브라우저에서 <a href="/">/</a> 로 접속해 주세요.</p>
   <p><a href="/health">/health</a> — 서버 상태 확인</p>
 </body>
 </html>
@@ -183,10 +183,10 @@ if (fs.existsSync(clientIndexPath)) {
     res.type('html').send(`
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>CSIN-Tech</title></head>
+<head><meta charset="utf-8"><title>TPA-Korea</title></head>
 <body style="font-family:sans-serif;max-width:560px;margin:2rem auto;padding:0 1rem;">
-  <h1>CSIN-Tech 메신저 API</h1>
-  <p>이 주소는 <strong>API 서버</strong>입니다. 채팅·로그인은 <strong>CSIN-Tech 데스크톱 앱</strong>으로 접속해 주세요.</p>
+  <h1>TPA-Korea 메신저 API</h1>
+  <p>이 주소는 <strong>API 서버</strong>입니다. 채팅·로그인은 <strong>TPA-Korea 데스크톱 앱</strong>으로 접속해 주세요.</p>
   <p><a href="/health">/health</a> — 서버 상태 확인</p>
 </body>
 </html>

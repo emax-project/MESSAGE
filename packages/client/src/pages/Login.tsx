@@ -117,7 +117,7 @@ export default function Login() {
       {isElectron && isMac && <MacInsetChromeTools {...chromeTools} />}
       {isElectron && !isMac && (
         <TitleBar
-          title="CSIN-Tech"
+          title="TPA-Korea"
           showLogo
           showMaximize={false}
           {...chromeTools}

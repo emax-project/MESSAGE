@@ -74,16 +74,16 @@ export function useUpdateManager({ hasElectron, electronPlatform, activePanel, s
   };
 
   const handleOpenReleasesPage = () => {
-    // CSIN-Tech 빌드는 CSINTECH_MESSENGER 저장소에 릴리즈된다 (공개 MESSAGE 저장소가
+    // TPA-Korea 빌드는 TPAKOREA_MESSENGER 저장소에 릴리즈된다 (공개 MESSAGE 저장소가
     // 아님 — 거기엔 이 설치파일이 없어 페이지가 비어 보임).
-    window.electronAPI?.openExternal?.('https://github.com/emax-project/CSINTECH_MESSENGER/releases/latest');
+    window.electronAPI?.openExternal?.('https://github.com/emax-project/TPAKOREA_MESSENGER/releases/latest');
   };
 
   const handleQuitAndInstall = async () => {
     if (!hasElectron || !window.electronAPI?.quitAndInstall) return;
     if (requiresManualInstall) {
       await handleOpenUpdateDownload();
-      showToast?.('DMG를 다운로드한 뒤 Applications 폴더에 CSIN-Tech를 다시 설치해 주세요.', 'info');
+      showToast?.('DMG를 다운로드한 뒤 Applications 폴더에 TPA-Korea를 다시 설치해 주세요.', 'info');
       return;
     }
     const result = await window.electronAPI.quitAndInstall();

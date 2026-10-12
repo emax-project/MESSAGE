@@ -38,7 +38,7 @@ export function EmaxLogo({
     <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', ...style }}>
       <img
         src={LOGO_SRC}
-        alt="CSIN-Tech"
+        alt="TPA-Korea"
         width={px}
         height={px}
         style={{ objectFit: 'contain', display: 'block' }}

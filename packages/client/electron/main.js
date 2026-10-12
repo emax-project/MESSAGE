@@ -314,22 +314,22 @@ let mainWindow = null;
 let isQuitting = false;
 let updateDownloadedPending = false;
 let pendingUpdateVersion = null;
-// CSIN-Tech 빌드는 CSINTECH_MESSENGER 저장소에 릴리즈된다 (build.publish와 동일한 저장소 —
+// TPA-Korea 빌드는 TPAKOREA_MESSENGER 저장소에 릴리즈된다 (build.publish와 동일한 저장소 —
 // 공개 MESSAGE 저장소를 가리키면 설치파일이 없어 404가 난다. 과거 자동 업데이트 피드 자체는
 // 고쳤지만, 이 수동 다운로드 링크는 그때 같이 안 고쳐져 있었음).
-const RELEASE_DOWNLOAD_BASE = 'https://github.com/emax-project/CSINTECH_MESSENGER/releases/download';
+const RELEASE_DOWNLOAD_BASE = 'https://github.com/emax-project/TPAKOREA_MESSENGER/releases/download';
 
 function getReleaseDownloadUrl(version) {
   const v = String(version || '').replace(/^v/, '');
-  if (!v) return 'https://github.com/emax-project/CSINTECH_MESSENGER/releases/latest';
+  if (!v) return 'https://github.com/emax-project/TPAKOREA_MESSENGER/releases/latest';
   if (process.platform === 'darwin') {
     const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
-    return `${RELEASE_DOWNLOAD_BASE}/v${v}/CSIN-Tech-${v}-${arch}.dmg`;
+    return `${RELEASE_DOWNLOAD_BASE}/v${v}/TPA-Korea-${v}-${arch}.dmg`;
   }
   if (process.platform === 'win32') {
-    return `${RELEASE_DOWNLOAD_BASE}/v${v}/CSIN-Tech-Setup-${v}.exe`;
+    return `${RELEASE_DOWNLOAD_BASE}/v${v}/TPA-Korea-Setup-${v}.exe`;
   }
-  return `https://github.com/emax-project/CSINTECH_MESSENGER/releases/tag/v${v}`;
+  return `https://github.com/emax-project/TPAKOREA_MESSENGER/releases/tag/v${v}`;
 }
 
 // 창별 show 핸들러 (Map으로 관리, win 객체에 프로퍼티 직접 부착보다 안전)
@@ -556,7 +556,7 @@ function createTray() {
   const size = process.platform === 'darwin' ? 22 : 16;
   const trayIcon = img.isEmpty() ? null : img.resize({ width: size, height: size });
   tray = new Tray(trayIcon && !trayIcon.isEmpty() ? trayIcon : iconPath);
-  tray.setToolTip('CSIN-Tech');
+  tray.setToolTip('TPA-Korea');
   const menu = Menu.buildFromTemplate([
     {
       label: '로그아웃',
@@ -744,7 +744,7 @@ ipcMain.on('emax-get-initial-route', (event) => {
 });
 
 ipcMain.handle('show-notification', (_, { title, body, roomId, icon, imagePreview }) => {
-  showCustomNotification(title || 'CSIN-Tech', body || '', { roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null });
+  showCustomNotification(title || 'TPA-Korea', body || '', { roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null });
 });
 
 // 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 안 읽은 개수를 그대로 표시
@@ -919,7 +919,7 @@ function setupAutoUpdate() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('update-available', () => {
-    showCustomNotification('CSIN-Tech 업데이트', '새 버전을 다운로드 중입니다. 완료 후 앱을 재시작하면 적용됩니다.', { persistent: true, progress: 0 });
+    showCustomNotification('TPA-Korea 업데이트', '새 버전을 다운로드 중입니다. 완료 후 앱을 재시작하면 적용됩니다.', { persistent: true, progress: 0 });
   });
   autoUpdater.on('download-progress', (progress) => {
     updateNotificationProgress(progress.percent);
@@ -929,7 +929,7 @@ function setupAutoUpdate() {
     updateDownloadedPending = true;
     const isMac = process.platform === 'darwin';
     showCustomNotification(
-      'CSIN-Tech 업데이트 준비됨',
+      'TPA-Korea 업데이트 준비됨',
       isMac
         ? '설정에서 DMG를 다운로드해 Applications에 다시 설치해 주세요.'
         : '3초 후 앱이 자동으로 재시작됩니다.',
@@ -974,7 +974,7 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   if (process.platform === 'win32') {
-    app.setAppUserModelId('com.csintech.message');
+    app.setAppUserModelId('com.tpakorea.message');
   }
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(iconPath);
@@ -1012,11 +1012,11 @@ app.whenReady().then(() => {
                   const v = r?.updateInfo?.version;
                   const current = app.getVersion();
                   const body = v ? (v === current ? '이미 최신 버전입니다.' : `새 버전 ${v}이(가) 있습니다. 다운로드 후 앱을 재시작하면 적용됩니다.`) : '업데이트 정보를 확인했습니다.';
-                  showCustomNotification('CSIN-Tech', body);
+                  showCustomNotification('TPA-Korea', body);
                 })
                 .catch((e) => {
                   console.error('Update check failed:', e);
-                  showCustomNotification('CSIN-Tech', '업데이트 확인에 실패했습니다. 네트워크를 확인하거나 나중에 다시 시도해 주세요.');
+                  showCustomNotification('TPA-Korea', '업데이트 확인에 실패했습니다. 네트워크를 확인하거나 나중에 다시 시도해 주세요.');
                 });
             }
           },

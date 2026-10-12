@@ -68,8 +68,8 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.csintech.message",
-    "productName": "CSIN-Tech",
+    "appId": "com.tpakorea.message",
+    "productName": "TPA-Korea",
     "electronVersion": "33.2.0",
     "directories": {
       "output": "release"
@@ -99,7 +99,7 @@
         "nsis"
       ],
       "icon": "build/icons/icon.ico",
-      "artifactName": "CSIN-Tech-Setup-${version}.${ext}"
+      "artifactName": "TPA-Korea-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
