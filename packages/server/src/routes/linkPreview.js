@@ -92,7 +92,7 @@ export function linkPreviewRouter() {
       const timeout = setTimeout(() => controller.abort(), LINK_PREVIEW_TIMEOUT_MS);
       const response = await fetch(url, {
         signal: controller.signal,
-        headers: { 'User-Agent': 'EMAX-LinkPreview/1.0 (com.emax.message)' },
+        headers: { 'User-Agent': 'EMAX-Hub-LinkPreview/1.0 (com.emax.message)' },
         redirect: 'follow',
       });
       clearTimeout(timeout);

@@ -477,7 +477,7 @@ export default function Main() {
   }, []);
   const handleTestNotification = useCallback(() => {
     playNotificationSound(true);
-    window.electronAPI?.showNotification('EMAX', '알림 테스트입니다.');
+    window.electronAPI?.showNotification('EMAX-Hub', '알림 테스트입니다.');
   }, []);
   const handleLogout = useCallback(() => {
     queryClient.removeQueries({ queryKey: ['rooms'] });
@@ -733,7 +733,7 @@ export default function Main() {
 
   return (
     <div className={cn('relative flex flex-col h-full min-h-0 w-full min-w-0', isDark ? 'bg-slate-900' : 'bg-white')}>
-      {hasElectron && isWinElectron() && <TitleBar title="EMAX" isDark={isDark} />}
+      {hasElectron && isWinElectron() && <TitleBar title="EMAX-Hub" isDark={isDark} />}
       <div className="flex flex-1 flex-row min-h-0 min-w-0">
         <LeftSidebar
           isDark={isDark}

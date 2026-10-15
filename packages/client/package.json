@@ -68,7 +68,7 @@
   },
   "build": {
     "appId": "com.emax.message",
-    "productName": "EMAX",
+    "productName": "EMAX-Hub",
     "electronVersion": "33.2.0",
     "directories": {
       "output": "release"
@@ -98,7 +98,7 @@
         "nsis"
       ],
       "icon": "build/icons/icon.ico",
-      "artifactName": "EMAX-Setup-${version}.${ext}"
+      "artifactName": "EMAX-Hub-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
