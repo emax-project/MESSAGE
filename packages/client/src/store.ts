@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { authApi, type User } from './api';
-import { getStoredToken, removeStoredToken, setStoredToken } from './utils/authSession';
+import { authApi, getBaseUrl, type User } from './api';
+import { getStoredToken, removeStoredToken, setStoredToken, setTrustedBaseUrl } from './utils/authSession';
 
 type AuthState = {
   user: User | null;
@@ -16,8 +16,12 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       setAuth: (user, token) => {
-        if (token) setStoredToken(token);
-        else removeStoredToken();
+        if (token) {
+          setStoredToken(token);
+          setTrustedBaseUrl(getBaseUrl());
+        } else {
+          removeStoredToken();
+        }
         set({ user, token });
       },
       logout: () => {
