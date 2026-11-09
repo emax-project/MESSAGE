@@ -34,6 +34,12 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  PASSWORD_TOO_SHORT: '비밀번호는 4자 이상이어야 합니다.',
+  ADMIN_REGISTER_DISABLED: '관리자 계정은 회원가입으로 만들 수 없습니다. 서버 운영자에게 문의해 주세요.',
+  ACCOUNT_LOCKED: '로그인 시도가 너무 많아 계정이 잠겼습니다. 15분 후 다시 시도해 주세요.',
+};
+
 export default function Login() {
   const remembered = loadRememberedEmail();
   const [email, setEmail] = useState(remembered.email);
@@ -75,7 +81,7 @@ export default function Login() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       const isNetwork = /fetch|network|connection|refused/i.test(msg) || msg === '';
-      setError(isNetwork ? '서버에 연결할 수 없습니다. 아래에서 서버 주소를 확인·수정 후 다시 시도해 주세요.' : msg || '로그인 실패');
+      setError(isNetwork ? '서버에 연결할 수 없습니다. 아래에서 서버 주소를 확인·수정 후 다시 시도해 주세요.' : AUTH_ERROR_MESSAGES[msg] || msg || '로그인 실패');
     } finally {
       setLoading(false);
     }

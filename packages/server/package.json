@@ -10,6 +10,7 @@
     "lint": "eslint \"src/**/*.js\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test",
+    "admin:create": "node scripts/create-admin.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",

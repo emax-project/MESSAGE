@@ -19,6 +19,12 @@ import { getStoredBaseUrl } from '../storage';
 type RootStackParamList = { Login: undefined; Register: undefined };
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  PASSWORD_TOO_SHORT: '비밀번호는 4자 이상이어야 합니다.',
+  ADMIN_REGISTER_DISABLED: '관리자 계정은 회원가입으로 만들 수 없습니다. 서버 운영자에게 문의해 주세요.',
+  ACCOUNT_LOCKED: '로그인 시도가 너무 많아 계정이 잠겼습니다. 15분 후 다시 시도해 주세요.',
+};
+
 export default function RegisterScreen() {
   const navigation = useNavigation<NavProp>();
   const [serverUrl, setServerUrl] = useState('');
@@ -52,7 +58,7 @@ export default function RegisterScreen() {
       const { user, token } = await authApi.register(email, password, name);
       setAuth(user, token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '회원가입 실패');
+      setError(err instanceof Error ? AUTH_ERROR_MESSAGES[err.message] || err.message : '회원가입 실패');
     } finally {
       setLoading(false);
     }

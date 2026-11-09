@@ -59,7 +59,7 @@ export default function LoginScreen() {
       setError(
         isNetwork
           ? '서버에 연결할 수 없습니다. 서버 주소를 확인해 주세요. (https:// 필요)'
-          : msg || '로그인 실패'
+          : ({ ACCOUNT_LOCKED: '로그인 시도가 너무 많아 계정이 잠겼습니다. 15분 후 다시 시도해 주세요.' } as Record<string, string>)[msg] || msg || '로그인 실패'
       );
     } finally {
       setLoading(false);
