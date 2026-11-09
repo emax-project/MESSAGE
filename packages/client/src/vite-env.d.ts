@@ -27,6 +27,7 @@ interface Window {
     windowMinimize: () => Promise<void>;
     windowMaximize: () => Promise<void>;
     windowResize: (width: number, height: number) => Promise<void>;
+    restartAfterCrash?: () => Promise<void>;
     clearAppCache?: () => Promise<void>;
     readTokenSync?: () => string | null;
     writeToken?: (token: string) => Promise<boolean>;
