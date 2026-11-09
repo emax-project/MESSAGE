@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore, useThemeStore } from '../store';
 import { roomsApi } from '../api';
 import KanbanBoard from '../components/KanbanBoard';
+import { getStoredToken } from '../utils/authSession';
 
 function PageLoading({ isDark }: { isDark: boolean }) {
   return (
@@ -17,7 +18,7 @@ export default function KanbanPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const storeToken = useAuthStore((s) => s.token);
-  const token = storeToken ?? localStorage.getItem('token');
+  const token = storeToken ?? getStoredToken();
   const isDark = useThemeStore((s) => s.isDark);
 
   useEffect(() => {

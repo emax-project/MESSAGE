@@ -1,3 +1,4 @@
+import { getStoredToken, removeStoredToken } from './utils/authSession';
 // 빈 문자열이면 같은 origin 사용(배포 시 같은 서버에서 API·웹 서빙), 없으면 로컬 개발용
 const DEFAULT_BASE =
   import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'http://203.254.98.92:3001');
@@ -29,7 +30,7 @@ export function setBaseUrl(url: string): void {
 }
 
 function getToken(): string | null {
-  return localStorage.getItem('token');
+  return getStoredToken();
 }
 
 function headers(): HeadersInit {
@@ -78,7 +79,7 @@ function handleForcedLogout(path: string, status: number, serverMessage?: string
   const msg = serverMessage || '다른 기기에서 로그인되어 로그아웃되었습니다.';
   try {
     localStorage.setItem('forcedLogoutMessage', msg);
-    localStorage.removeItem('token');
+    removeStoredToken();
     if (typeof window !== 'undefined') {
       const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/register';
       if (!isLoginPage) navigateToLogin();

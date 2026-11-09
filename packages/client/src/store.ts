@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authApi, type User } from './api';
+import { getStoredToken, removeStoredToken, setStoredToken } from './utils/authSession';
 
 type AuthState = {
   user: User | null;
@@ -15,17 +16,28 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       setAuth: (user, token) => {
-        if (token) localStorage.setItem('token', token);
-        else localStorage.removeItem('token');
+        if (token) setStoredToken(token);
+        else removeStoredToken();
         set({ user, token });
       },
       logout: () => {
         authApi.logout().catch(() => {});
-        localStorage.removeItem('token');
+        removeStoredToken();
         set({ user: null, token: null });
       },
     }),
-    { name: 'auth' }
+    {
+      name: 'auth',
+      // token은 암호화 저장소(authSession)가 단일 소스 — persist(localStorage 'auth')에
+      // 평문으로 남지 않도록 저장 대상에서 제외하고, 복원 시 거기서 다시 읽는다.
+      partialize: (state) => ({ user: state.user }),
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<AuthState> | undefined;
+        const token = getStoredToken();
+        if (!token) return { ...current, user: null, token: null };
+        return { ...current, ...saved, token };
+      },
+    }
   )
 );
 

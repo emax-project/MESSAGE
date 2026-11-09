@@ -4,6 +4,7 @@ import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { filesApi, getBaseUrl, getSocketUrl, navigateToLogin, type Message, type Room } from '../../../api';
 import { playNotificationSound } from '../../../utils/notificationSound';
+import { removeStoredToken } from '../../../utils/authSession';
 import {
   detectClientDevice,
   mergePresence,
@@ -58,7 +59,7 @@ export function useMainSocket({
       if (err?.message?.includes('invalid token')) {
         try {
           localStorage.setItem('forcedLogoutMessage', '다른 기기에서 로그인되어 로그아웃되었습니다.');
-          localStorage.removeItem('token');
+          removeStoredToken();
           if (typeof window !== 'undefined') navigateToLogin();
         } catch {
           // ignore

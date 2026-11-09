@@ -12,6 +12,7 @@ import {
   type Room,
 } from '../../../api';
 import { playNotificationSound } from '../../../utils/notificationSound';
+import { removeStoredToken } from '../../../utils/authSession';
 
 type MessagesPage = { messages: Message[]; nextCursor: string | null; hasMore: boolean };
 
@@ -57,7 +58,7 @@ export function useChatSocket({
       if (err?.message?.includes('invalid token')) {
         try {
           localStorage.setItem('forcedLogoutMessage', '다른 기기에서 로그인되어 로그아웃되었습니다.');
-          localStorage.removeItem('token');
+          removeStoredToken();
           if (typeof window !== 'undefined') navigateToLogin();
         } catch {
           // ignore

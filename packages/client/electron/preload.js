@@ -36,6 +36,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),
   windowMaximize: () => ipcRenderer.invoke('window-maximize'),
   windowResize: (width, height) => ipcRenderer.invoke('window-resize', width, height),
+  readTokenSync: () => {
+    try {
+      return ipcRenderer.sendSync('token-read-sync');
+    } catch {
+      return null;
+    }
+  },
+  writeToken: (token) => ipcRenderer.invoke('token-write', token),
+  clearToken: () => ipcRenderer.invoke('token-clear'),
   onLogout: (handler) => {
     const listener = () => handler();
     ipcRenderer.on('tray-logout', listener);

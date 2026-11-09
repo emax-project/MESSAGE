@@ -27,6 +27,9 @@ interface Window {
     windowMinimize: () => Promise<void>;
     windowMaximize: () => Promise<void>;
     windowResize: (width: number, height: number) => Promise<void>;
+    readTokenSync?: () => string | null;
+    writeToken?: (token: string) => Promise<boolean>;
+    clearToken?: () => Promise<boolean>;
     onLogout: (handler: () => void) => () => void;
     onNavigateToRoom: (handler: (roomId: string) => void) => () => void;
     getAppVersion: () => Promise<string>;

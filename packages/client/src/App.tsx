@@ -7,6 +7,7 @@ import MacTitleBarInset from './components/MacTitleBarInset';
 import ElectronSecondaryShell from './components/ElectronSecondaryShell';
 import { cn } from './utils/cn';
 import { isMacElectron } from './utils/electronChrome';
+import { getStoredToken } from './utils/authSession';
 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
@@ -94,7 +95,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     return useAuthStore.persist.onFinishHydration(() => setAuthReady(true));
   }, []);
 
-  const token = storeToken ?? localStorage.getItem('token');
+  const token = storeToken ?? getStoredToken();
 
   if (!authReady && !token) {
     return (
