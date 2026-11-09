@@ -269,6 +269,7 @@ usersRouter.get('/:id/avatar', async (req, res) => {
     });
     if (!user?.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
     const filePath = path.resolve(UPLOAD_DIR, user.avatarUrl);
+    res.set('Cache-Control', 'public, max-age=86400');
     return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
       if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
     });

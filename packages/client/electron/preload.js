@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),
   windowMaximize: () => ipcRenderer.invoke('window-maximize'),
   windowResize: (width, height) => ipcRenderer.invoke('window-resize', width, height),
+  clearAppCache: () => ipcRenderer.invoke('clear-app-cache'),
   readTokenSync: () => {
     try {
       return ipcRenderer.sendSync('token-read-sync');

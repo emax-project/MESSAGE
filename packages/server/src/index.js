@@ -59,6 +59,14 @@ httpServer.headersTimeout = 35000;  // requestTimeout보다 약간 크게
 app.use(cors({ origin: true }));
 app.use(express.json());
 
+// 기본적으로 모든 응답은 디스크·브라우저 캐시에 남기지 않음(대화·쪽지·조직도 등 민감정보 보호).
+// 캐싱이 필요한 공개 이미지(아바타, 링크 미리보기)는 각 라우트가 Cache-Control을 명시적으로 덮어쓴다.
+// (res.sendFile은 이미 Cache-Control이 설정돼 있으면 maxAge 옵션을 적용하지 않는다.)
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 // Public avatar endpoints (no auth required, used by <img> / <Image> tags)
 app.get('/users/:id/avatar', async (req, res) => {
   try {
@@ -68,6 +76,7 @@ app.get('/users/:id/avatar', async (req, res) => {
     });
     if (!user?.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
     const filePath = path.resolve(UPLOAD_DIR, user.avatarUrl);
+    res.set('Cache-Control', 'public, max-age=86400');
     return res.sendFile(filePath, { maxAge: 86400 }, (err) => {
       if (err && !res.headersSent) res.status(404).json({ error: 'Avatar not found' });
     });
