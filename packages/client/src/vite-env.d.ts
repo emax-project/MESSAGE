@@ -51,6 +51,6 @@ interface Window {
     openUpdateDownload: (version?: string | null) => Promise<void>;
     onUpdateDownloaded: (handler: () => void) => () => void;
     fetchUserAvatar: (userId: string) => Promise<string | null>;
-    fetchRoomAvatar?: (roomId: string, baseUrl: string, token: string) => Promise<string | null>;
+    fetchRoomAvatar?: (roomId: string) => Promise<string | null>;
   };
 }
