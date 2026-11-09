@@ -119,7 +119,10 @@ app.get('/health/db', async (_, res) => {
     await prisma.$queryRaw`SELECT 1`;
     return res.json({ ok: true, db: 'connected' });
   } catch (e) {
-    return res.status(503).json({ ok: false, db: 'disconnected', error: e?.message });
+    // 인증 없이 열려 있는 엔드포인트라 드라이버 원본 에러(내부 DB 진단 정보)는
+    // 서버 로그에만 남기고, 응답에는 상태만 내려준다.
+    console.error('[health/db]', e);
+    return res.status(503).json({ ok: false, db: 'disconnected' });
   }
 });
 
