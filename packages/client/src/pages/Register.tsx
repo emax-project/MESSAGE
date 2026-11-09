@@ -23,7 +23,6 @@ function EyeIcon({ open }: { open: boolean }) {
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   PASSWORD_TOO_SHORT: '비밀번호는 4자 이상이어야 합니다.',
-  ADMIN_REGISTER_DISABLED: '관리자 계정은 회원가입으로 만들 수 없습니다. 서버 운영자에게 문의해 주세요.',
   ACCOUNT_LOCKED: '로그인 시도가 너무 많아 계정이 잠겼습니다. 15분 후 다시 시도해 주세요.',
 };
 
