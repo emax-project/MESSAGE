@@ -50,8 +50,8 @@
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.27",
     "concurrently": "^9.0.1",
-    "electron": "33.2.0",
-    "electron-builder": "^25.1.8",
+    "electron": "44.10.2",
+    "electron-builder": "^26.18.0",
     "eslint": "^8.56.0",
     "eslint-plugin-react": "^7.36.1",
     "eslint-plugin-react-hooks": "^4.6.2",
@@ -59,7 +59,7 @@
     "png-to-ico": "^3.0.1",
     "png2icons": "^2.0.1",
     "postcss": "^8.5.8",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.6.3",
     "vite": "^6.4.5",
@@ -69,7 +69,6 @@
   "build": {
     "appId": "com.emax.message",
     "productName": "EMAX-Hub",
-    "electronVersion": "33.2.0",
     "directories": {
       "output": "release"
     },
