@@ -36,3 +36,7 @@ packages/server/prisma/*.db-journal
 
 # DB 덤프 (데이터 포함, 저장소에 올리지 않음)
 scripts/dump_*.sql
+
+# Firebase/Google 서비스 키 (저장소에 올리지 않음)
+google-services.json
+GoogleService-Info.plist
