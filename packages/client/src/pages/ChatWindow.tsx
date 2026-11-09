@@ -325,21 +325,32 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
     if (pendingFiles.length > 0) {
       if (!roomId) return;
       setFileUploading(true);
+      // 파일별로 독립적으로 시도 — 하나가 실패해도 나머지는 계속 전송한다
+      const failed: File[] = [];
+      let contentSent = false;
       try {
         for (let i = 0; i < pendingFiles.length; i++) {
-          const content = (i === 0 && text) ? text : undefined;
-          await filesApi.upload(roomId, pendingFiles[i], (pct) => {
-            setFileUploadProgress(((i / pendingFiles.length) + (pct / 100 / pendingFiles.length)) * 100);
-          }, content);
+          const content = (!contentSent && text) ? text : undefined;
+          try {
+            await filesApi.upload(roomId, pendingFiles[i], (pct) => {
+              setFileUploadProgress(((i / pendingFiles.length) + (pct / 100 / pendingFiles.length)) * 100);
+            }, content);
+            if (content) contentSent = true;
+          } catch (err) {
+            console.error('[sendMessage] 파일 전송 실패:', pendingFiles[i].name, err);
+            failed.push(pendingFiles[i]);
+          }
         }
-      } catch (err) {
-        console.error('Upload failed:', err);
       } finally {
         setFileUploading(false);
         setFileUploadProgress(0);
       }
-      setPendingFiles([]);
-      setInput('');
+      // 실패한 파일만 입력창에 남겨서 다시 보내기로 재시도할 수 있게 한다
+      setPendingFiles(failed);
+      if (failed.length > 0) {
+        showToast(`${failed.map((f) => f.name).join(', ')} 전송 실패 — 다시 보내기를 눌러 재시도해 주세요`, 'error');
+      }
+      if (contentSent) setInput('');
       setReplyTo(null);
       // 방 목록만 갱신 — ['rooms'] 전체 invalidate 시 messages 캐시가 리페치되며 소켓 prepend가 덮어써질 수 있음
       if (myId) queryClient.invalidateQueries({ queryKey: ['rooms', myId], exact: true });
@@ -1136,11 +1147,11 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               className={cn(
                 'py-2.5 px-5 rounded-full font-bold text-sm cursor-pointer whitespace-nowrap transition-colors',
                 isCompactHeader && 'px-3.5 py-2',
-                !input.trim() || !socket || fileUploading
+                (!input.trim() && pendingFiles.length === 0) || !socket || fileUploading
                   ? (isDark ? 'bg-slate-700 text-slate-400 opacity-90' : 'bg-slate-300 text-white opacity-90')
                   : 'bg-brand-dark text-white',
               )}
-              disabled={!input.trim() || !socket || fileUploading}
+              disabled={(!input.trim() && pendingFiles.length === 0) || !socket || fileUploading}
             >
               {editingMsg ? '수정' : '전송'}
             </button>

@@ -72,6 +72,12 @@ export function useChatSocket({
 
     s.on('connect', () => s.emit('join_room', roomId));
 
+    // 팝업 대화창은 자체 연결이라, 끊겼다 복구된 뒤 놓친 메시지를 직접 다시 불러와야 한다.
+    const handleReconnect = () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    };
+    s.io.on('reconnect', handleReconnect);
+
     s.on('message', (msg: Message) => {
       if (msg.roomId !== roomId) return;
       const withDefaults = { ...msg, readCount: msg.readCount ?? 0, reactions: msg.reactions ?? [], poll: msg.poll ?? null };
@@ -281,6 +287,7 @@ export function useChatSocket({
 
     return () => {
       s.removeAllListeners();
+      s.io.off('reconnect', handleReconnect);
       s.disconnect();
       socketRef.current = null;
       setSocket(null);
